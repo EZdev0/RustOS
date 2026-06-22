@@ -1,0 +1,192 @@
+name: 🦀 RustOS Master Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # ══════════════════════════════════════════════════════════════
+  # BUILD JOB: Compile Kernel & Generate Image
+  # ══════════════════════════════════════════════════════════════
+  build:
+    name: Build RustOS (Limbo & QEMU)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust Nightly Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rust-src, llvm-tools-preview
+
+      - name: 📦 Cache Cargo Registry & Build
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-rustos-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: 🛠️ Compile RustOS (Bootloader v0.11)
+        run: |
+          echo "════════════════════════════════════════"
+          echo "🚀 STARTING BARE-METAL COMPILATION..."
+          echo "════════════════════════════════════════"
+          # Wir nutzen builder, welches den Kernel baut und das Image linkt
+          cargo run --bin builder
+          
+      - name: 📦 Upload OS Disk Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RustOS-Limbo-Image
+          path: target/my_rust_os_desktop.img
+          retention-days: 14
+
+  # ══════════════════════════════════════════════════════════════
+  # ANALYSIS JOB: Deep Image Inspection
+  # ══════════════════════════════════════════════════════════════
+  analysis:
+    name: Analyze Image
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Download OS Image
+        uses: actions/download-artifact@v4
+        with:
+          name: RustOS-Limbo-Image
+          path: .
+
+      - name: 🕵️ Install Analysis Tools (Binwalk, Fdisk)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y binwalk fdisk
+
+      - name: 🔬 Deep Image Scan
+        run: |
+          echo "════════════════════════════════════════"
+          echo "🔬 DEEP OS IMAGE ANALYSIS (RustOS)"
+          echo "════════════════════════════════════════"
+          
+          REPORT="rustos-analysis-report.txt"
+          echo "=== RUST OS - DISK IMAGE ANALYSIS REPORT ===" > $REPORT
+          echo "Date: $(date)" >> $REPORT
+          echo "" >> $REPORT
+
+          echo "1. File Size & Type:" >> $REPORT
+          ls -lh my_rust_os_desktop.img >> $REPORT
+          file my_rust_os_desktop.img >> $REPORT
+          echo "" >> $REPORT
+
+          echo "2. Partition Table (fdisk):" >> $REPORT
+          fdisk -l my_rust_os_desktop.img >> $REPORT
+          echo "" >> $REPORT
+
+          echo "3. Binwalk Signature Scan (Finding Bootloader magic):" >> $REPORT
+          binwalk my_rust_os_desktop.img >> $REPORT
+          
+          echo "Analysis complete. Report generated."
+          cat $REPORT
+
+      - name: 📦 Upload Analysis Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: RustOS-Analysis-Report
+          path: rustos-analysis-report.txt
+          retention-days: 14
+
+  # ══════════════════════════════════════════════════════════════
+  # SUMMARY JOB: Final Status Report
+  # ══════════════════════════════════════════════════════════════
+  summary:
+    name: Build Summary
+    needs: [ build, analysis ]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Workflow Summary
+        run: |
+          echo ""
+          echo "════════════════════════════════════════════════════"
+          echo "   ✨ RUST OS BUILD WORKFLOW SUMMARY ✨"
+          echo "════════════════════════════════════════════════════"
+          echo ""
+          echo "📋 Job Status:"
+          echo "  • Core Build:    ${{ needs.build.result }}"
+          echo "  • Image Analysis:${{ needs.analysis.result }}"
+          echo ""
+
+          CRITICAL_OK=true
+          [ "${{ needs.build.result }}" = "success" ] && echo "✅ Build PASSED" || { echo "❌ Build FAILED"; CRITICAL_OK=false; }
+          [ "${{ needs.analysis.result }}" = "success" ] && echo "✅ Analysis PASSED" || echo "⚠️ Analysis FAILED"
+
+          echo ""
+          if $CRITICAL_OK; then
+            echo "════════════════════════════════════════════════════"
+            echo "✅ ALL CRITICAL JOBS PASSED! 🎉"
+            echo "════════════════════════════════════════════════════"
+          else
+            echo "════════════════════════════════════════════════════"
+            echo "⚠️ CHECK FAILED JOBS ABOVE ⚠️"
+            echo "════════════════════════════════════════════════════"
+            exit 1
+          fi
+
+  # ══════════════════════════════════════════════════════════════
+  # RELEASE JOB: Auto-Generate Github Release
+  # ══════════════════════════════════════════════════════════════
+  release:
+    name: Generate Release
+    needs: [ build, analysis, summary ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    
+    steps:
+      - name: 📝 Determine Release Status
+        id: status
+        run: |
+          HAS_FAILURE="${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}"
+          if [ "$HAS_FAILURE" = "true" ]; then
+            echo "TITLE=❌ RustOS Crash Report (Run ${{ github.run_number }})" >> $GITHUB_ENV
+            echo "BODY=## ❌ Critical Build Failure Detected\nThe RustOS pipeline crashed during this run.\n\n**Crash Logs:**\nCheck the attached files or GitHub Actions log." >> $GITHUB_ENV
+            echo "IS_PRERELEASE=true" >> $GITHUB_ENV
+          else
+            echo "TITLE=✅ RustOS Stable Image Update v1.0.${{ github.run_number }}" >> $GITHUB_ENV
+            echo "BODY=## ✅ Automated RustOS Release\nThis release was successfully generated by the smart RustOS Pipeline.\n\n**Included Assets:**\n- \`my_rust_os_desktop.img\` (The bootable hybrid ISO / Disk Image for Limbo & QEMU)\n- \`rustos-analysis-report.txt\` (Binwalk and Fdisk analysis report)" >> $GITHUB_ENV
+            echo "IS_PRERELEASE=false" >> $GITHUB_ENV
+          fi
+
+      - name: 📥 Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+        continue-on-error: true
+
+      - name: 📦 Prepare Release Files
+        run: |
+          mkdir -p release_assets
+          find artifacts/ -type f -exec mv {} release_assets/ \; || true
+          echo "Files ready for release:"
+          ls -lh release_assets/ || true
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: ${{ env.TITLE }}
+          body: ${{ env.BODY }}
+          files: release_assets/*
+          prerelease: ${{ env.IS_PRERELEASE == 'true' }}
