@@ -1,5 +1,3 @@
-use crate::desktop::compositor::GraphicalCompositor;
-use font8x8::UnicodeFonts;
 use spin::Mutex;
 
 pub static TERMINAL: Mutex<Option<Terminal>> = Mutex::new(None);

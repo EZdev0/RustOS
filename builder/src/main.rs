@@ -13,7 +13,7 @@ fn main() {
         .args(&[
             "build",
             "-Z",
-            "build-std=core,compiler_builtins",
+            "build-std=core,alloc,compiler_builtins",
             "-Z",
             "build-std-features=compiler-builtins-mem",
             "--manifest-path",

@@ -1,8 +1,13 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
+#![feature(alloc_error_handler)]
+
+extern crate alloc;
 
 mod desktop;
 mod interrupts;
+mod allocator;
 
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
@@ -13,6 +18,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
     x86_64::instructions::interrupts::enable();
+
+    // Initialize the dynamic Heap Allocator
+    allocator::init_heap();
 
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         let mut compositor = desktop::compositor::GraphicalCompositor::new(framebuffer);
