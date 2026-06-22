@@ -1,0 +1,8 @@
+[package]
+name = "builder"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+# Bootloader v0.11 stellt BiosBoot und UefiBoot zur automatischen Imageerstellung bereit
+bootloader = "0.11.7"

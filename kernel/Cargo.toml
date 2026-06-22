@@ -1,0 +1,8 @@
+[package]
+name = "kernel"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+bootloader_api = "0.11.7" # Verwendet das stabile modernisierte Boot-Protokoll
+spin = "0.9.8"           # Synchronisationsprimitiven für Ring 0
