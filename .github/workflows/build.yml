@@ -15,8 +15,12 @@ jobs:
   # BUILD JOB: Compile Kernel & Generate Image
   # ══════════════════════════════════════════════════════════════
   build:
-    name: Build RustOS (Limbo & QEMU)
-    runs-on: ubuntu-latest
+    name: Build RustOS (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
     timeout-minutes: 15
 
     steps:
@@ -38,15 +42,18 @@ jobs:
           key: ${{ runner.os }}-cargo-rustos-${{ hashFiles('**/Cargo.toml') }}
 
       - name: 🛠️ Compile RustOS (Bootloader v0.11)
+        shell: bash
+        env:
+          RUSTC_BOOTSTRAP: 1
         run: |
           set -o pipefail
           echo "════════════════════════════════════════"
-          echo "🚀 STARTING BARE-METAL COMPILATION..."
+          echo "🚀 STARTING BARE-METAL COMPILATION ON ${{ matrix.os }}..."
           echo "════════════════════════════════════════"
           cargo run --bin builder 2>&1 | tee build-error.log
           
       - name: 🤖 Install and Start Ollama (AI Bug Reporter)
-        if: failure()
+        if: failure() && runner.os == 'Linux'
         run: |
           echo "Installing Ollama for Local AI Debugging..."
           curl -fsSL https://ollama.com/install.sh | command sh
@@ -65,7 +72,7 @@ jobs:
           done
 
       - name: 🧠 AI Bug Analysis & Auto-Issue Creation
-        if: failure()
+        if: failure() && runner.os == 'Linux'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -93,7 +100,7 @@ jobs:
       - name: 📦 Upload OS Disk Image Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RustOS-Limbo-Image
+          name: RustOS-Limbo-Image-${{ matrix.os }}
           path: target/my_rust_os_desktop.img
           retention-days: 14
 
@@ -109,7 +116,7 @@ jobs:
       - name: 📥 Download OS Image
         uses: actions/download-artifact@v4
         with:
-          name: RustOS-Limbo-Image
+          name: RustOS-Limbo-Image-ubuntu-latest
           path: .
 
       - name: 🕵️ Install Analysis Tools (Binwalk, Fdisk)
