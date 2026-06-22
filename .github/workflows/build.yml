@@ -39,12 +39,57 @@ jobs:
 
       - name: 🛠️ Compile RustOS (Bootloader v0.11)
         run: |
+          set -o pipefail
           echo "════════════════════════════════════════"
           echo "🚀 STARTING BARE-METAL COMPILATION..."
           echo "════════════════════════════════════════"
-          # Wir nutzen builder, welches den Kernel baut und das Image linkt
-          cargo run --bin builder
+          cargo run --bin builder 2>&1 | tee build-error.log
           
+      - name: 🤖 Install and Start Ollama (AI Bug Reporter)
+        if: failure()
+        run: |
+          echo "Installing Ollama for Local AI Debugging..."
+          curl -fsSL https://ollama.com/install.sh | command sh
+          ollama serve &
+          sleep 5
+          
+          echo "Loading qwen2.5-coder:3b..."
+          for i in 1 2 3; do
+            if ollama pull qwen2.5-coder:3b; then
+              echo "Model loaded!"
+              break
+            else
+              echo "Retrying..."
+              sleep 5
+            fi
+          done
+
+      - name: 🧠 AI Bug Analysis & Auto-Issue Creation
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ERROR_LOG=$(tail -n 40 build-error.log)
+          PROMPT="You are an expert Rust systems programmer. The following Rust bare-metal build failed. Please analyze the compiler error and provide a clear fix:\n\n$ERROR_LOG"
+          
+          echo "Sending error to AI..."
+          # Wir nutzen jq (auf Ubuntu-Runnern vorinstalliert) um die Antwort zu parsen
+          AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d "{\"model\": \"qwen2.5-coder:3b\", \"prompt\": \"$PROMPT\", \"stream\": false}" | jq -r '.response')
+          
+          echo "AI Fix Suggestion:"
+          echo "$AI_RESPONSE"
+          
+          gh issue create --title "🤖 AI Bug Report: Build Crash (Run ${{ github.run_number }})" \
+            --body "## ❌ Build Error Analysis
+            
+            **Logs (Tail):**
+            \`\`\`rust
+            $ERROR_LOG
+            \`\`\`
+            
+            **🤖 Local AI Suggestion (qwen2.5-coder:3b):**
+            $AI_RESPONSE" || echo "Note: Issue creation might fail if issues are disabled or token lacks permissions."
+
       - name: 📦 Upload OS Disk Image Artifact
         uses: actions/upload-artifact@v4
         with:
