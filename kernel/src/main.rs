@@ -22,21 +22,36 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
 
+    // Setup global compositor
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
         let mut compositor = desktop::compositor::GraphicalCompositor::new(framebuffer);
-        compositor.render_desktop();
         
-        let mut last_len = 0;
+        let width = compositor.info().width;
+        let height = compositor.info().height;
+        let win_width = if width > 600 { width - 200 } else { width - 40 };
+        let win_height = if height > 400 { height - 150 } else { height - 80 };
+        let win_x = (width - win_width) / 2;
+        let win_y = (height - win_height) / 2 - 20;
+
+        let notepad = alloc::boxed::Box::new(desktop::notepad::NotepadApp::new());
+        let window = desktop::window::Window::new(notepad, win_x, win_y, win_width, win_height);
+        compositor.add_window(window);
+
+        // Optional: put compositor in a global mutex for interrupts, or just handle interrupts via a queue.
+        // For simplicity, we just loop and render
         loop {
-            // Check for new characters in TEXT_BUFFER and render them
-            {
-                let buf = desktop::terminal::TEXT_BUFFER.lock();
-                if buf.len() != last_len {
-                    compositor.draw_terminal_text(buf.as_str());
-                    last_len = buf.len();
+            // Process events from a global queue (implemented in interrupts.rs)
+            if let Some(c) = interrupts::pop_key() {
+                if c == '\x08' {
+                    compositor.dispatch_keycode_event(0x08);
+                } else if c == '\n' {
+                    compositor.dispatch_keyboard_event('\n');
+                } else {
+                    compositor.dispatch_keyboard_event(c);
                 }
             }
-            // Sleep until next interrupt
+
+            compositor.render_all();
             x86_64::instructions::hlt();
         }
     }

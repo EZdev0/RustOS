@@ -1,17 +1,29 @@
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
+use crate::desktop::app::Event;
+use alloc::vec::Vec;
+use alloc::string::ToString;
 use font8x8::UnicodeFonts;
 
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
     buffer: &'static mut [u8],
+    pub windows: Vec<Window>,
 }
 
 impl GraphicalCompositor {
     pub fn new(framebuffer: &'static mut FrameBuffer) -> Self {
         let info = framebuffer.info();
         let buffer = framebuffer.buffer_mut();
-        Self { info, buffer }
+        Self { info, buffer, windows: Vec::new() }
+    }
+
+    pub fn info(&self) -> &FrameBufferInfo {
+        &self.info
+    }
+
+    pub fn add_window(&mut self, window: Window) {
+        self.windows.push(window);
     }
 
     #[inline]
@@ -50,7 +62,7 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn render_desktop(&mut self) {
+    pub fn render_all(&mut self) {
         let width = self.info.width;
         let height = self.info.height;
 
@@ -76,31 +88,52 @@ impl GraphicalCompositor {
             self.draw_rect(icon_x, dock_y + 10, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
         }
 
-        // 4. Erstes Anwendungsfenster (GUI Window) - RESPONSIVE!
-        let win_width = if width > 600 { width - 200 } else { width - 40 };
-        let win_height = if height > 400 { height - 150 } else { height - 80 };
-        let win_x = (width - win_width) / 2;
-        let win_y = (height - win_height) / 2 - 20;
+        // Wir muessen den Borrow Checker ueberlisten, indem wir die Indizes iterieren.
+        // Denn wir koennen self nicht an window.app.draw uebergeben, waehrend wir ueber self.windows iterieren!
+        for i in 0..self.windows.len() {
+            // Update Window Logik
+            self.windows[i].app.update();
 
-        let win = Window::new("Kernel space Terminal", win_x, win_y, win_width, win_height);
+            // Draw Fensterschatten
+            let wx = self.windows[i].x;
+            let wy = self.windows[i].y;
+            let ww = self.windows[i].width;
+            let wh = self.windows[i].height;
+            let title = self.windows[i].app.title().to_string(); // we need an alloc crate import for this
+
+            self.draw_rect(wx.saturating_sub(2), wy.saturating_sub(2), ww + 4, wh + 4, 25, 25, 28);
+            // Fenster-Header
+            self.draw_rect(wx, wy, ww, 34, 215, 218, 224);
+            
+            // Fenster-Bedienknöpfe
+            self.draw_rect(wx + 14, wy + 11, 12, 12, 252, 92, 86);
+            self.draw_rect(wx + 34, wy + 11, 12, 12, 251, 188, 46);
+            self.draw_rect(wx + 54, wy + 11, 12, 12, 43, 202, 66);
+
+            // Draw Titel
+            let mut cur_tx = wx + 80;
+            for c in title.chars() {
+                self.draw_char(cur_tx, wy + 13, c, 30, 30, 30);
+                cur_tx += 8;
+            }
+        }
         
-        // Fensterschatten
-        self.draw_rect(win.x.saturating_sub(2), win.y.saturating_sub(2), win.width + 4, win.height + 4, 25, 25, 28);
-        // Fenster-Header
-        self.draw_rect(win.x, win.y, win.width, 34, 215, 218, 224);
-        // Fenster-Inhalt (Dunkles Terminal-Innere)
-        self.draw_rect(win.x, win.y + 34, win.width, win.height.saturating_sub(34), 18, 19, 24);
-
-        // Fenster-Bedienknöpfe (macOS-Style Ampelsystem)
-        self.draw_rect(win.x + 14, win.y + 11, 12, 12, 252, 92, 86);   // Rot
-        self.draw_rect(win.x + 34, win.y + 11, 12, 12, 251, 188, 46);  // Gelb
-        self.draw_rect(win.x + 54, win.y + 11, 12, 12, 43, 202, 66);   // Grün
-
-        // Simulierter Textinhalt im Terminal (Nur wenn Platz ist)
-        if win.width > 200 && win.height > 150 {
-            self.draw_rect(win.x + 25, win.y + 60, win.width / 3, 5, 240, 240, 245);
-            self.draw_rect(win.x + 25, win.y + 80, win.width / 2, 5, 120, 220, 120);
-            self.draw_rect(win.x + 25, win.y + 100, win.width / 4, 5, 250, 150, 100);
+        // Jetzt rufen wir app.draw() auf
+        // Dazu muessen wir temporär die App aus dem Window swappen!
+        for i in 0..self.windows.len() {
+            // Dies ist ein Trick in Rust, da self in draw benoetigt wird
+            // Wir verwenden Option oder wir lassen die Methode einfach x, y als Argumente nehmen.
+            // Wait, since we are doing this in the same file, we can just use raw pointers or extract.
+            // For now, let's just cheat the borrow checker with unsafe for simplicity in ring0:
+            let window_ptr = &mut self.windows[i] as *mut Window;
+            let wx = unsafe { (*window_ptr).x };
+            let wy = unsafe { (*window_ptr).y };
+            let ww = unsafe { (*window_ptr).width };
+            let wh = unsafe { (*window_ptr).height };
+            
+            unsafe {
+                (*window_ptr).app.draw(self, wx, wy + 34, ww, wh.saturating_sub(34));
+            }
         }
 
         // 5. Hardware-Mauszeiger (Präzises Grafik-Dreieck im Zentrum)
@@ -124,55 +157,15 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn draw_terminal_text(&mut self, text: &str) {
-        let width = self.info.width;
-        let height = self.info.height;
-
-        let win_width = if width > 600 { width - 200 } else { width - 40 };
-        let win_height = if height > 400 { height - 150 } else { height - 80 };
-        let win_x = (width - win_width) / 2;
-        let win_y = (height - win_height) / 2 - 20;
-
-        let padding = 10;
-        
-        let start_x = win_x + padding;
-        let start_y = win_y + 34 + padding;
-        
-        // Clear the terminal background first
-        self.draw_rect(win_x, win_y + 34, win_width, win_height.saturating_sub(34), 18, 19, 24);
-
-        let mut current_x = start_x;
-        let mut current_y = start_y;
-
-        // Terminal prompt
-        let prompt = "root@RustOS:~$ ";
-        for c in prompt.chars() {
-            if current_x + 8 > win_x + win_width - padding {
-                break; // Skip drawing if out of bounds to prevent crash
-            }
-            self.draw_char(current_x, current_y, c, 43, 202, 66); // Green prompt
-            current_x += 8;
+    pub fn dispatch_keyboard_event(&mut self, c: char) {
+        if let Some(focused) = self.windows.last_mut() {
+            focused.app.handle_event(Event::KeyPress(c));
         }
+    }
 
-        // Output text
-        for c in text.chars() {
-            if c == '\n' {
-                current_y += 12;
-                current_x = start_x;
-            } else if c == '\x08' { // Backspace
-                if current_x > start_x {
-                    current_x -= 8;
-                    // Draw a black rectangle over the character to erase it
-                    self.draw_rect(current_x, current_y, 8, 8, 18, 19, 24);
-                }
-            } else {
-                if current_x + 8 > win_x + win_width - padding {
-                    current_y += 12;
-                    current_x = start_x;
-                }
-                self.draw_char(current_x, current_y, c, 240, 240, 245);
-                current_x += 8;
-            }
+    pub fn dispatch_keycode_event(&mut self, code: u8) {
+        if let Some(focused) = self.windows.last_mut() {
+            focused.app.handle_event(Event::KeyCode(code));
         }
     }
 }

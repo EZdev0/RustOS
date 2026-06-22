@@ -1,9 +1,9 @@
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-use crate::desktop::terminal;
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::Mutex;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, PS2Keyboard, ScancodeSet1};
+use heapless::Vec;
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -36,6 +36,20 @@ lazy_static! {
 lazy_static! {
     static ref KEYBOARD: Mutex<PS2Keyboard<layouts::Us104Key, ScancodeSet1>> =
         Mutex::new(PS2Keyboard::new(ScancodeSet1::new(), layouts::Us104Key, HandleControl::Ignore));
+
+    static ref KEY_QUEUE: Mutex<Vec<char, 256>> = Mutex::new(Vec::new());
+}
+
+pub fn pop_key() -> Option<char> {
+    if let Some(mut queue) = KEY_QUEUE.try_lock() {
+        if queue.is_empty() {
+            None
+        } else {
+            Some(queue.remove(0))
+        }
+    } else {
+        None
+    }
 }
 
 pub fn init_idt() {
@@ -45,7 +59,7 @@ pub fn init_idt() {
 extern "x86-interrupt" fn breakpoint_handler(
     _stack_frame: InterruptStackFrame,
 ) {
-    terminal::print_string("EXCEPTION: BREAKPOINT\n");
+    // Breakpoint handler
 }
 
 extern "x86-interrupt" fn keyboard_interrupt_handler(
@@ -60,8 +74,12 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
-                DecodedKey::Unicode(character) => terminal::print_char(character),
-                DecodedKey::RawKey(_key) => terminal::print_string("<?>"),
+                DecodedKey::Unicode(character) => {
+                    if let Some(mut queue) = KEY_QUEUE.try_lock() {
+                        let _ = queue.push(character);
+                    }
+                },
+                DecodedKey::RawKey(_) => {},
             }
         }
     }
