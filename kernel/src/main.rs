@@ -5,12 +5,14 @@
 
 extern crate alloc;
 
-mod desktop;
-mod interrupts;
-mod allocator;
+pub mod allocator;
+pub mod desktop;
+pub mod hardware;
+pub mod interrupts;
 
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
+use crate::desktop::app::App;
 
 entry_point!(kernel_main);
 
@@ -21,6 +23,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
+
+    // Detect CPU features and initialize SIMD/AVX
+    let cpu_features = hardware::cpuid::detect_and_init();
 
     // Setup global compositor
     if let Some(framebuffer) = boot_info.framebuffer.as_mut() {
@@ -33,7 +38,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         let win_x = (width - win_width) / 2;
         let win_y = (height - win_height) / 2 - 20;
 
-        let notepad = alloc::boxed::Box::new(desktop::notepad::NotepadApp::new());
+        let mut notepad_app = desktop::notepad::NotepadApp::new();
+        // Insert the hardware string into the notepad so the user sees it immediately!
+        notepad_app.handle_event(desktop::app::Event::KeyPress('\n'));
+        for c in cpu_features.chars() {
+            notepad_app.handle_event(desktop::app::Event::KeyPress(c));
+        }
+
+        let notepad = alloc::boxed::Box::new(notepad_app);
         let window = desktop::window::Window::new(notepad, win_x, win_y, win_width, win_height);
         compositor.add_window(window);
 
