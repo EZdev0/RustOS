@@ -8,7 +8,7 @@ use font8x8::UnicodeFonts;
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
     buffer: &'static mut [u8],
-    pub windows: Vec<Window>,
+    pub windows: Vec<Option<Window>>,
 }
 
 impl GraphicalCompositor {
@@ -23,7 +23,7 @@ impl GraphicalCompositor {
     }
 
     pub fn add_window(&mut self, window: Window) {
-        self.windows.push(window);
+        self.windows.push(Some(window));
     }
 
     #[inline]
@@ -62,7 +62,7 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn render_all(&mut self) {
+    pub fn render_desktop(&mut self) {
         let width = self.info.width;
         let height = self.info.height;
 
@@ -87,58 +87,21 @@ impl GraphicalCompositor {
             let icon_x = dock_x + 25 + i * 85;
             self.draw_rect(icon_x, dock_y + 10, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
         }
+    }
 
-        // Wir muessen den Borrow Checker ueberlisten, indem wir die Indizes iterieren.
-        // Denn wir koennen self nicht an window.app.draw uebergeben, waehrend wir ueber self.windows iterieren!
+    pub fn render_all(&mut self) {
+        self.render_desktop();
+        // Safe Architecture: Take the window temporarily out of the Vec to bypass borrow conflicts
         for i in 0..self.windows.len() {
-            // Update Window Logik
-            self.windows[i].app.update();
-
-            // Draw Fensterschatten
-            let wx = self.windows[i].x;
-            let wy = self.windows[i].y;
-            let ww = self.windows[i].width;
-            let wh = self.windows[i].height;
-            let title = self.windows[i].app.title().to_string(); // we need an alloc crate import for this
-
-            self.draw_rect(wx.saturating_sub(2), wy.saturating_sub(2), ww + 4, wh + 4, 25, 25, 28);
-            // Fenster-Header
-            self.draw_rect(wx, wy, ww, 34, 215, 218, 224);
-            
-            // Fenster-Bedienknöpfe
-            self.draw_rect(wx + 14, wy + 11, 12, 12, 252, 92, 86);
-            self.draw_rect(wx + 34, wy + 11, 12, 12, 251, 188, 46);
-            self.draw_rect(wx + 54, wy + 11, 12, 12, 43, 202, 66);
-
-            // Draw Titel
-            let mut cur_tx = wx + 80;
-            for c in title.chars() {
-                self.draw_char(cur_tx, wy + 13, c, 30, 30, 30);
-                cur_tx += 8;
-            }
-        }
-        
-        // Jetzt rufen wir app.draw() auf
-        // Dazu muessen wir temporär die App aus dem Window swappen!
-        for i in 0..self.windows.len() {
-            // Dies ist ein Trick in Rust, da self in draw benoetigt wird
-            // Wir verwenden Option oder wir lassen die Methode einfach x, y als Argumente nehmen.
-            // Wait, since we are doing this in the same file, we can just use raw pointers or extract.
-            // For now, let's just cheat the borrow checker with unsafe for simplicity in ring0:
-            let window_ptr = &mut self.windows[i] as *mut Window;
-            let wx = unsafe { (*window_ptr).x };
-            let wy = unsafe { (*window_ptr).y };
-            let ww = unsafe { (*window_ptr).width };
-            let wh = unsafe { (*window_ptr).height };
-            
-            unsafe {
-                (*window_ptr).app.draw(self, wx, wy + 34, ww, wh.saturating_sub(34));
+            if let Some(mut window) = self.windows[i].take() {
+                window.app.draw(self, window.x, window.y, window.width, window.height);
+                self.windows[i] = Some(window);
             }
         }
 
         // 5. Hardware-Mauszeiger (Präzises Grafik-Dreieck im Zentrum)
-        let mouse_x = width / 2;
-        let mouse_y = height / 2;
+        let mouse_x = self.info.width / 2;
+        let mouse_y = self.info.height / 2;
         for i in 0..16 {
             self.draw_rect(mouse_x + i, mouse_y + i, 16 - i, 1, 255, 255, 255);
             self.draw_pixel(mouse_x + i, mouse_y + i, 5, 5, 10);
@@ -158,14 +121,20 @@ impl GraphicalCompositor {
     }
 
     pub fn dispatch_keyboard_event(&mut self, c: char) {
-        if let Some(focused) = self.windows.last_mut() {
-            focused.app.handle_event(Event::KeyPress(c));
+        for i in 0..self.windows.len() {
+            if let Some(mut window) = self.windows[i].take() {
+                window.app.handle_event(Event::KeyPress(c));
+                self.windows[i] = Some(window);
+            }
         }
     }
 
     pub fn dispatch_keycode_event(&mut self, code: u8) {
-        if let Some(focused) = self.windows.last_mut() {
-            focused.app.handle_event(Event::KeyCode(code));
+        for i in 0..self.windows.len() {
+            if let Some(mut window) = self.windows[i].take() {
+                window.app.handle_event(Event::KeyCode(code));
+                self.windows[i] = Some(window);
+            }
         }
     }
 }

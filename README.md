@@ -15,14 +15,13 @@ This OS kernel is designed to be **architecture-agnostic** in its core logic (`n
 
 ### 1. The Kernel (`kernel/`)
 The heart of the OS. Runs entirely in ring-0 (supervisor mode) without any underlying operating system.
-- **`src/main.rs`**: The main entry point. Sets up the IDT, enables interrupts, initializes the graphical compositor, and enters a smart Event Loop that dynamically updates the Terminal on keystrokes.
-- **`src/interrupts.rs`**: Manages Hardware Interrupts! Implements the x86_64 Interrupt Descriptor Table (IDT), configures the 8259 Programmable Interrupt Controller (PIC), and safely parses raw PS/2 Keyboard scancodes.
-- **`src/desktop/compositor.rs`**: A custom software-rendering engine! It features:
-  - Linear Framebuffer abstraction for drawing pixels (`draw_pixel`, `draw_rect`).
-  - Font rendering utilizing the `font8x8` crate to draw text onto the GUI (`draw_char`, `draw_terminal_text`).
-  - A beautiful Anthracite-Blue desktop, an interactive Dock, and a macOS-style graphical window.
-- **`src/desktop/terminal.rs`**: A thread-safe global `TEXT_BUFFER` (`heapless::String`) that seamlessly links the Keyboard Interrupts (ISR) with the Graphical Compositor.
-- **`Cargo.toml`**: Includes crates like `x86_64`, `pic8259`, `pc-keyboard`, `font8x8`, and `spin`.
+- **`src/main.rs`**: The main entry point. Sets up the Heap Allocator, IDT, initializes the graphical compositor, and manages the Window/App lifecycle.
+- **`src/interrupts.rs`**: Manages Hardware Interrupts! Implements the x86_64 IDT and places keyboard events safely into a lock-free `KEY_QUEUE` array.
+- **`src/desktop/compositor.rs`**: A custom Window Manager and software-rendering engine!
+  - Features an object-oriented architecture (`Vec<Option<Window>>`) to safely composite multiple `Box<dyn App>` applications on the screen.
+  - Linear Framebuffer abstraction (`draw_pixel`, `draw_rect`) and `font8x8` text rendering.
+- **`src/desktop/app.rs`**: Defines the dynamic `App` trait for user-space applications (e.g. `NotepadApp`) to handle events and draw to the Compositor.
+- **Cargo.toml**: Heavily optimized for "CachyOS"-style performance using `lto = "fat"`, `codegen-units = 1`, and `opt-level = 3`.
 
 ### 2. The Builder (`builder/`)
 A custom Rust host application that acts as a wrapper around the build system.
