@@ -9,8 +9,13 @@ fn main() {
     // 1. Kernel im no_std Bare-Metal Target kompilieren
     println!("[1/3] Rufe Cross-Compiler für x86_64 Kernel auf...");
     let status = Command::new("cargo")
+        .env("RUSTC_BOOTSTRAP", "1")
         .args(&[
             "build",
+            "-Z",
+            "build-std=core,compiler_builtins",
+            "-Z",
+            "build-std-features=compiler-builtins-mem",
             "--manifest-path",
             "kernel/Cargo.toml",
             "--target",
