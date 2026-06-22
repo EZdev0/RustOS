@@ -15,19 +15,26 @@ This OS kernel is designed to be **architecture-agnostic** in its core logic (`n
 
 ### 1. The Kernel (`kernel/`)
 The heart of the OS. Runs entirely in ring-0 (supervisor mode) without any underlying operating system.
-- **`src/main.rs`**: The main entry point. Retrieves the framebuffer from the bootloader and passes it to the graphical compositor. Then it halts the CPU (`core::hint::spin_loop()`) to save power.
+- **`src/main.rs`**: The main entry point. Sets up the IDT, enables interrupts, initializes the graphical compositor, and enters a smart Event Loop that dynamically updates the Terminal on keystrokes.
+- **`src/interrupts.rs`**: Manages Hardware Interrupts! Implements the x86_64 Interrupt Descriptor Table (IDT), configures the 8259 Programmable Interrupt Controller (PIC), and safely parses raw PS/2 Keyboard scancodes.
 - **`src/desktop/compositor.rs`**: A custom software-rendering engine! It features:
   - Linear Framebuffer abstraction for drawing pixels (`draw_pixel`, `draw_rect`).
-  - Automatic pixel format matching (RGB, BGR).
-  - A rendering loop that draws a beautiful Anthracite-Blue background, an interactive-looking Dock, a top Menu Bar, and a macOS-style graphical window mimicking a Kernel Terminal.
-  - A precise hardware-styled mouse cursor.
-- **`Cargo.toml`**: Specifies `bootloader_api` for the standardized boot protocol and `spin` for lock-free synchronisation.
+  - Font rendering utilizing the `font8x8` crate to draw text onto the GUI (`draw_char`, `draw_terminal_text`).
+  - A beautiful Anthracite-Blue desktop, an interactive Dock, and a macOS-style graphical window.
+- **`src/desktop/terminal.rs`**: A thread-safe global `TEXT_BUFFER` (`heapless::String`) that seamlessly links the Keyboard Interrupts (ISR) with the Graphical Compositor.
+- **`Cargo.toml`**: Includes crates like `x86_64`, `pic8259`, `pc-keyboard`, `font8x8`, and `spin`.
 
 ### 2. The Builder (`builder/`)
 A custom Rust host application that acts as a wrapper around the build system.
 - Compiles the kernel for the `x86_64-unknown-none` target using Cargo.
 - Takes the compiled ELF binary and converts it into a bootable MBR Disk Image using `bootloader::BiosBoot::new()`.
 - Automatically invokes `qemu-system-x86_64` with the generated image.
+
+## 🤖 Smart CI/CD Pipeline (AI Integrated)
+
+The repository features an ultra-modern GitHub Actions workflow inspired by systems like *JulesOS* and *WebEngine2.0*. 
+- **Auto-Compilation & Release**: Automatically builds the `.img` and creates GitHub Releases.
+- **Local AI Bug Reporter (Ollama)**: If the kernel compilation fails, the pipeline automatically installs Ollama, pulls the `qwen2.5-coder:3b` LLM directly onto the GitHub Runner, feeds it the compiler logs, and automatically opens a GitHub Issue with an AI-generated fix!
 
 ## 🛡️ Stability, Multi-Threading & RAM Optimizations
 

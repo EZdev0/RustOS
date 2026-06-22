@@ -1,5 +1,6 @@
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
+use font8x8::UnicodeFonts;
 
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
@@ -101,6 +102,63 @@ impl GraphicalCompositor {
         for i in 0..16 {
             self.draw_rect(mouse_x + i, mouse_y + i, 16 - i, 1, 255, 255, 255);
             self.draw_pixel(mouse_x + i, mouse_y + i, 5, 5, 10);
+        }
+    }
+
+    pub fn draw_char(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8) {
+        if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::LATIN_FONTS.get(c)) {
+            for (row, byte) in bitmap.iter().enumerate() {
+                for col in 0..8 {
+                    if (*byte & (1 << col)) != 0 {
+                        self.draw_pixel(x + col, y + row, r, g, b);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn draw_terminal_text(&mut self, text: &str) {
+        let win_x = 120;
+        let win_y = 90;
+        let win_width = 550;
+        let win_height = 380;
+        let padding = 10;
+        
+        let start_x = win_x + padding;
+        let start_y = win_y + 34 + padding;
+        
+        // Clear the terminal background first
+        self.draw_rect(win_x, win_y + 34, win_width, win_height - 34, 18, 19, 24);
+
+        let mut current_x = start_x;
+        let mut current_y = start_y;
+
+        // Terminal prompt
+        let prompt = "root@RustOS:~$ ";
+        for c in prompt.chars() {
+            self.draw_char(current_x, current_y, c, 43, 202, 66); // Green prompt
+            current_x += 8;
+        }
+
+        // Output text
+        for c in text.chars() {
+            if c == '\n' {
+                current_y += 12;
+                current_x = start_x;
+            } else if c == '\x08' { // Backspace
+                if current_x > start_x {
+                    current_x -= 8;
+                    // Draw a black rectangle over the character to erase it
+                    self.draw_rect(current_x, current_y, 8, 8, 18, 19, 24);
+                }
+            } else {
+                if current_x + 8 > win_x + win_width - padding {
+                    current_y += 12;
+                    current_x = start_x;
+                }
+                self.draw_char(current_x, current_y, c, 240, 240, 245);
+                current_x += 8;
+            }
         }
     }
 }
