@@ -37,7 +37,7 @@ fn main() {
     // 3. Verwende das offizielle Bootloader-Crate, um ein startbares BIOS-Image zu verknüpfen
     // BiosBoot wird gewählt, da es nativ auf JEDEM QEMU läuft, ohne UEFI-Firmware-Pfade konfigurieren zu müssen!
     println!("[2/3] Konvertiere Kernel-ELF in ein bootfähiges MBR-Festplattenimage...");
-    let mut bios_boot = bootloader::BiosBoot::new(kernel_elf);
+    let bios_boot = bootloader::BiosBoot::new(kernel_elf);
     bios_boot.create_disk_image(output_disk)
         .expect("Fehler: Das Erstellen des bootfähigen Festplattenimages ist fehlgeschlagen.");
 

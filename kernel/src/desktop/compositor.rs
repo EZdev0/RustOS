@@ -1,4 +1,4 @@
-use bootloader_api.info::{Framebuffer, FramebufferInfo, PixelFormat};
+use bootloader_api::info::{Framebuffer, FramebufferInfo, PixelFormat};
 use crate::desktop::window::Window;
 
 pub struct GraphicalCompositor {
