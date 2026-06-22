@@ -76,25 +76,32 @@ impl GraphicalCompositor {
             self.draw_rect(icon_x, dock_y + 10, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
         }
 
-        // 4. Erstes Anwendungsfenster (GUI Window)
-        let win = Window::new("Kernel space Terminal", 120, 90, 550, 380);
+        // 4. Erstes Anwendungsfenster (GUI Window) - RESPONSIVE!
+        let win_width = if width > 600 { width - 200 } else { width - 40 };
+        let win_height = if height > 400 { height - 150 } else { height - 80 };
+        let win_x = (width - win_width) / 2;
+        let win_y = (height - win_height) / 2 - 20;
+
+        let win = Window::new("Kernel space Terminal", win_x, win_y, win_width, win_height);
         
         // Fensterschatten
-        self.draw_rect(win.x - 2, win.y - 2, win.width + 4, win.height + 4, 25, 25, 28);
+        self.draw_rect(win.x.saturating_sub(2), win.y.saturating_sub(2), win.width + 4, win.height + 4, 25, 25, 28);
         // Fenster-Header
         self.draw_rect(win.x, win.y, win.width, 34, 215, 218, 224);
         // Fenster-Inhalt (Dunkles Terminal-Innere)
-        self.draw_rect(win.x, win.y + 34, win.width, win.height - 34, 18, 19, 24);
+        self.draw_rect(win.x, win.y + 34, win.width, win.height.saturating_sub(34), 18, 19, 24);
 
         // Fenster-Bedienknöpfe (macOS-Style Ampelsystem)
         self.draw_rect(win.x + 14, win.y + 11, 12, 12, 252, 92, 86);   // Rot
         self.draw_rect(win.x + 34, win.y + 11, 12, 12, 251, 188, 46);  // Gelb
         self.draw_rect(win.x + 54, win.y + 11, 12, 12, 43, 202, 66);   // Grün
 
-        // Simulierter Textinhalt im Terminal
-        self.draw_rect(win.x + 25, win.y + 60, 180, 5, 240, 240, 245);
-        self.draw_rect(win.x + 25, win.y + 80, 320, 5, 120, 220, 120);
-        self.draw_rect(win.x + 25, win.y + 100, 140, 5, 250, 150, 100);
+        // Simulierter Textinhalt im Terminal (Nur wenn Platz ist)
+        if win.width > 200 && win.height > 150 {
+            self.draw_rect(win.x + 25, win.y + 60, win.width / 3, 5, 240, 240, 245);
+            self.draw_rect(win.x + 25, win.y + 80, win.width / 2, 5, 120, 220, 120);
+            self.draw_rect(win.x + 25, win.y + 100, win.width / 4, 5, 250, 150, 100);
+        }
 
         // 5. Hardware-Mauszeiger (Präzises Grafik-Dreieck im Zentrum)
         let mouse_x = width / 2;
@@ -118,17 +125,21 @@ impl GraphicalCompositor {
     }
 
     pub fn draw_terminal_text(&mut self, text: &str) {
-        let win_x = 120;
-        let win_y = 90;
-        let win_width = 550;
-        let win_height = 380;
+        let width = self.info.width;
+        let height = self.info.height;
+
+        let win_width = if width > 600 { width - 200 } else { width - 40 };
+        let win_height = if height > 400 { height - 150 } else { height - 80 };
+        let win_x = (width - win_width) / 2;
+        let win_y = (height - win_height) / 2 - 20;
+
         let padding = 10;
         
         let start_x = win_x + padding;
         let start_y = win_y + 34 + padding;
         
         // Clear the terminal background first
-        self.draw_rect(win_x, win_y + 34, win_width, win_height - 34, 18, 19, 24);
+        self.draw_rect(win_x, win_y + 34, win_width, win_height.saturating_sub(34), 18, 19, 24);
 
         let mut current_x = start_x;
         let mut current_y = start_y;
@@ -136,6 +147,9 @@ impl GraphicalCompositor {
         // Terminal prompt
         let prompt = "root@RustOS:~$ ";
         for c in prompt.chars() {
+            if current_x + 8 > win_x + win_width - padding {
+                break; // Skip drawing if out of bounds to prevent crash
+            }
             self.draw_char(current_x, current_y, c, 43, 202, 66); // Green prompt
             current_x += 8;
         }
