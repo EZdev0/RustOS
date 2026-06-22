@@ -41,7 +41,7 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-rustos-${{ hashFiles('**/Cargo.toml') }}
 
-      - name: 🛠️ Compile RustOS (Bootloader v0.11)
+      - name: 🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)
         shell: bash
         env:
           RUSTC_BOOTSTRAP: 1
@@ -50,7 +50,22 @@ jobs:
           echo "════════════════════════════════════════"
           echo "🚀 STARTING BARE-METAL COMPILATION ON ${{ matrix.os }}..."
           echo "════════════════════════════════════════"
-          cargo run --bin builder 2>&1 | tee build-error.log
+          success=0
+          for i in 1 2 3; do
+            echo "Attempt $i to compile RustOS..."
+            if cargo run --bin builder 2>&1 | tee build-error.log; then
+              echo "Compilation passed successfully!"
+              success=1
+              break
+            else
+              echo "Compilation failed on attempt $i. Retrying in 10s..."
+              sleep 10
+            fi
+          done
+          if [ $success -eq 0 ]; then
+            echo "Compilation failed after 3 attempts."
+            exit 1
+          fi
           
       - name: 🤖 Install and Start Ollama (AI Bug Reporter)
         if: failure() && runner.os == 'Linux'
