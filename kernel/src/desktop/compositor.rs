@@ -15,7 +15,7 @@ impl GraphicalCompositor {
 
     #[inline]
     pub fn draw_pixel(&mut self, x: usize, y: usize, r: u8, g: u8, b: u8) {
-        if x >= self.info.horizontal_resolution || y >= self.info.vertical_resolution {
+        if x >= self.info.width || y >= self.info.height {
             return;
         }
 
@@ -50,8 +50,8 @@ impl GraphicalCompositor {
     }
 
     pub fn render_desktop(&mut self) {
-        let width = self.info.horizontal_resolution;
-        let height = self.info.vertical_resolution;
+        let width = self.info.width;
+        let height = self.info.height;
 
         // 1. Hintergrund (Modernes Anthrazit-Blau)
         self.draw_rect(0, 0, width, height, 43, 48, 59);
