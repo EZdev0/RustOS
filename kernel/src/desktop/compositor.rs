@@ -1,13 +1,13 @@
-use bootloader_api::info::{Framebuffer, FramebufferInfo, PixelFormat};
+use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
 
 pub struct GraphicalCompositor {
-    info: FramebufferInfo,
+    info: FrameBufferInfo,
     buffer: &'static mut [u8],
 }
 
 impl GraphicalCompositor {
-    pub fn new(framebuffer: &'static mut Framebuffer) -> Self {
+    pub fn new(framebuffer: &'static mut FrameBuffer) -> Self {
         let info = framebuffer.info();
         let buffer = framebuffer.buffer_mut();
         Self { info, buffer }
@@ -19,7 +19,7 @@ impl GraphicalCompositor {
             return;
         }
 
-        // Berechnung des Pixel-Offsets im linearen Framebuffer
+        // Berechnung des Pixel-Offsets im linearen FrameBuffer
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
 
         if pixel_offset + 2 < self.buffer.len() {
