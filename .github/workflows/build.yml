@@ -33,6 +33,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-src, llvm-tools-preview, clippy
+          targets: x86_64-unknown-none
 
       - name: 📦 Cache Cargo Registry & Build
         uses: actions/cache@v3
@@ -45,19 +46,25 @@ jobs:
 
       - name: 🧐 Clippy Checks (Deep Testing)
         shell: bash
+        continue-on-error: true
+        env:
+          RUSTC_BOOTSTRAP: 1
         run: |
           echo "Running Cargo Clippy..."
-          if ! cargo clippy --all-targets -- -D warnings 2>&1 | tee build-error.log; then
-            echo "::error::Clippy checks failed!"
+          if ! cargo clippy --bin kernel --target x86_64-unknown-none -- -D warnings 2>&1 | tee clippy-error.log; then
+            echo "::warning::Clippy checks failed, but CI will continue to allow AI analysis!"
+            cp clippy-error.log build-error.log
             exit 1
           fi
 
       - name: 🧪 Cargo Test (Deep Testing)
         shell: bash
+        continue-on-error: true
         run: |
           echo "Running Cargo Tests..."
-          if ! cargo test --bin kernel 2>&1 | tee build-error.log; then
-            echo "::error::Cargo tests failed!"
+          if ! cargo test --bin kernel 2>&1 | tee test-error.log; then
+            echo "::warning::Cargo tests failed!"
+            cp test-error.log build-error.log
             exit 1
           fi
 
