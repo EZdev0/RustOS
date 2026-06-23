@@ -31,6 +31,7 @@ pub struct GraphicalCompositor {
     pub dock_y_offset: isize,
     pub dock_target_offset: isize,
     pub dirty_rects: Vec<Rect>,
+    pub full_redraw: bool,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -79,6 +80,7 @@ impl GraphicalCompositor {
             dock_y_offset: 0,
             dock_target_offset: 0,
             dirty_rects: Vec::new(),
+            full_redraw: true,
         }
     }
 
@@ -562,7 +564,43 @@ impl GraphicalCompositor {
             self.draw_pixel(self.mouse_x + i, self.mouse_y + i, 5, 5, 10);
         }
 
-        self.framebuffer.copy_from_slice(&self.backbuffer);
+        self.dirty_rects.push(Rect { x: self.mouse_x, y: self.mouse_y, width: 16, height: 16 });
+
+        if self.full_redraw {
+            self.framebuffer.copy_from_slice(&self.backbuffer);
+            self.full_redraw = false;
+            self.dirty_rects.clear();
+        } else {
+            let dock_w = 440;
+            let dock_h = 60;
+            let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
+            let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
+            let dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
+            self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
+
+            for w in self.windows.iter().flatten() {
+                self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
+            }
+
+            let bpp = self.info.bytes_per_pixel;
+            let stride = self.info.stride;
+
+            for rect in &self.dirty_rects {
+                let start_y = rect.y;
+                let end_y = core::cmp::min(rect.y + rect.height, self.info.height);
+                let start_x = rect.x;
+                let end_x = core::cmp::min(rect.x + rect.width, self.info.width);
+
+                if start_x >= end_x || start_y >= end_y { continue; }
+
+                for y in start_y..end_y {
+                    let offset = y * stride * bpp + start_x * bpp;
+                    let len = (end_x - start_x) * bpp;
+                    self.framebuffer[offset..offset+len].copy_from_slice(&self.backbuffer[offset..offset+len]);
+                }
+            }
+            self.dirty_rects.clear();
+        }
     }
 
     pub fn swap_buffers(&mut self) {
@@ -594,6 +632,8 @@ impl GraphicalCompositor {
     }
 
     pub fn handle_mouse_event(&mut self, dx: i32, dy: i32, left_down: bool, _right_down: bool) {
+        self.dirty_rects.push(Rect { x: self.mouse_x, y: self.mouse_y, width: 16, height: 16 });
+
         let mut new_x = self.mouse_x as i32 + dx;
         let mut new_y = self.mouse_y as i32 + dy;
         
@@ -616,6 +656,7 @@ impl GraphicalCompositor {
         let my = self.mouse_y;
 
         if clicked_this_frame {
+            self.full_redraw = true;
             let mut found = false;
             let mut clicked_idx = None;
 
@@ -761,6 +802,7 @@ impl GraphicalCompositor {
 
         if left_down {
             if let Some(idx) = self.dragging_window {
+                self.full_redraw = true;
                 if idx < self.windows.len() {
                     if let Some(w) = &mut self.windows[idx] {
                         let target_x = (self.mouse_x as isize - self.drag_offset_x).max(0) as usize;
