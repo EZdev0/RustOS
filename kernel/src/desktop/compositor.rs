@@ -190,8 +190,20 @@ impl GraphicalCompositor {
 
         for py in ext_y..(ext_y + ext_h) {
             if py >= self.info.height { break; }
-            for px in ext_x..(ext_x + ext_w) {
+            
+            // OPTIMIZATION: Skip the inner window pixels!
+            // If we are between the top and bottom corners, we only need to render the left and right shadows.
+            let is_middle_row = py >= y + corner_r && py < y + h - corner_r;
+            
+            let mut px = ext_x;
+            while px < ext_x + ext_w {
                 if px >= self.info.width { break; }
+                
+                if is_middle_row && px >= x && px < x + w {
+                    // Jump straight to the right shadow!
+                    px = x + w;
+                    continue;
+                }
                 
                 let dx = if px < x + corner_r {
                     (x + corner_r) - px
@@ -228,6 +240,7 @@ impl GraphicalCompositor {
                         self.blend_pixel(px, py, sr, sg, sb, intensity);
                     }
                 }
+                px += 1;
             }
         }
     }
@@ -610,6 +623,14 @@ impl GraphicalCompositor {
                                 let win_x = (width as usize - win_width) / 2 + offset;
                                 let win_y = (height as usize - win_height) / 2 - 20 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(terminal_app), win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
+                            } else if icon_idx == 2 {
+                                let tm_app = crate::desktop::taskmanager::TaskManagerApp::new();
+                                let win_width = 400;
+                                let win_height = 250;
+                                let win_x = (width as usize - win_width) / 2 + offset;
+                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(tm_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             }
                         }

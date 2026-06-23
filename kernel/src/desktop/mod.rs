@@ -4,3 +4,4 @@ pub mod terminal;
 pub mod app;
 pub mod notepad;
 pub mod filemanager;
+pub mod taskmanager;

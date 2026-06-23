@@ -32,7 +32,7 @@ jobs:
       - name: 🦀 Setup Rust Nightly Toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
-          components: rust-src, llvm-tools-preview
+          components: rust-src, llvm-tools-preview, clippy
 
       - name: 📦 Cache Cargo Registry & Build
         uses: actions/cache@v3
@@ -42,6 +42,24 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-rustos-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: 🧐 Clippy Checks (Deep Testing)
+        shell: bash
+        run: |
+          echo "Running Cargo Clippy..."
+          if ! cargo clippy --all-targets -- -D warnings 2>&1 | tee build-error.log; then
+            echo "::error::Clippy checks failed!"
+            exit 1
+          fi
+
+      - name: 🧪 Cargo Test (Deep Testing)
+        shell: bash
+        run: |
+          echo "Running Cargo Tests..."
+          if ! cargo test --bin kernel 2>&1 | tee build-error.log; then
+            echo "::error::Cargo tests failed!"
+            exit 1
+          fi
 
       - name: 🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)
         shell: bash
@@ -69,11 +87,12 @@ jobs:
             exit 1
           fi
 
-      - name: 🔬 QEMU Integration Test (Bootloop & Panic Detection)
+      - name: 🔬 QEMU Integration Test (Headless Boot-Test)
         if: runner.os == 'Linux'
+        shell: bash
         run: |
           sudo apt-get update && sudo apt-get install -y qemu-system-x86
-          echo "Starting bare-metal OS in QEMU..."
+          echo "Starting bare-metal OS in QEMU (Headless Boot-Test)..."
           timeout 10 qemu-system-x86_64 -drive format=raw,file=target/my_rust_os_desktop.img -display none -serial stdio -no-reboot > qemu_output.log 2>&1 || true
           
           echo "--- QEMU OUTPUT ---"
@@ -82,6 +101,7 @@ jobs:
           
           if grep -iqE "panic|triple fault|exception" qemu_output.log; then
             echo "::error::Bootloop or Kernel Panic detected!"
+            cp qemu_output.log build-error.log
             exit 1
           fi
           echo "Integration test passed successfully!"
@@ -105,11 +125,12 @@ jobs:
             fi
           done
 
-      - name: 🤖 Automated AI Developer (Auto-Fix & Issue)
+      - name: 🤖 Automated AI Developer (Auto-Fix & Issue) - STRICT READ-ONLY
         if: always() && runner.os == 'Linux'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # EXPLICIT GUARD: The AI must never modify or push code. Strict Read-Only!
           LOG_CONTENT=$(tail -n 60 build-error.log || echo "No errors found.")
           
           if [ "${{ job.status }}" == "success" ]; then
@@ -124,17 +145,17 @@ jobs:
               --body "## 📊 Build Analysis\n\n**Logs (Tail):**\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n**🤖 AI Insights:**\n$AI_RESPONSE" || true
           else
             # Failure Fix Suggestion Protocol (Safe Mode)
-            echo "Build failed. Initiating AI Safe Fix Suggestion Protocol..."
+            echo "Build failed. Initiating AI Safe Fix Suggestion Protocol (Read-Only Mode)..."
             
             # 1. Try to find the file that caused the error
             FAILED_FILE=$(grep -Eo 'kernel/src/[a-zA-Z0-9_/-]+\.rs' build-error.log | head -1)
             
             if [ -n "$FAILED_FILE" ] && [ -f "$FAILED_FILE" ]; then
               echo "Detected failing file: $FAILED_FILE"
-              CODE_CONTENT=$(cat $FAILED_FILE || echo "")
+              CODE_CONTENT=$(cat "$FAILED_FILE" || echo "")
               
-              # NEW SAFE PROMPT: No code deletion, only safe suggestions
-              PROMPT="You are an expert Rust systems programmer and AI safety assistant. The following Rust file failed to compile. Analyze the error and suggest a SAFE fix. EXTREMELY IMPORTANT: DO NOT suggest deleting functionality. DO NOT remove code unless absolutely necessary to fix the bug. Provide your suggestions as a detailed explanation with safe code snippets. Focus on stability and correctness.\n\nError:\n$LOG_CONTENT\n\nFile ($FAILED_FILE):\n$CODE_CONTENT"
+              # NEW SAFE PROMPT: Read-Only, strictly no commits.
+              PROMPT="You are an expert Rust systems programmer and AI safety assistant running in READ-ONLY mode in a CI pipeline. The following file failed to compile or test. Analyze the error and suggest a SAFE fix. EXTREMELY IMPORTANT: DO NOT attempt to write files, do not push changes. You are read-only! Provide your suggestions as a detailed explanation with safe code snippets so a human can apply them. Focus on stability and correctness.\n\nError:\n$LOG_CONTENT\n\nFile ($FAILED_FILE):\n$CODE_CONTENT"
               
               jq -n --arg prompt "$PROMPT" '{"model": "qwen2.5-coder:3b", "prompt": $prompt, "stream": false}' > payload.json
               AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response')
@@ -143,21 +164,22 @@ jobs:
               
               # Post ONLY as an issue, NO direct code changes, NO PRs
               gh issue create \
-                --title "🤖 AI Fix Suggestion: Build Failure in $FAILED_FILE" \
-                --body "The CI build crashed. I (Ollama AI) analyzed the logs and the file to suggest a safe fix.\n\n### Error Logs:\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n### 🤖 AI Suggested Fix:\n$AI_RESPONSE" || true
+                --title "🤖 AI Fix Suggestion: Build/Test Failure in $FAILED_FILE" \
+                --body "The CI pipeline encountered an error. I (Ollama AI) analyzed the logs in READ-ONLY mode and suggest a safe fix for a human to review. I make no automatic commits.\n\n### Error Logs:\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n### 🤖 AI Suggested Fix:\n$AI_RESPONSE" || true
             else
-              echo "Could not parse failing file. Creating standard bug issue..."
-              PROMPT="You are an expert Rust systems programmer. The Rust bare-metal build failed. Please analyze the compiler error and provide a clear fix:\n\n$LOG_CONTENT"
+              echo "Could not parse failing file or error is general. Creating standard bug issue..."
+              PROMPT="You are an expert Rust systems programmer running in READ-ONLY CI mode. The Rust bare-metal build or tests failed. Analyze the logs and provide a clear fix for a human to apply. DO NOT attempt to change or push code.\n\n$LOG_CONTENT"
               jq -n --arg prompt "$PROMPT" '{"model": "qwen2.5-coder:3b", "prompt": $prompt, "stream": false}' > payload.json
               AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response')
               
-              gh issue create --title "❌ AI Bug Report: Build Crash (Run ${{ github.run_number }})" \
-                --body "## 📊 Build Analysis\n\n**Logs (Tail):**\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n**🤖 AI Insights:**\n$AI_RESPONSE" || true
+              gh issue create --title "❌ AI Bug Report: Build/Test Crash (Run ${{ github.run_number }})" \
+                --body "## 📊 Build/Test Analysis\n\n**Logs (Tail):**\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n**🤖 AI Insights:**\n$AI_RESPONSE\n\n*Note: AI operated in strictly read-only mode.*" || true
             fi
           fi
 
       - name: 📦 Upload OS Disk Image Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: RustOS-Limbo-Image-${{ matrix.os }}
           path: target/my_rust_os_desktop.img

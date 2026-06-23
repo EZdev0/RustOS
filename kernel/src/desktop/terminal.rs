@@ -9,6 +9,7 @@ pub struct TerminalApp {
     input_buffer: String,
     cursor_visible: bool,
     ticks: usize,
+    current_path: String,
 }
 
 impl TerminalApp {
@@ -22,6 +23,7 @@ impl TerminalApp {
             input_buffer: String::new(),
             cursor_visible: true,
             ticks: 0,
+            current_path: String::new(),
         }
     }
 
@@ -45,24 +47,75 @@ impl TerminalApp {
 
         match parts[0] {
             "help" => {
-                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot, ls, touch, rm, cat"), cmd_color);
+                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot, ls, touch, rm, cat, mkdir, cd, pwd"), cmd_color);
             }
             "clear" => {
                 self.output.clear();
             }
+            "pwd" => {
+                let p = if self.current_path.is_empty() { "/" } else { &self.current_path };
+                self.print(String::from(p), cmd_color);
+            }
             "ls" => {
-                let files = crate::fs::RAM_FS.lock().list_files();
-                if files.is_empty() {
-                    self.print(String::from("(empty)"), cmd_color);
-                } else {
-                    for f in files {
-                        self.print(f, cmd_color);
+                let current = if self.current_path.is_empty() { "/" } else { &self.current_path };
+                if let Some(files) = crate::fs::RAM_FS.lock().list_dir(current) {
+                    if files.is_empty() {
+                        self.print(String::from("(empty)"), cmd_color);
+                    } else {
+                        for (name, is_dir) in files {
+                            let label = if is_dir { format!("[DIR] {}", name) } else { name };
+                            self.print(label, cmd_color);
+                        }
                     }
+                } else {
+                    self.print(String::from("Directory not found"), err_color);
+                }
+            }
+            "mkdir" => {
+                if parts.len() > 1 {
+                    let path = if self.current_path.is_empty() {
+                        String::from(parts[1])
+                    } else {
+                        format!("{}/{}", self.current_path, parts[1])
+                    };
+                    crate::fs::RAM_FS.lock().mkdir(&path);
+                    self.print(String::from("Created directory"), cmd_color);
+                } else {
+                    self.print(String::from("Usage: mkdir <dirname>"), err_color);
+                }
+            }
+            "cd" => {
+                if parts.len() > 1 {
+                    let target = parts[1];
+                    if target == ".." {
+                        if !self.current_path.is_empty() {
+                            let mut p: Vec<&str> = self.current_path.split('/').collect();
+                            p.pop();
+                            self.current_path = p.join("/");
+                        }
+                    } else if target == "/" {
+                        self.current_path = String::new();
+                    } else {
+                        let path = if self.current_path.is_empty() {
+                            String::from(target)
+                        } else {
+                            format!("{}/{}", self.current_path, target)
+                        };
+                        
+                        if let Some(_) = crate::fs::RAM_FS.lock().list_dir(&path) {
+                            self.current_path = path;
+                        } else {
+                            self.print(String::from("Directory not found"), err_color);
+                        }
+                    }
+                } else {
+                    self.print(String::from("Usage: cd <dirname>"), err_color);
                 }
             }
             "touch" => {
                 if parts.len() > 1 {
-                    crate::fs::RAM_FS.lock().write_file(parts[1], b"");
+                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    crate::fs::RAM_FS.lock().write_file(&path, b"");
                     self.print(String::from("Created file"), cmd_color);
                 } else {
                     self.print(String::from("Usage: touch <filename>"), err_color);
@@ -70,7 +123,8 @@ impl TerminalApp {
             }
             "rm" => {
                 if parts.len() > 1 {
-                    if crate::fs::RAM_FS.lock().delete_file(parts[1]) {
+                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    if crate::fs::RAM_FS.lock().delete_file(&path) {
                         self.print(String::from("Deleted file"), cmd_color);
                     } else {
                         self.print(String::from("File not found"), err_color);
@@ -81,7 +135,8 @@ impl TerminalApp {
             }
             "cat" => {
                 if parts.len() > 1 {
-                    if let Some(content) = crate::fs::RAM_FS.lock().read_file(parts[1]) {
+                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    if let Some(content) = crate::fs::RAM_FS.lock().read_file(&path) {
                         if let Ok(s) = core::str::from_utf8(&content) {
                             self.print(String::from(s), cmd_color);
                         } else {
@@ -99,8 +154,9 @@ impl TerminalApp {
                     if let Some(pos) = parts.iter().position(|&x| x == ">") {
                         if pos + 1 < parts.len() {
                             let filename = parts[pos + 1];
+                            let path = if self.current_path.is_empty() { String::from(filename) } else { format!("{}/{}", self.current_path, filename) };
                             let content = parts[1..pos].join(" ");
-                            crate::fs::RAM_FS.lock().write_file(filename, content.as_bytes());
+                            crate::fs::RAM_FS.lock().write_file(&path, content.as_bytes());
                             self.print(String::from("File written"), cmd_color);
                             return;
                         }
@@ -215,6 +271,9 @@ impl App for TerminalApp {
             if i >= start_line {
                 let mut cur_x = x + padding;
                 for c in line.chars() {
+                    if cur_x + 8 > x + width - padding {
+                        break; // Truncate text that exceeds the window bounds
+                    }
                     compositor.draw_char(cur_x, cur_y, c, color.0, color.1, color.2);
                     cur_x += 8;
                 }
@@ -224,16 +283,21 @@ impl App for TerminalApp {
 
         if total_lines >= start_line && start_line <= self.output.len() {
             let mut cur_x = x + padding;
-            compositor.draw_char(cur_x, cur_y, '>', 0, 255, 0);
-            cur_x += 16;
+            if cur_x + 16 <= x + width - padding {
+                compositor.draw_char(cur_x, cur_y, '>', 0, 255, 0);
+                cur_x += 16;
 
-            for c in self.input_buffer.chars() {
-                compositor.draw_char(cur_x, cur_y, c, 255, 255, 255);
-                cur_x += 8;
-            }
+                for c in self.input_buffer.chars() {
+                    if cur_x + 8 > x + width - padding {
+                        break;
+                    }
+                    compositor.draw_char(cur_x, cur_y, c, 255, 255, 255);
+                    cur_x += 8;
+                }
 
-            if self.cursor_visible {
-                compositor.draw_rect(cur_x, cur_y, 8, 10, 0, 255, 0);
+                if self.cursor_visible && cur_x + 8 <= x + width - padding {
+                    compositor.draw_rect(cur_x, cur_y, 8, 10, 0, 255, 0);
+                }
             }
         }
     }
