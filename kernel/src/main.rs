@@ -119,7 +119,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             compositor.draw_rect(0, 0, width, height, 18, 18, 22);
 
             let pulse = if frame % 40 < 20 { frame % 40 } else { 40 - (frame % 40) }; 
-            let alpha = 150 + (pulse * 5) as u16;
+            let alpha = 150 + u16::try_from(pulse * 5).unwrap_or(0);
             let radius = 40 + (pulse / 4); 
 
             compositor.draw_glowing_ring(cx, cy, radius, 12, alpha, 0, 150, 255);
@@ -150,6 +150,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         compositor.add_window(window);
         compositor.render_all();
 
+        #[allow(clippy::arc_with_non_send_sync)]
         let shared_compositor = alloc::sync::Arc::new(spin::Mutex::new(compositor));
 
         // 2. Initialize Executor
@@ -157,7 +158,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         // 3. Spawn UI and Network Tasks
         executor.spawn(task::Task::new(task::keyboard::keyboard_task(shared_compositor.clone())));
-        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
+        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor)));
         executor.spawn(task::Task::new(crate::network::network_task()));
 
         // 4. Start Scheduler Loop (never returns)
@@ -178,7 +179,7 @@ struct FbWriter<'a> {
     margin_x: usize,
 }
 
-impl<'a> Write for FbWriter<'a> {
+impl Write for FbWriter<'_> {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for c in s.chars() {
             if c == '\n' {
@@ -231,11 +232,6 @@ fn panic(info: &PanicInfo) -> ! {
             for i in (0..buffer.len()).step_by(fb.bytes_per_pixel) {
                 if i + 2 < buffer.len() {
                     match fb.pixel_format {
-                        bootloader_api::info::PixelFormat::Rgb => {
-                            buffer[i] = 170;
-                            buffer[i+1] = 0;
-                            buffer[i+2] = 0;
-                        }
                         bootloader_api::info::PixelFormat::Bgr => {
                             buffer[i] = 0;
                             buffer[i+1] = 0;
@@ -259,11 +255,11 @@ fn panic(info: &PanicInfo) -> ! {
                 margin_x: 50,
             };
             
-            let _ = write!(writer, "==========================================\n");
-            let _ = write!(writer, " FATAL EXCEPTION DETECTED \n");
-            let _ = write!(writer, " RED SCREEN OF DEATH \n");
-            let _ = write!(writer, "==========================================\n\n");
-            let _ = write!(writer, "{}\n\n", info);
+            let _ = writeln!(writer, "==========================================");
+            let _ = writeln!(writer, " FATAL EXCEPTION DETECTED ");
+            let _ = writeln!(writer, " RED SCREEN OF DEATH ");
+            let _ = writeln!(writer, "==========================================\n");
+            let _ = write!(writer, "{info}\n\n");
             let _ = write!(writer, "SYSTEM HALTED. PLEASE RESTART.");
         }
     }

@@ -68,7 +68,7 @@ impl E1000 {
         // SAFETY FIX: In some QEMU configurations without SeaBIOS, BAR0 is uninitialized (0).
         // If we write to address 0, we corrupt the IDT/GDT, causing #GP or #DF.
         if mmio_base == 0 {
-            mmio_base = 0xFEB80000;
+            mmio_base = 0xFEB8_0000;
             pci_write_config_32(pci_device.bus, pci_device.device, pci_device.function, 0x10, mmio_base as u32);
         }
         
@@ -105,7 +105,7 @@ impl E1000 {
     pub fn init(&mut self) {
         unsafe {
             // Disable all interrupts (Mask Clear) to prevent interrupt storms
-            self.write_register(REG_IMC, 0xFFFFFFFF);
+            self.write_register(REG_IMC, 0xFFFF_FFFF);
 
             // Set Link Up
             let mut ctrl = read_volatile((self.mmio_base + REG_CTRL) as *const u32);
@@ -124,7 +124,7 @@ impl E1000 {
             }
 
             let rx_addr = self.rx_ring.as_ptr() as u64;
-            self.write_register(REG_RDBAL, (rx_addr & 0xFFFFFFFF) as u32);
+            self.write_register(REG_RDBAL, (rx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_RDBAH, (rx_addr >> 32) as u32);
             self.write_register(REG_RDLEN, (RX_RING_SIZE * core::mem::size_of::<RxDesc>()) as u32);
             self.write_register(REG_RDH, 0);
@@ -139,7 +139,7 @@ impl E1000 {
             }
 
             let tx_addr = self.tx_ring.as_ptr() as u64;
-            self.write_register(REG_TDBAL, (tx_addr & 0xFFFFFFFF) as u32);
+            self.write_register(REG_TDBAL, (tx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_TDBAH, (tx_addr >> 32) as u32);
             self.write_register(REG_TDLEN, (TX_RING_SIZE * core::mem::size_of::<TxDesc>()) as u32);
             self.write_register(REG_TDH, 0);

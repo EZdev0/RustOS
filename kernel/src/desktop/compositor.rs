@@ -1,5 +1,5 @@
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
-use crate::desktop::window::{Window, WindowAnimState};
+use crate::desktop::window::Window;
 use crate::desktop::app::Event;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;

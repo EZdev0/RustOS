@@ -47,7 +47,7 @@ static mut MOUSE_CYCLE: u8 = 0;
 fn mouse_wait(a_type: u8) {
     use x86_64::instructions::port::Port;
     let mut port_64 = Port::<u8>::new(0x64);
-    let timeout = 100000;
+    let timeout = 100_000;
     for _ in 0..timeout {
         let status = unsafe { port_64.read() };
         if a_type == 0 {
@@ -120,7 +120,7 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
 pub fn init_pit(frequency: u32) {
     use x86_64::instructions::port::Port;
     
-    let divisor = 1193182 / frequency;
+    let divisor = 1_193_182 / frequency;
     
     let mut command_port: Port<u8> = Port::new(0x43);
     let mut data_port: Port<u8> = Port::new(0x40);

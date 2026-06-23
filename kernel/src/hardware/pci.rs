@@ -23,7 +23,7 @@ pub struct PciDevice {
 }
 
 pub fn pci_read_config_32(bus: u8, slot: u8, func: u8, offset: u8) -> u32 {
-    let address: u32 = 0x80000000 
+    let address: u32 = 0x8000_0000
         | ((bus as u32) << 16) 
         | ((slot as u32) << 11) 
         | ((func as u32) << 8) 
@@ -39,7 +39,7 @@ pub fn pci_read_config_32(bus: u8, slot: u8, func: u8, offset: u8) -> u32 {
 }
 
 pub fn pci_write_config_32(bus: u8, slot: u8, func: u8, offset: u8, value: u32) {
-    let address: u32 = 0x80000000 
+    let address: u32 = 0x8000_0000
         | ((bus as u32) << 16) 
         | ((slot as u32) << 11) 
         | ((func as u32) << 8) 
