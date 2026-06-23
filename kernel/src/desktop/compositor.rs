@@ -3,6 +3,7 @@ use crate::desktop::window::Window;
 use crate::desktop::app::Event;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;
+use crate::desktop::renderer::IntelligentRenderer;
 
 #[derive(Clone, Copy)]
 pub struct Rect {
@@ -32,6 +33,7 @@ pub struct GraphicalCompositor {
     pub dock_target_offset: isize,
     pub dirty_rects: Vec<Rect>,
     pub full_redraw: bool,
+    pub renderer: IntelligentRenderer,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -58,6 +60,7 @@ impl GraphicalCompositor {
         let mut dock_buffer = Vec::with_capacity(440 * 60 * 3);
         dock_buffer.resize(440 * 60 * 3, 0);
         
+        let renderer = IntelligentRenderer::init(buffer.as_mut_ptr());
         let mouse_x = info.width / 2;
         let mouse_y = info.height / 2;
 
@@ -81,6 +84,7 @@ impl GraphicalCompositor {
             dock_target_offset: 0,
             dirty_rects: Vec::new(),
             full_redraw: true,
+            renderer,
         }
     }
 
@@ -577,7 +581,7 @@ impl GraphicalCompositor {
         self.dirty_rects.push(Rect { x: self.mouse_x, y: self.mouse_y, width: 16, height: 16 });
 
         if self.full_redraw {
-            self.framebuffer.copy_from_slice(&self.backbuffer);
+            self.renderer.draw_dirty_rect(self.backbuffer.as_ptr(), self.framebuffer.as_mut_ptr(), self.backbuffer.len());
             self.full_redraw = false;
             self.dirty_rects.clear();
         } else {
@@ -606,7 +610,12 @@ impl GraphicalCompositor {
                 for y in start_y..end_y {
                     let offset = y * stride * bpp + start_x * bpp;
                     let len = (end_x - start_x) * bpp;
-                    self.framebuffer[offset..offset+len].copy_from_slice(&self.backbuffer[offset..offset+len]);
+                    
+                    unsafe {
+                        let src_ptr = self.backbuffer.as_ptr().add(offset);
+                        let dst_ptr = self.framebuffer.as_mut_ptr().add(offset);
+                        self.renderer.draw_dirty_rect(src_ptr, dst_ptr, len);
+                    }
                 }
             }
             self.dirty_rects.clear();
@@ -614,7 +623,7 @@ impl GraphicalCompositor {
     }
 
     pub fn swap_buffers(&mut self) {
-        self.framebuffer.copy_from_slice(&self.backbuffer);
+        self.renderer.draw_dirty_rect(self.backbuffer.as_ptr(), self.framebuffer.as_mut_ptr(), self.backbuffer.len());
     }
 
     pub fn draw_char(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8) {

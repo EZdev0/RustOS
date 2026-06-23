@@ -30,3 +30,23 @@ pub fn detect_and_init() -> String {
 
     features
 }
+
+#[allow(dead_code)]
+pub fn has_avx2() -> bool {
+    let cpuid = CpuId::new();
+    if let Some(ext) = cpuid.get_extended_feature_info() {
+        ext.has_avx2()
+    } else {
+        false
+    }
+}
+
+#[allow(dead_code)]
+pub fn has_avx512f() -> bool {
+    let cpuid = CpuId::new();
+    if let Some(ext) = cpuid.get_extended_feature_info() {
+        ext.has_avx512f()
+    } else {
+        false
+    }
+}
