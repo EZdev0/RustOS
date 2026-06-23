@@ -475,6 +475,16 @@ impl GraphicalCompositor {
         
         self.dock_target_offset = if any_maximized { 100 } else { 0 };
         let diff = self.dock_target_offset - self.dock_y_offset;
+
+        if diff != 0 {
+            let dock_w = 440;
+            let dock_h = 60;
+            let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
+            let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
+            let old_dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
+            self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: old_dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
+        }
+
         self.dock_y_offset += diff / 4;
         if diff > 0 && diff < 4 { self.dock_y_offset += 1; }
         else if diff < 0 && diff > -4 { self.dock_y_offset -= 1; }
@@ -802,9 +812,10 @@ impl GraphicalCompositor {
 
         if left_down {
             if let Some(idx) = self.dragging_window {
-                self.full_redraw = true;
                 if idx < self.windows.len() {
                     if let Some(w) = &mut self.windows[idx] {
+                        self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
+                        
                         let target_x = (self.mouse_x as isize - self.drag_offset_x).max(0) as usize;
                         let target_y = (self.mouse_y as isize - self.drag_offset_y).max(0) as usize;
                         w.x = target_x;
