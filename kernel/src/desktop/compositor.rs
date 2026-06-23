@@ -1,5 +1,5 @@
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
-use crate::desktop::window::Window;
+use crate::desktop::window::{Window, WindowAnimState};
 use crate::desktop::app::Event;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;
@@ -298,7 +298,6 @@ impl GraphicalCompositor {
         let width = self.info.width;
         let height = self.info.height;
 
-        // Modern Gradient Background
         for y in 0..height {
             let r = 15 + (y * 20 / height) as u8;
             let g = 20 + (y * 25 / height) as u8;
@@ -308,7 +307,6 @@ impl GraphicalCompositor {
             }
         }
 
-        // Top System Bar (Dark Glass look via Blending)
         for dy in 0..28 {
             for dx in 0..width {
                 self.blend_pixel(dx, dy, 10, 10, 15, 180);
@@ -505,6 +503,15 @@ impl GraphicalCompositor {
                 let win_y = window.y;
                 let win_w = window.width;
                 let win_h = window.height + 20;
+
+                window.tick_animation();
+                
+                if let WindowAnimState::Opening(tick) = window.anim_state {
+                    self.draw_animated_window_border(win_x, win_y, win_w, win_h, tick);
+                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 40, height: win_h + 40 });
+                    self.windows[i] = Some(window);
+                    continue; // Skip normal drawing
+                }
 
                 // 1. Draw Drop-Shadow or Glow first
                 self.draw_shadow_and_glow(win_x, win_y, win_w, win_h, 8, is_active);
@@ -865,6 +872,77 @@ impl GraphicalCompositor {
                     
                     self.desktop_click_active = false;
                     self.long_press_ticks = 0;
+                }
+            }
+        }
+    }
+
+    fn get_perimeter_pixel(x: usize, y: usize, w: usize, h: usize, i: usize) -> (usize, usize) {
+        if i < w {
+            (x + i, y)
+        } else if i < w + h {
+            (x + w - 1, y + (i - w))
+        } else if i < 2 * w + h {
+            (x + w - 1 - (i - (w + h)), y + h - 1)
+        } else {
+            (x, y + h - 1 - (i - (2 * w + h)))
+        }
+    }
+
+    pub fn draw_animated_window_border(&mut self, x: usize, y: usize, w: usize, h: usize, tick: usize) {
+        let perimeter = 2 * w + 2 * h;
+        let t_trace = 60;
+        let t_pulse_out = 15;
+        let t_pulse_in = 15;
+        let glow_max_radius = 10;
+
+        // PHASE 1: Snake / Trace Animation (Umherschlingen)
+        if tick < t_trace {
+            let current_len = (perimeter * tick) / t_trace;
+            for i in 0..current_len {
+                let (px, py) = Self::get_perimeter_pixel(x, y, w, h, i);
+                let dist_to_head = current_len - i;
+                let (r, g, b) = if dist_to_head < 20 {
+                    let intensity = 255_usize.saturating_sub(dist_to_head * 12);
+                    (intensity as u8, intensity as u8, 255)
+                } else {
+                    (100, 100, 200)
+                };
+                self.draw_pixel(px, py, r, g, b);
+            }
+        } 
+        // PHASE 2 & 3: Glow-Pulse (Ausstrahlen und Einziehen)
+        else if tick < t_trace + t_pulse_out + t_pulse_in {
+            // Outline
+            self.draw_rect(x, y, w, 1, 200, 200, 255);
+            self.draw_rect(x, y + h - 1, w, 1, 200, 200, 255);
+            self.draw_rect(x, y, 1, h, 200, 200, 255);
+            self.draw_rect(x + w - 1, y, 1, h, 200, 200, 255);
+            
+            let pulse_tick = tick - t_trace;
+            let current_glow_radius = if pulse_tick < t_pulse_out {
+                (glow_max_radius * pulse_tick) / t_pulse_out
+            } else {
+                let in_tick = pulse_tick - t_pulse_out;
+                glow_max_radius - ((glow_max_radius * in_tick) / t_pulse_in)
+            };
+
+            for r_offset in 1..=current_glow_radius {
+                let alpha = 128_usize.saturating_sub((128 * r_offset) / glow_max_radius);
+                let (cr, cg, cb) = (100, 150, 255);
+                
+                let rx = x.saturating_sub(r_offset);
+                let ry = y.saturating_sub(r_offset);
+                let rw = w + 2 * r_offset;
+                let rh = h + 2 * r_offset;
+                
+                for px in rx..rx+rw {
+                    self.blend_pixel(px, ry, cr, cg, cb, alpha as u16);
+                    self.blend_pixel(px, ry+rh-1, cr, cg, cb, alpha as u16);
+                }
+                for py in ry..ry+rh {
+                    self.blend_pixel(rx, py, cr, cg, cb, alpha as u16);
+                    self.blend_pixel(rx+rw-1, py, cr, cg, cb, alpha as u16);
                 }
             }
         }

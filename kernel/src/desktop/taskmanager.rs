@@ -3,10 +3,19 @@ use crate::desktop::compositor::GraphicalCompositor;
 use alloc::format;
 use alloc::vec::Vec;
 
+#[derive(Clone, Copy, PartialEq)]
+enum AccordionSection {
+    Performance,
+    OsAnalysis,
+    DeviceInfo,
+    Support,
+}
+
 pub struct TaskManagerApp {
     ticks: usize,
     cpu_history: Vec<u8>,
     ram_history: Vec<u8>,
+    expanded_section: AccordionSection,
 }
 
 impl TaskManagerApp {
@@ -15,7 +24,140 @@ impl TaskManagerApp {
             ticks: 0,
             cpu_history: alloc::vec![0; 50],
             ram_history: alloc::vec![0; 50],
+            expanded_section: AccordionSection::Performance,
         }
+    }
+
+    fn get_content_height(section: AccordionSection) -> usize {
+        match section {
+            AccordionSection::Performance => 160,
+            AccordionSection::OsAnalysis => 70,
+            AccordionSection::DeviceInfo => 70,
+            AccordionSection::Support => 60,
+        }
+    }
+
+    fn draw_header(&self, compositor: &mut GraphicalCompositor, title: &str, x: usize, y: usize, width: usize, is_expanded: bool) -> usize {
+        let bg_color = if is_expanded { (60, 60, 70) } else { (40, 40, 50) };
+        compositor.draw_rect(x, y, width, 25, bg_color.0, bg_color.1, bg_color.2);
+        
+        let prefix = if is_expanded { "[-] " } else { "[+] " };
+        let full_title = format!("{}{}", prefix, title);
+        
+        let mut cx = x + 10;
+        for c in full_title.chars() {
+            compositor.draw_char(cx, y + 8, c, 255, 255, 255);
+            cx += 8;
+        }
+        
+        25
+    }
+
+    fn draw_performance(&self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize) -> usize {
+        let content_height = Self::get_content_height(AccordionSection::Performance);
+        compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
+
+        let chart_h = 40;
+        // Draw CPU Chart
+        compositor.draw_rect(x + 5, y + 10, width - 10, chart_h, 40, 40, 45);
+        let mut cur_x = x + 5;
+        for &val in self.cpu_history.iter() {
+            let h = (val as usize * chart_h) / 100;
+            compositor.draw_rect(cur_x, y + 10 + chart_h - h, 2, h, 0, 200, 255);
+            cur_x += 3;
+            if cur_x >= x + width - 10 { break; }
+        }
+        
+        let cpu_txt = format!("CPU Usage: {}%", self.cpu_history.last().unwrap_or(&0));
+        let mut cx2 = x + 5;
+        for c in cpu_txt.chars() {
+            compositor.draw_char(cx2, y + 55, c, 0, 200, 255);
+            cx2 += 8;
+        }
+
+        // Draw RAM Chart
+        compositor.draw_rect(x + 5, y + 80, width - 10, chart_h, 40, 40, 45);
+        let mut cur_x = x + 5;
+        for &val in self.ram_history.iter() {
+            let h = (val as usize * chart_h) / 100;
+            compositor.draw_rect(cur_x, y + 80 + chart_h - h, 2, h, 255, 100, 0);
+            cur_x += 3;
+            if cur_x >= x + width - 10 { break; }
+        }
+        
+        let ram_txt = format!("RAM Usage: {}MB / 128MB", self.ram_history.last().unwrap_or(&0));
+        let mut cx3 = x + 5;
+        for c in ram_txt.chars() {
+            compositor.draw_char(cx3, y + 125, c, 255, 100, 0);
+            cx3 += 8;
+        }
+
+        content_height
+    }
+
+    fn draw_os_analysis(&self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize) -> usize {
+        let content_height = Self::get_content_height(AccordionSection::OsAnalysis);
+        compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
+
+        let lines = [
+            "Kernel: VibeOS v0.1",
+            "System Status: Nominal",
+            "AI Background: Active",
+            "Analysis: 0 errors found",
+        ];
+
+        for (i, line) in lines.iter().enumerate() {
+            let mut cx = x + 10;
+            for c in line.chars() {
+                if cx + 8 > x + width { break; }
+                compositor.draw_char(cx, y + 10 + (i * 15), c, 100, 255, 100);
+                cx += 8;
+            }
+        }
+        content_height
+    }
+
+    fn draw_device_info(&self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize) -> usize {
+        let content_height = Self::get_content_height(AccordionSection::DeviceInfo);
+        compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
+
+        let lines = [
+            "Architecture: x86_64",
+            "CPU: Virtual x64 Processor",
+            "RAM: 128 MB Installed",
+            "Disk: Virtual FS",
+        ];
+
+        for (i, line) in lines.iter().enumerate() {
+            let mut cx = x + 10;
+            for c in line.chars() {
+                if cx + 8 > x + width { break; }
+                compositor.draw_char(cx, y + 10 + (i * 15), c, 200, 200, 200);
+                cx += 8;
+            }
+        }
+        content_height
+    }
+
+    fn draw_support(&self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize) -> usize {
+        let content_height = Self::get_content_height(AccordionSection::Support);
+        compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
+
+        let lines = [
+            "Need help with VibeOS?",
+            "Contact: support@vibeos",
+            "Docs: /docs/system.txt",
+        ];
+
+        for (i, line) in lines.iter().enumerate() {
+            let mut cx = x + 10;
+            for c in line.chars() {
+                if cx + 8 > x + width { break; }
+                compositor.draw_char(cx, y + 10 + (i * 15), c, 255, 200, 100);
+                cx += 8;
+            }
+        }
+        content_height
     }
 }
 
@@ -29,7 +171,7 @@ impl App for TaskManagerApp {
         if self.ticks % 5 == 0 {
             let mut cpu_usage = (self.ticks % 100) as u8; 
             if cpu_usage > 50 { cpu_usage = 100 - cpu_usage; }
-            cpu_usage = cpu_usage.saturating_add(10); // 10 to 60
+            cpu_usage = cpu_usage.saturating_add(10);
             
             self.cpu_history.remove(0);
             self.cpu_history.push(cpu_usage);
@@ -43,57 +185,59 @@ impl App for TaskManagerApp {
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
         compositor.draw_rect(x, y, width, height, 30, 30, 35);
         
-        let title = "System Performance Monitor";
-        let mut cx = x + 10;
-        for c in title.chars() {
-            compositor.draw_char(cx, y + 10, c, 255, 255, 255);
-            cx += 8;
-        }
-        
-        // Draw CPU Chart
-        compositor.draw_rect(x + 10, y + 30, width - 20, 60, 40, 40, 45); // Chart bg
-        let mut cur_x = x + 10;
-        let chart_h = 60;
-        for &val in self.cpu_history.iter() {
-            let h = (val as usize * chart_h) / 100;
-            compositor.draw_rect(cur_x, y + 30 + chart_h - h, 2, h, 0, 200, 255); // Cyan bar
-            cur_x += 3;
-            if cur_x >= x + width - 10 { break; }
-        }
-        
-        let cpu_txt = format!("CPU Usage: {}%", self.cpu_history.last().unwrap_or(&0));
-        let mut cx2 = x + 10;
-        for c in cpu_txt.chars() {
-            compositor.draw_char(cx2, y + 95, c, 0, 200, 255);
-            cx2 += 8;
-        }
+        let sections = [
+            (AccordionSection::Performance, "Performance Monitor"),
+            (AccordionSection::OsAnalysis, "OS Analysis"),
+            (AccordionSection::DeviceInfo, "Device Info"),
+            (AccordionSection::Support, "Support"),
+        ];
 
-        // Draw RAM Chart
-        compositor.draw_rect(x + 10, y + 120, width - 20, 60, 40, 40, 45); // Chart bg
-        let mut cur_x = x + 10;
-        for &val in self.ram_history.iter() {
-            let h = (val as usize * chart_h) / 100;
-            compositor.draw_rect(cur_x, y + 120 + chart_h - h, 2, h, 255, 100, 0); // Orange bar
-            cur_x += 3;
-            if cur_x >= x + width - 10 { break; }
-        }
+        let mut current_y = y + 5;
         
-        let ram_txt = format!("RAM Usage: {}MB / 128MB", self.ram_history.last().unwrap_or(&0));
-        let mut cx3 = x + 10;
-        for c in ram_txt.chars() {
-            compositor.draw_char(cx3, y + 185, c, 255, 100, 0);
-            cx3 += 8;
-        }
-        
-        let hint = "Intelligent AI Background Processing Active.";
-        let mut cx4 = x + 10;
-        for c in hint.chars() {
-            if cx4 + 8 > x + width - 10 { break; }
-            compositor.draw_char(cx4, y + 215, c, 100, 255, 100);
-            cx4 += 8;
+        for (section, title) in sections.iter() {
+            let is_expanded = self.expanded_section == *section;
+            let header_height = self.draw_header(compositor, title, x + 5, current_y, width - 10, is_expanded);
+            current_y += header_height;
+
+            if is_expanded {
+                let content_height = match section {
+                    AccordionSection::Performance => self.draw_performance(compositor, x + 5, current_y, width - 10),
+                    AccordionSection::OsAnalysis => self.draw_os_analysis(compositor, x + 5, current_y, width - 10),
+                    AccordionSection::DeviceInfo => self.draw_device_info(compositor, x + 5, current_y, width - 10),
+                    AccordionSection::Support => self.draw_support(compositor, x + 5, current_y, width - 10),
+                };
+                current_y += content_height;
+            }
+            
+            current_y += 5; // Spacing
         }
     }
 
-    fn handle_event(&mut self, _event: Event) {
+    fn handle_event(&mut self, event: Event) {
+        if let Event::MouseClick { x: _rel_x, y: rel_y } = event {
+            let mut current_y = 5;
+            
+            let sections = [
+                AccordionSection::Performance,
+                AccordionSection::OsAnalysis,
+                AccordionSection::DeviceInfo,
+                AccordionSection::Support,
+            ];
+
+            for section in sections.iter() {
+                // Prüfen ob Klick im Header (25px Höhe) landete
+                if rel_y >= current_y && rel_y < current_y + 25 {
+                    self.expanded_section = *section;
+                    break;
+                }
+                current_y += 25;
+                
+                // Content Height aufaddieren, falls Sektion gerade ausgeklappt ist
+                if self.expanded_section == *section {
+                    current_y += Self::get_content_height(*section);
+                }
+                current_y += 5; // Spacing
+            }
+        }
     }
 }
