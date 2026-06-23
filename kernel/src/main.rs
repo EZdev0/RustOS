@@ -80,31 +80,53 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         let notepad = alloc::boxed::Box::new(notepad_app);
         let window = desktop::window::Window::new(notepad, win_x, win_y, win_width, win_height);
-        compositor.add_window(window);
-
-        compositor.render_all(); // Einmal initial rendern
-
-        // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
+        
+        // INTERRUPTS MÜSSEN FÜR TIMER AKTIVIERT WERDEN
         x86_64::instructions::interrupts::enable();
 
-        // BOOT ANIMATION (VibeOS 2026 Style)
-        for alpha in (0..=255).step_by(5) {
-            compositor.draw_rect(0, 0, width, height, 43, 48, 59); // Background
-            let text = "RUST OS 2026";
-            let mut tx = width / 2 - 48;
-            for c in text.chars() {
-                compositor.draw_char(tx, height / 2, c, alpha, alpha, alpha);
-                tx += 8;
+        // BOOT ANIMATION (macOS Glass / Breathing Glow Style)
+        let cx = width / 2;
+        let cy = height / 2 - 20;
+        let loading_bar_w = 200;
+        let loading_bar_h = 4;
+        let bar_x = cx - loading_bar_w / 2;
+        let bar_y = cy + 80;
+
+        for frame in 0..120 {
+            compositor.draw_rect(0, 0, width, height, 18, 18, 22);
+
+            let pulse = if frame % 40 < 20 { frame % 40 } else { 40 - (frame % 40) }; 
+            let alpha = 150 + (pulse * 5) as u16;
+            let radius = 40 + (pulse / 4); 
+
+            compositor.draw_glowing_ring(cx, cy, radius, 12, alpha, 0, 150, 255);
+            compositor.draw_glowing_ring(cx, cy, radius.saturating_sub(8), 3, alpha, 255, 255, 255);
+
+            for y in bar_y..(bar_y + loading_bar_h) {
+                for x in bar_x..(bar_x + loading_bar_w) {
+                    compositor.blend_pixel(x, y, 255, 255, 255, 30);
+                }
             }
+
+            let progress = (frame * loading_bar_w) / 120;
+            for y in bar_y..(bar_y + loading_bar_h) {
+                for x in bar_x..(bar_x + progress) {
+                    compositor.blend_pixel(x, y, 0, 150, 255, 255);
+                }
+            }
+
             compositor.swap_buffers();
-            
+
             let start = crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed);
-            while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed) < start + 5 {
+            while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed) < start + 1 {
                 x86_64::instructions::hlt();
             }
         }
 
         // 1. Arc/Mutex wrapper for the compositor so multiple async tasks can share it
+        compositor.add_window(window);
+        compositor.render_all();
+
         let shared_compositor = alloc::sync::Arc::new(spin::Mutex::new(compositor));
 
         // 2. Initialize Executor

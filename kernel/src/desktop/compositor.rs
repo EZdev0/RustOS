@@ -212,10 +212,90 @@ impl GraphicalCompositor {
         }
     }
 
+    pub fn draw_hline(&mut self, start_x: usize, end_x: usize, y: usize, r: u8, g: u8, b: u8) {
+        if y >= self.info.height || start_x >= self.info.width { return; }
+        let end_x = end_x.min(self.info.width);
+        if start_x >= end_x { return; }
+
+        let bpp = self.info.bytes_per_pixel;
+        let mut offset = (y * self.info.stride + start_x) * bpp;
+        
+        match self.info.pixel_format {
+            PixelFormat::Rgb => {
+                for _ in start_x..end_x {
+                    self.backbuffer[offset] = r;
+                    self.backbuffer[offset + 1] = g;
+                    self.backbuffer[offset + 2] = b;
+                    offset += bpp;
+                }
+            }
+            PixelFormat::Bgr => {
+                for _ in start_x..end_x {
+                    self.backbuffer[offset] = b;
+                    self.backbuffer[offset + 1] = g;
+                    self.backbuffer[offset + 2] = r;
+                    offset += bpp;
+                }
+            }
+            _ => {
+                for _ in start_x..end_x {
+                    self.backbuffer[offset] = b;
+                    offset += bpp;
+                }
+            }
+        }
+    }
+
     pub fn draw_rect(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8) {
-        for y in start_y..(start_y + height) {
-            for x in start_x..(start_x + width) {
-                self.draw_pixel(x, y, r, g, b);
+        let end_y = (start_y + height).min(self.info.height);
+        let end_x = start_x + width;
+        for y in start_y..end_y {
+            self.draw_hline(start_x, end_x, y, r, g, b);
+        }
+    }
+
+    pub fn draw_gradient_rect_vertical(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, start_color: (u8, u8, u8), end_color: (u8, u8, u8)) {
+        let end_y = (start_y + height).min(self.info.height);
+        let end_x = start_x + width;
+        if height == 0 { return; }
+        
+        for y in start_y..end_y {
+            let ratio = (y - start_y) as u32 * 255 / height as u32;
+            let inv_ratio = 255 - ratio;
+            
+            let r = ((start_color.0 as u32 * inv_ratio + end_color.0 as u32 * ratio) / 255) as u8;
+            let g = ((start_color.1 as u32 * inv_ratio + end_color.1 as u32 * ratio) / 255) as u8;
+            let b = ((start_color.2 as u32 * inv_ratio + end_color.2 as u32 * ratio) / 255) as u8;
+            
+            self.draw_hline(start_x, end_x, y, r, g, b);
+        }
+    }
+
+    pub fn draw_glowing_ring(&mut self, cx: usize, cy: usize, radius: usize, thickness: usize, core_alpha: u16, r: u8, g: u8, b: u8) {
+        let ext = radius + thickness;
+        let start_x = cx.saturating_sub(ext);
+        let start_y = cy.saturating_sub(ext);
+        let end_x = cx.saturating_add(ext).min(self.info.width);
+        let end_y = cy.saturating_add(ext).min(self.info.height);
+
+        for y in start_y..end_y {
+            for x in start_x..end_x {
+                let dx = x.abs_diff(cx);
+                let dy = y.abs_diff(cy);
+                let dist = fast_isqrt(dx * dx + dy * dy);
+                
+                if dist >= radius.saturating_sub(thickness) && dist <= radius + thickness {
+                    let diff = dist.abs_diff(radius);
+                    if diff == 0 {
+                        self.blend_pixel(x, y, r, g, b, core_alpha);
+                    } else {
+                        let factor = (thickness - diff) as u16 * 256 / thickness as u16;
+                        let alpha = (core_alpha as u32 * factor as u32 / 256) as u16;
+                        if alpha > 0 {
+                            self.blend_pixel(x, y, r, g, b, alpha);
+                        }
+                    }
+                }
             }
         }
     }
