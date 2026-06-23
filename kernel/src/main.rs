@@ -181,7 +181,8 @@ fn panic(info: &PanicInfo) -> ! {
     x86_64::instructions::interrupts::disable();
 
     unsafe {
-        if let Some(fb) = &mut CRASH_SCREEN_INFO {
+        let crash_info_ptr = core::ptr::addr_of_mut!(CRASH_SCREEN_INFO);
+        if let Some(fb) = (*crash_info_ptr).as_mut() {
             let buffer = core::slice::from_raw_parts_mut(fb.ptr, fb.len);
             
             for i in (0..buffer.len()).step_by(fb.bytes_per_pixel) {
