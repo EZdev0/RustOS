@@ -504,7 +504,7 @@ impl GraphicalCompositor {
             let rel_x = self.mouse_x - (dock_x + 25);
             let idx = rel_x / 85;
             let offset_in_icon = rel_x % 85;
-            if offset_in_icon <= 40 && self.mouse_y >= dock_y + 10 && self.mouse_y <= dock_y + 50 {
+            if offset_in_icon <= 40 && self.mouse_y >= dock_y + 6 && self.mouse_y <= dock_y + 50 {
                 hovered_icon = Some(idx);
             }
         }
@@ -514,7 +514,6 @@ impl GraphicalCompositor {
             let icon_base_x = dock_x + 25 + i * 85;
             let mut icon_y = dock_y + 10;
             let is_hovered = hovered_icon == Some(i);
-            let skew = if is_hovered { 6 } else { 0 };
             
             if is_hovered {
                 icon_y = icon_y.saturating_sub(4);
@@ -523,21 +522,21 @@ impl GraphicalCompositor {
             self.draw_shadow_and_glow(icon_base_x, icon_y, 40, 40, 4, is_hovered);
 
             if i == 0 {
-                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 255, 255, 255, skew);
+                self.draw_rect(icon_base_x, icon_y, 40, 40, 255, 255, 255);
                 for line in 1..4 {
-                    self.draw_rect_skew(icon_base_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255, skew);
+                    self.draw_rect(icon_base_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255);
                 }
             } else if i == 1 {
-                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 30, 30, 30, skew);
-                self.draw_char_skew(icon_base_x + 10, icon_y + 15, '>', 0, 255, 0, skew);
+                self.draw_rect(icon_base_x, icon_y, 40, 40, 30, 30, 30);
+                self.draw_char(icon_base_x + 10, icon_y + 15, '>', 0, 255, 0);
             } else if i == 2 {
-                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 20, 20, 20, skew);
-                self.draw_rect_skew(icon_base_x + 5, icon_y + 10, 30, 20, 0, 150, 255, skew);
+                self.draw_rect(icon_base_x, icon_y, 40, 40, 20, 20, 20);
+                self.draw_rect(icon_base_x + 5, icon_y + 10, 30, 20, 0, 150, 255);
             } else if i == 3 {
-                self.draw_rect_skew(icon_base_x + 5, icon_y + 15, 30, 20, 100, 180, 255, skew);
-                self.draw_rect_skew(icon_base_x + 5, icon_y + 10, 15, 5, 100, 180, 255, skew);
+                self.draw_rect(icon_base_x + 5, icon_y + 15, 30, 20, 100, 180, 255);
+                self.draw_rect(icon_base_x + 5, icon_y + 10, 15, 5, 100, 180, 255);
             } else {
-                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200, skew);
+                self.draw_rect(icon_base_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
             }
         }
     }
@@ -589,11 +588,11 @@ impl GraphicalCompositor {
                 
                 if let crate::desktop::window::WindowAnimState::Opening(tick) = window.anim_state {
                     self.draw_animated_window_border(win_x, win_y, win_w, win_h, tick);
-                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 40, height: win_h + 40 });
+                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 60, height: win_h + 60 });
                     self.windows[i] = Some(window);
                     continue; // Skip normal drawing
                 } else if was_opening {
-                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 40, height: win_h + 40 });
+                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 60, height: win_h + 60 });
                 }
 
                 // 1. Draw Drop-Shadow or Glow first
@@ -614,14 +613,6 @@ impl GraphicalCompositor {
 
                 // 3. Draw standard solid rectangular window contents
                 self.draw_rect(win_x, win_y, win_w, 20, 60, 60, 60); // Title Bar
-                
-                // Close Button
-                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); 
-                self.draw_char(win_x + win_w - 14, win_y + 6, 'X', 255, 255, 255);
-                
-                // Maximize Button
-                self.draw_rect(win_x + win_w - 40, win_y, 20, 20, 50, 150, 50); 
-                self.draw_char(win_x + win_w - 34, win_y + 6, '^', 255, 255, 255);
                 
                 window.app.update();
                 window.app.draw(self, win_x, win_y + 20, win_w, window.height); // App content
@@ -654,6 +645,16 @@ impl GraphicalCompositor {
                         }
                     }
                 }
+                
+                // 5. Draw Buttons (After corner restore so they are not clipped)
+                // Close Button
+                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); 
+                self.draw_char(win_x + win_w - 14, win_y + 6, 'X', 255, 255, 255);
+                
+                // Maximize Button
+                self.draw_rect(win_x + win_w - 40, win_y, 20, 20, 50, 150, 50); 
+                self.draw_char(win_x + win_w - 34, win_y + 6, '^', 255, 255, 255);
+
 
                 self.windows[i] = Some(window);
             }
@@ -848,7 +849,7 @@ impl GraphicalCompositor {
                         let rel_x = mx - (dock_x + 25);
                         let icon_idx = rel_x / 85;
                         let offset_in_icon = rel_x % 85;
-                        if offset_in_icon <= 40 && self.windows.len() < 12 {
+                        if offset_in_icon <= 40 && my >= dock_y + 6 && my <= dock_y + 50 && self.windows.len() < 12 {
                             let offset = (self.windows.len() * 20) % 100;
                             if icon_idx == 0 {
                                 let notepad_app = crate::desktop::notepad::NotepadApp::new();
@@ -961,20 +962,26 @@ impl GraphicalCompositor {
     }
 
     fn get_perimeter_pixel(x: usize, y: usize, w: usize, h: usize, i: usize) -> (usize, usize) {
-        if w == 0 || h == 0 { return (x, y); }
-        if i < w {
+        if w < 2 || h < 2 { return (x, y); }
+        let p1 = w;
+        let p2 = w + h - 1;
+        let p3 = 2 * w + h - 2;
+        let p4 = 2 * w + 2 * h - 4;
+        let i = i % p4.max(1);
+
+        if i < p1 {
             (x + i, y)
-        } else if i < w + h {
-            (x + w.saturating_sub(1), y + (i - w))
-        } else if i < 2 * w + h {
-            (x + w.saturating_sub(1).saturating_sub(i - (w + h)), y + h.saturating_sub(1))
+        } else if i < p2 {
+            (x + w.saturating_sub(1), y + (i - p1 + 1))
+        } else if i < p3 {
+            (x + w.saturating_sub(1).saturating_sub(i - p2 + 1), y + h.saturating_sub(1))
         } else {
-            (x, y + h.saturating_sub(1).saturating_sub(i - (2 * w + h)))
+            (x, y + h.saturating_sub(1).saturating_sub(i - p3 + 1))
         }
     }
 
     pub fn draw_animated_window_border(&mut self, x: usize, y: usize, w: usize, h: usize, tick: usize) {
-        let perimeter = 2 * w + 2 * h;
+        let perimeter = if w < 2 || h < 2 { 0 } else { 2 * w + 2 * h - 4 };
         let t_trace = 60;
         let t_pulse_out = 15;
         let t_pulse_in = 15;
