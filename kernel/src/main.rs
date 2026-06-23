@@ -12,6 +12,7 @@ pub mod interrupts;
 pub mod fs;
 pub mod gdt;
 pub mod task;
+pub mod network;
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use crate::desktop::app::App;
