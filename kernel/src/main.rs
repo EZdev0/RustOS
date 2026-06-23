@@ -96,6 +96,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
         x86_64::instructions::interrupts::enable();
 
+        let mut long_press_ticks = 0;
+        let mut desktop_click_active = false;
+
         loop {
             let mut needs_render = false;
             // Process events from a global queue (implemented in interrupts.rs)
@@ -164,13 +167,14 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                         found = true;
                     }
 
+                    let dock_w = 440;
+                    let dock_h = 60;
+                    let dock_x = (width as usize - dock_w) / 2;
+                    let dock_y = height as usize - dock_h - 15;
+                    let in_dock = mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
+
                     if !found {
-                        // Check if dock clicked
-                        let dock_w = 440;
-                        let dock_h = 60;
-                        let dock_x = (width as usize - dock_w) / 2;
-                        let dock_y = height as usize - dock_h - 15;
-                        if mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h {
+                        if in_dock {
                             if mx >= dock_x + 25 {
                                 let rel_x = mx - (dock_x + 25);
                                 let icon_idx = rel_x / 85;
@@ -196,12 +200,17 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                                     }
                                 }
                             }
+                        } else {
+                            desktop_click_active = true;
+                            long_press_ticks = 0;
                         }
                     }
                 }
 
                 if released_this_frame {
                     compositor.dragging_window = None;
+                    desktop_click_active = false;
+                    long_press_ticks = 0;
                 }
 
                 if left_down {
@@ -213,6 +222,21 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                                 w.x = target_x;
                                 w.y = target_y;
                             }
+                        }
+                    } else if desktop_click_active {
+                        long_press_ticks += 1;
+                        if long_press_ticks == 60 {
+                            let fm_app = crate::desktop::filemanager::FileManagerApp::new();
+                            let win_width = 500;
+                            let win_height = 400;
+                            let offset = (compositor.windows.len() * 20) % 100;
+                            let win_x = (width as usize - win_width) / 2 + offset;
+                            let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                            let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
+                            compositor.add_window(new_win);
+                            
+                            desktop_click_active = false;
+                            long_press_ticks = 0;
                         }
                     }
                 }
