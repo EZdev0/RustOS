@@ -1,8 +1,0 @@
-[build]
-jobs = 4
-
-[profile.dev]
-codegen-units = 16
-
-[profile.release]
-codegen-units = 1
