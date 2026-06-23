@@ -504,13 +504,16 @@ impl GraphicalCompositor {
                 let win_w = window.width;
                 let win_h = window.height + 20;
 
+                let was_opening = matches!(window.anim_state, crate::desktop::window::WindowAnimState::Opening(_));
                 window.tick_animation();
                 
-                if let WindowAnimState::Opening(tick) = window.anim_state {
+                if let crate::desktop::window::WindowAnimState::Opening(tick) = window.anim_state {
                     self.draw_animated_window_border(win_x, win_y, win_w, win_h, tick);
                     self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 40, height: win_h + 40 });
                     self.windows[i] = Some(window);
                     continue; // Skip normal drawing
+                } else if was_opening {
+                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 40, height: win_h + 40 });
                 }
 
                 // 1. Draw Drop-Shadow or Glow first
@@ -830,7 +833,7 @@ impl GraphicalCompositor {
             if let Some(idx) = self.dragging_window {
                 if idx < self.windows.len() {
                     if let Some(w) = &mut self.windows[idx] {
-                        self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
+                        self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 60, height: w.height + 60 });
                         
                         let target_x = (self.mouse_x as isize - self.drag_offset_x).max(0) as usize;
                         let target_y = (self.mouse_y as isize - self.drag_offset_y).max(0) as usize;

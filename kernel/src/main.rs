@@ -100,7 +100,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             
             let start = crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed);
             while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed) < start + 5 {
-                core::hint::spin_loop();
+                x86_64::instructions::hlt();
             }
         }
 
