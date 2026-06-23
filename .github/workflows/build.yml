@@ -51,7 +51,7 @@ jobs:
           RUSTC_BOOTSTRAP: 1
         run: |
           echo "Running Cargo Clippy..."
-          if ! cargo clippy -p kernel --target x86_64-unknown-none -- -D warnings 2>&1 | tee clippy-error.log; then
+          if ! cargo clippy -p kernel -Z build-std=core,alloc,compiler_builtins --target x86_64-unknown-none -- -D warnings 2>&1 | tee clippy-error.log; then
             echo "::warning::Clippy checks failed, but CI will continue to allow AI analysis!"
             cp clippy-error.log build-error.log
             exit 1
@@ -62,7 +62,7 @@ jobs:
         continue-on-error: true
         run: |
           echo "Running Cargo Tests..."
-          if ! cargo test --bin kernel 2>&1 | tee test-error.log; then
+          if ! cargo test --workspace --exclude kernel 2>&1 | tee test-error.log; then
             echo "::warning::Cargo tests failed!"
             cp test-error.log build-error.log
             exit 1

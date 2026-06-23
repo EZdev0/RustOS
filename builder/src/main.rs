@@ -43,6 +43,11 @@ fn main() {
 
     println!("✅ Image erfolgreich generiert: {}", output_disk.display());
 
+    if std::env::var("CI").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
+        println!("✅ CI Environment detected. Skipping local QEMU execution.");
+        return;
+    }
+
     // 4. Automatische Ausführung im Emulator
     println!("[3/3] Starte QEMU Emulator mit angehängter virtueller Festplatte...");
     let qemu_result = Command::new("qemu-system-x86_64")
