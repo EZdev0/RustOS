@@ -1,13 +1,8 @@
 [build]
-# Begrenzt die Anzahl der parallelen Compiler-Prozesse (Threads) auf 4.
-# Dadurch wird das Überschreiten der RAM-Grenze (8 GB) verhindert,
-# während die Kompilierung durch Multi-Threading schnell bleibt.
 jobs = 4
 
 [profile.dev]
-# Reduziert die Codegen-Units leicht, um den Speicherverbrauch beim Kompilieren zu senken.
 codegen-units = 16
 
 [profile.release]
-# Gleiches gilt für Release-Builds: Begrenzung von Codegen-Units spart RAM.
-codegen-units = 8
+codegen-units = 1
