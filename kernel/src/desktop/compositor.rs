@@ -16,6 +16,8 @@ pub struct GraphicalCompositor {
     pub dragging_window: Option<usize>,
     pub drag_offset_x: isize,
     pub drag_offset_y: isize,
+    pub long_press_ticks: usize,
+    pub desktop_click_active: bool,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -57,6 +59,8 @@ impl GraphicalCompositor {
             dragging_window: None,
             drag_offset_x: 0,
             drag_offset_y: 0,
+            long_press_ticks: 0,
+            desktop_click_active: false,
         }
     }
 
@@ -471,6 +475,135 @@ impl GraphicalCompositor {
     pub fn dispatch_keycode_event(&mut self, code: u8) {
         if let Some(Some(window)) = self.windows.last_mut() {
             window.app.handle_event(Event::KeyCode(code));
+        }
+    }
+
+    pub fn handle_mouse_event(&mut self, dx: i32, dy: i32, left_down: bool, _right_down: bool) {
+        let mut new_x = self.mouse_x as i32 + dx;
+        let mut new_y = self.mouse_y as i32 + dy;
+        
+        let width = self.info.width as i32;
+        let height = self.info.height as i32;
+        
+        if new_x < 0 { new_x = 0; }
+        if new_y < 0 { new_y = 0; }
+        if new_x >= width { new_x = width - 1; }
+        if new_y >= height { new_y = height - 1; }
+        
+        self.mouse_x = new_x as usize;
+        self.mouse_y = new_y as usize;
+
+        let clicked_this_frame = left_down && !self.mouse_left_down;
+        let released_this_frame = !left_down && self.mouse_left_down;
+        self.mouse_left_down = left_down;
+
+        let mx = self.mouse_x;
+        let my = self.mouse_y;
+
+        if clicked_this_frame {
+            let mut found = false;
+            let mut clicked_idx = None;
+
+            for i in (0..self.windows.len()).rev() {
+                if let Some(w) = &self.windows[i] {
+                    if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + w.height {
+                        clicked_idx = Some(i);
+                        break;
+                    }
+                }
+            }
+
+            if let Some(i) = clicked_idx {
+                let win = self.windows.remove(i);
+                self.windows.push(win);
+                
+                let new_i = self.windows.len() - 1;
+                if let Some(w) = &self.windows[new_i] {
+                    if my <= w.y + 20 {
+                        if mx >= w.x + w.width - 20 {
+                            self.windows.remove(new_i);
+                        } else {
+                            self.dragging_window = Some(new_i);
+                            self.drag_offset_x = mx as isize - w.x as isize;
+                            self.drag_offset_y = my as isize - w.y as isize;
+                        }
+                    }
+                }
+                found = true;
+            }
+
+            let dock_w = 440;
+            let dock_h = 60;
+            let dock_x = (width as usize - dock_w) / 2;
+            let dock_y = height as usize - dock_h - 15;
+            let in_dock = mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
+
+            if !found {
+                if in_dock {
+                    if mx >= dock_x + 25 {
+                        let rel_x = mx - (dock_x + 25);
+                        let icon_idx = rel_x / 85;
+                        let offset_in_icon = rel_x % 85;
+                        if offset_in_icon <= 40 {
+                            let offset = (self.windows.len() * 20) % 100;
+                            if icon_idx == 0 {
+                                let notepad_app = crate::desktop::notepad::NotepadApp::new();
+                                let win_width = if width > 600 { width as usize - 200 } else { width as usize - 40 };
+                                let win_height = if height > 400 { height as usize - 150 } else { height as usize - 80 };
+                                let win_x = (width as usize - win_width) / 2 + offset;
+                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
+                            } else if icon_idx == 1 {
+                                let terminal_app = crate::desktop::terminal::TerminalApp::new();
+                                let win_width = 500;
+                                let win_height = 350;
+                                let win_x = (width as usize - win_width) / 2 + offset;
+                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(terminal_app), win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
+                            }
+                        }
+                    }
+                } else {
+                    self.desktop_click_active = true;
+                    self.long_press_ticks = 0;
+                }
+            }
+        }
+
+        if released_this_frame {
+            self.dragging_window = None;
+            self.desktop_click_active = false;
+            self.long_press_ticks = 0;
+        }
+
+        if left_down {
+            if let Some(idx) = self.dragging_window {
+                if idx < self.windows.len() {
+                    if let Some(w) = &mut self.windows[idx] {
+                        let target_x = (self.mouse_x as isize - self.drag_offset_x).max(0) as usize;
+                        let target_y = (self.mouse_y as isize - self.drag_offset_y).max(0) as usize;
+                        w.x = target_x;
+                        w.y = target_y;
+                    }
+                }
+            } else if self.desktop_click_active {
+                self.long_press_ticks += 1;
+                if self.long_press_ticks == 60 {
+                    let fm_app = crate::desktop::filemanager::FileManagerApp::new();
+                    let win_width = 500;
+                    let win_height = 400;
+                    let offset = (self.windows.len() * 20) % 100;
+                    let win_x = (width as usize - win_width) / 2 + offset;
+                    let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                    let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
+                    self.add_window(new_win);
+                    
+                    self.desktop_click_active = false;
+                    self.long_press_ticks = 0;
+                }
+            }
         }
     }
 }

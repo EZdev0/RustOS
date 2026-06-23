@@ -45,13 +45,66 @@ impl TerminalApp {
 
         match parts[0] {
             "help" => {
-                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot"), cmd_color);
+                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot, ls, touch, rm, cat"), cmd_color);
             }
             "clear" => {
                 self.output.clear();
             }
+            "ls" => {
+                let files = crate::fs::RAM_FS.lock().list_files();
+                if files.is_empty() {
+                    self.print(String::from("(empty)"), cmd_color);
+                } else {
+                    for f in files {
+                        self.print(f, cmd_color);
+                    }
+                }
+            }
+            "touch" => {
+                if parts.len() > 1 {
+                    crate::fs::RAM_FS.lock().write_file(parts[1], b"");
+                    self.print(String::from("Created file"), cmd_color);
+                } else {
+                    self.print(String::from("Usage: touch <filename>"), err_color);
+                }
+            }
+            "rm" => {
+                if parts.len() > 1 {
+                    if crate::fs::RAM_FS.lock().delete_file(parts[1]) {
+                        self.print(String::from("Deleted file"), cmd_color);
+                    } else {
+                        self.print(String::from("File not found"), err_color);
+                    }
+                } else {
+                    self.print(String::from("Usage: rm <filename>"), err_color);
+                }
+            }
+            "cat" => {
+                if parts.len() > 1 {
+                    if let Some(content) = crate::fs::RAM_FS.lock().read_file(parts[1]) {
+                        if let Ok(s) = core::str::from_utf8(&content) {
+                            self.print(String::from(s), cmd_color);
+                        } else {
+                            self.print(String::from("(Binary data)"), err_color);
+                        }
+                    } else {
+                        self.print(String::from("File not found"), err_color);
+                    }
+                } else {
+                    self.print(String::from("Usage: cat <filename>"), err_color);
+                }
+            }
             "echo" => {
                 if parts.len() > 1 {
+                    if let Some(pos) = parts.iter().position(|&x| x == ">") {
+                        if pos + 1 < parts.len() {
+                            let filename = parts[pos + 1];
+                            let content = parts[1..pos].join(" ");
+                            crate::fs::RAM_FS.lock().write_file(filename, content.as_bytes());
+                            self.print(String::from("File written"), cmd_color);
+                            return;
+                        }
+                    }
                     self.print(parts[1..].join(" "), cmd_color);
                 } else {
                     self.print(String::new(), cmd_color);

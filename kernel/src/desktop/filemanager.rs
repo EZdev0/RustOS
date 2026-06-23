@@ -18,14 +18,8 @@ pub struct FileManagerApp {
 
 impl FileManagerApp {
     pub fn new() -> Self {
-        let mut files = Vec::new();
-        files.push(String::from("Documents"));
-        files.push(String::from("Downloads"));
-        files.push(String::from("Pictures"));
-        files.push(String::from("kernel_log.txt"));
-        
         Self {
-            files,
+            files: crate::fs::RAM_FS.lock().list_files(),
             new_file_name: String::new(),
             is_creating_file: false,
         }
@@ -37,7 +31,9 @@ impl App for FileManagerApp {
         "Finder"
     }
 
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        self.files = crate::fs::RAM_FS.lock().list_files();
+    }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
         // MacOS-like background
@@ -98,7 +94,7 @@ impl App for FileManagerApp {
             Event::KeyPress(c) => {
                 if c == '\n' {
                     if !self.new_file_name.is_empty() {
-                        self.files.push(self.new_file_name.clone());
+                        crate::fs::RAM_FS.lock().write_file(&self.new_file_name, b"");
                         self.new_file_name.clear();
                         self.is_creating_file = false;
                     }
