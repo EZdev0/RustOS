@@ -101,8 +101,9 @@ jobs:
           fi
           
           echo "Sending log to AI..."
-          # Wir nutzen jq (auf Ubuntu-Runnern vorinstalliert) um die Antwort zu parsen
-          AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d "{\"model\": \"qwen2.5-coder:3b\", \"prompt\": \"$PROMPT\", \"stream\": false}" | jq -r '.response')
+          # Wir nutzen jq um den JSON Payload sicher zu generieren (Escaping von Quotes/Newlines)
+          jq -n --arg prompt "$PROMPT" '{"model": "qwen2.5-coder:3b", "prompt": $prompt, "stream": false}' > payload.json
+          AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response')
           
           echo "AI Insights:"
           echo "$AI_RESPONSE"
