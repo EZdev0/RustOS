@@ -6,8 +6,9 @@ use font8x8::UnicodeFonts;
 
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
-    pub framebuffer: &'static mut [u8],
-    pub backbuffer: Vec<u8>,
+    framebuffer: &'static mut [u8],
+    backbuffer: Vec<u8>,
+    dock_buffer: Vec<u8>,
     pub windows: Vec<Option<Window>>,
     pub mouse_x: usize,
     pub mouse_y: usize,
@@ -37,6 +38,9 @@ impl GraphicalCompositor {
         
         let mut backbuffer = Vec::with_capacity(size);
         backbuffer.resize(size, 0);
+
+        let mut dock_buffer = Vec::with_capacity(440 * 60 * 3);
+        dock_buffer.resize(440 * 60 * 3, 0);
         
         let mouse_x = info.width / 2;
         let mouse_y = info.height / 2;
@@ -45,6 +49,7 @@ impl GraphicalCompositor {
             info, 
             framebuffer: buffer, 
             backbuffer, 
+            dock_buffer,
             windows: Vec::new(), 
             mouse_x, 
             mouse_y,
@@ -160,9 +165,8 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn draw_shadow_and_glow(&mut self, x: usize, y: usize, w: usize, h: usize, is_active: bool) {
+    pub fn draw_shadow_and_glow(&mut self, x: usize, y: usize, w: usize, h: usize, corner_r: usize, is_active: bool) {
         let shadow_size = if is_active { 16isize } else { 10isize };
-        let r = 8usize;
         
         let ext_x = (x as isize - shadow_size).max(0) as usize;
         let ext_y = (y as isize - shadow_size).max(0) as usize;
@@ -180,27 +184,27 @@ impl GraphicalCompositor {
             for px in ext_x..(ext_x + ext_w) {
                 if px >= self.info.width { break; }
                 
-                let dx = if px < x + r {
-                    (x + r) - px
-                } else if px >= x + w - r {
-                    px - (x + w - r) + 1
+                let dx = if px < x + corner_r {
+                    (x + corner_r) - px
+                } else if px >= x + w - corner_r {
+                    px - (x + w - corner_r) + 1
                 } else {
                     0
                 };
 
-                let dy = if py < y + r {
-                    (y + r) - py
-                } else if py >= y + h - r {
-                    py - (y + h - r) + 1
+                let dy = if py < y + corner_r {
+                    (y + corner_r) - py
+                } else if py >= y + h - corner_r {
+                    py - (y + h - corner_r) + 1
                 } else {
                     0
                 };
 
                 let dist_sq = dx * dx + dy * dy;
-                let r_sq = r * r;
+                let r_sq = corner_r * corner_r;
                 
                 if dist_sq > r_sq {
-                    let dist = fast_isqrt(dist_sq) as isize - r as isize;
+                    let dist = fast_isqrt(dist_sq) as isize - corner_r as isize;
                     if dist > 0 && dist < shadow_size {
                         let alpha = 256 - (dist * 256 / shadow_size);
                         let alpha = alpha * alpha / 256; 
@@ -230,27 +234,129 @@ impl GraphicalCompositor {
             }
         }
 
-        // Top System Bar (Dark Glass look)
-        self.draw_rect(0, 0, width, 28, 10, 10, 12);
+        // Top System Bar (Dark Glass look via Blending)
+        for dy in 0..28 {
+            for dx in 0..width {
+                self.blend_pixel(dx, dy, 10, 10, 15, 180);
+            }
+        }
         self.draw_char(10, 6, 'V', 0, 180, 255);
+    }
 
-        // Bottom Dock
+    pub fn render_glass_dock(&mut self) {
+        let width = self.info.width;
+        let height = self.info.height;
+
         let dock_w = 440;
         let dock_h = 60;
-        let dock_x = (width - dock_w) / 2;
-        let dock_y = height - dock_h - 15;
-        self.draw_rect(dock_x, dock_y, dock_w, dock_h, 255, 255, 255);
+        let dock_x = width.saturating_sub(dock_w) / 2;
+        let dock_y = height.saturating_sub(dock_h + 15);
+        let corner_r = 16usize; 
+        let blur_r = 3usize;
+        
+        let glass_alpha = 110u16; 
 
+        // Dock Shadow
+        self.draw_shadow_and_glow(dock_x, dock_y, dock_w, dock_h, corner_r, false);
+
+        for dy in 0..dock_h {
+            for dx in 0..dock_w {
+                let c_dx = if dx < corner_r { corner_r - dx - 1 } 
+                           else if dx >= dock_w - corner_r { dx - (dock_w - corner_r) } 
+                           else { 0 };
+                let c_dy = if dy < corner_r { corner_r - dy - 1 } 
+                           else if dy >= dock_h - corner_r { dy - (dock_h - corner_r) } 
+                           else { 0 };
+                
+                let dist_sq = c_dx * c_dx + c_dy * c_dy;
+                let r_sq = corner_r * corner_r;
+                
+                if dist_sq >= r_sq {
+                    continue; 
+                }
+
+                let px = dock_x + dx;
+                let py = dock_y + dy;
+
+                let mut sum_r = 0usize;
+                let mut sum_g = 0usize;
+                let mut sum_b = 0usize;
+                let mut count = 0usize;
+
+                let start_y = py.saturating_sub(blur_r);
+                let end_y = (py + blur_r).min(height - 1);
+                let start_x = px.saturating_sub(blur_r);
+                let end_x = (px + blur_r).min(width - 1);
+
+                // Box Blur
+                for by in start_y..=end_y {
+                    for bx in start_x..=end_x {
+                        let (r, g, b) = self.read_pixel(bx, by);
+                        sum_r += r as usize;
+                        sum_g += g as usize;
+                        sum_b += b as usize;
+                        count += 1;
+                    }
+                }
+
+                let final_r = (sum_r / count) as u8;
+                let final_g = (sum_g / count) as u8;
+                let final_b = (sum_b / count) as u8;
+
+                // Glass blend
+                let inv_alpha = 256 - glass_alpha;
+                let mut out_r = ((235u16 * glass_alpha + final_r as u16 * inv_alpha) >> 8) as u8;
+                let mut out_g = ((240u16 * glass_alpha + final_g as u16 * inv_alpha) >> 8) as u8;
+                let mut out_b = ((255u16 * glass_alpha + final_b as u16 * inv_alpha) >> 8) as u8;
+
+                // Subtle inner border highlight
+                if dist_sq >= (corner_r - 2) * (corner_r - 2) || dx <= 1 || dy <= 1 || dx >= dock_w - 2 || dy >= dock_h - 2 {
+                    out_r = out_r.saturating_add(40);
+                    out_g = out_g.saturating_add(40);
+                    out_b = out_b.saturating_add(50);
+                }
+
+                let idx = (dy * dock_w + dx) * 3;
+                self.dock_buffer[idx] = out_r;
+                self.dock_buffer[idx+1] = out_g;
+                self.dock_buffer[idx+2] = out_b;
+            }
+        }
+
+        // Draw processed glass pixels back
+        for dy in 0..dock_h {
+            for dx in 0..dock_w {
+                let c_dx = if dx < corner_r { corner_r - dx - 1 } 
+                           else if dx >= dock_w - corner_r { dx - (dock_w - corner_r) } 
+                           else { 0 };
+                let c_dy = if dy < corner_r { corner_r - dy - 1 } 
+                           else if dy >= dock_h - corner_r { dy - (dock_h - corner_r) } 
+                           else { 0 };
+                
+                if c_dx * c_dx + c_dy * c_dy >= corner_r * corner_r {
+                    continue; 
+                }
+
+                let idx = (dy * dock_w + dx) * 3;
+                self.draw_pixel(dock_x + dx, dock_y + dy, self.dock_buffer[idx], self.dock_buffer[idx+1], self.dock_buffer[idx+2]);
+            }
+        }
+
+        // Icons
         for i in 0..5 {
             let icon_x = dock_x + 25 + i * 85;
             let icon_y = dock_y + 10;
+            
+            // Icon Shadow
+            self.draw_shadow_and_glow(icon_x, icon_y, 40, 40, 4, false);
+
             if i == 0 {
                 self.draw_rect(icon_x, icon_y, 40, 40, 255, 255, 255);
                 for line in 1..4 {
                     self.draw_rect(icon_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255);
                 }
             } else if i == 1 {
-                self.draw_rect(icon_x, icon_y, 40, 40, 0, 0, 0);
+                self.draw_rect(icon_x, icon_y, 40, 40, 30, 30, 30);
                 self.draw_char(icon_x + 10, icon_y + 15, '>', 0, 255, 0);
             } else {
                 self.draw_rect(icon_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
@@ -273,9 +379,9 @@ impl GraphicalCompositor {
                 let win_h = window.height + 20;
 
                 // 1. Draw Drop-Shadow or Glow first
-                self.draw_shadow_and_glow(win_x, win_y, win_w, win_h, is_active);
+                self.draw_shadow_and_glow(win_x, win_y, win_w, win_h, 8, is_active);
                 
-                // 2. Backup corners (which now include shadow/glow + background)
+                // 2. Backup corners 
                 let r = 8;
                 let mut corners_backup = [(0u8, 0u8, 0u8); 8 * 8 * 4];
 
@@ -292,9 +398,10 @@ impl GraphicalCompositor {
                 self.draw_rect(win_x, win_y, win_w, 20, 60, 60, 60); // Title Bar
                 self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); // Close Button
                 self.draw_char(win_x + win_w - 14, win_y + 6, 'X', 255, 255, 255);
+                window.app.update();
                 window.app.draw(self, win_x, win_y + 20, win_w, window.height); // App content
                 
-                // 4. Restore Corners (Masking with a circle equation)
+                // 4. Restore Corners
                 let r_sq = r * r;
 
                 for cy in 0..r {
@@ -326,6 +433,9 @@ impl GraphicalCompositor {
                 self.windows[i] = Some(window);
             }
         }
+
+        // Render Glass Dock after windows (floats above them, blurring windows behind it)
+        self.render_glass_dock();
 
         // Hardware Cursor
         for i in 0..16 {

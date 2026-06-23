@@ -5,7 +5,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 pub struct TerminalApp {
-    output: Vec<String>,
+    output: Vec<(String, (u8, u8, u8))>,
     input_buffer: String,
     cursor_visible: bool,
     ticks: usize,
@@ -14,8 +14,9 @@ pub struct TerminalApp {
 impl TerminalApp {
     pub fn new() -> Self {
         let mut output = Vec::new();
-        output.push(String::from("Welcome to RustOS Terminal!"));
-        output.push(String::from("Type 'help' for commands."));
+        let default_color = (0, 255, 0); // Green
+        output.push((String::from("Welcome to RustOS Terminal!"), default_color));
+        output.push((String::from("Type 'help' for commands."), default_color));
         Self {
             output,
             input_buffer: String::new(),
@@ -24,9 +25,14 @@ impl TerminalApp {
         }
     }
 
+    fn print(&mut self, text: String, color: (u8, u8, u8)) {
+        self.output.push((text, color));
+    }
+
     fn execute_command(&mut self) {
         let cmd = self.input_buffer.trim().to_string();
-        self.output.push(String::from("> ") + &cmd);
+        // Echo the executed command in white
+        self.print(String::from("> ") + &cmd, (255, 255, 255));
         
         let parts: Vec<&str> = cmd.split_whitespace().collect();
         if parts.is_empty() {
@@ -34,24 +40,39 @@ impl TerminalApp {
             return;
         }
 
+        let cmd_color = (0, 255, 0); // Green
+        let err_color = (255, 0, 0); // Red
+
         match parts[0] {
             "help" => {
-                self.output.push(String::from("Available commands: help, clear, echo, sysinfo, mem, reboot"));
+                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot"), cmd_color);
             }
             "clear" => {
                 self.output.clear();
             }
             "echo" => {
                 if parts.len() > 1 {
-                    self.output.push(parts[1..].join(" "));
+                    self.print(parts[1..].join(" "), cmd_color);
+                } else {
+                    self.print(String::new(), cmd_color);
                 }
+            }
+            "date" => {
+                self.print(String::from("Tue Jun 23 10:58:18 UTC 2026 (Fake Time)"), cmd_color);
+            }
+            "uname" => {
+                let mut sys_name = String::from("RustOS x86_64");
+                if parts.len() > 1 && parts[1] == "-a" {
+                    sys_name.push_str(" 1.0.0 Custom Kernel");
+                }
+                self.print(sys_name, cmd_color);
             }
             "sysinfo" => {
                 let cpuid = raw_cpuid::CpuId::new();
                 if let Some(cinfo) = cpuid.get_vendor_info() {
-                    self.output.push(format!("CPU Vendor: {}", cinfo.as_str()));
+                    self.print(format!("CPU Vendor: {}", cinfo.as_str()), cmd_color);
                 } else {
-                    self.output.push(String::from("CPU Vendor: Unknown"));
+                    self.print(String::from("CPU Vendor: Unknown"), err_color);
                 }
                 
                 if let Some(finfo) = cpuid.get_feature_info() {
@@ -74,13 +95,12 @@ impl TerminalApp {
                     if finfo.has_sse() { features.push_str("SSE "); }
                     if finfo.has_sse2() { features.push_str("SSE2 "); }
                     if finfo.has_htt() { features.push_str("HTT "); }
-                    self.output.push(format!("Features: {}", features.trim()));
+                    self.print(format!("Features: {}", features.trim()), cmd_color);
                 } else {
-                    self.output.push(String::from("Features: Unknown"));
+                    self.print(String::from("Features: Unknown"), err_color);
                 }
             }
             "mem" => {
-                // Erfundene/realistische Werte für die RAM/Heap-Nutzung
                 let total_ram_mb = 128;
                 let used_ram_mb = 23;
                 let bar_length = 20;
@@ -96,15 +116,15 @@ impl TerminalApp {
                 }
                 bar.push(']');
                 
-                self.output.push(format!("RAM: {} MB / {} MB", used_ram_mb, total_ram_mb));
-                self.output.push(bar);
+                self.print(format!("RAM: {} MB / {} MB", used_ram_mb, total_ram_mb), cmd_color);
+                self.print(bar, cmd_color);
             }
             "reboot" => {
-                self.output.push(String::from("Rebooting..."));
+                self.print(String::from("Rebooting..."), cmd_color);
                 unsafe { x86_64::instructions::port::Port::<u8>::new(0x64).write(0xFE); }
             }
             _ => {
-                self.output.push(String::from("Unknown command: ") + parts[0]);
+                self.print(String::from("Unknown command: ") + parts[0], err_color);
             }
         }
         self.input_buffer.clear();
@@ -124,7 +144,6 @@ impl App for TerminalApp {
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
-        // Schwarzer Hintergrund für Terminal
         compositor.draw_rect(x, y, width, height, 0, 0, 0);
 
         let padding = 10;
@@ -139,26 +158,24 @@ impl App for TerminalApp {
             0
         };
 
-        // Output zeichnen (Grün)
-        for (i, line) in self.output.iter().enumerate() {
+        for (i, (line, color)) in self.output.iter().enumerate() {
             if i >= start_line {
                 let mut cur_x = x + padding;
                 for c in line.chars() {
-                    compositor.draw_char(cur_x, cur_y, c, 0, 255, 0);
+                    compositor.draw_char(cur_x, cur_y, c, color.0, color.1, color.2);
                     cur_x += 8;
                 }
                 cur_y += 12;
             }
         }
 
-        // Input Buffer und Cursor zeichnen
         if total_lines >= start_line && start_line <= self.output.len() {
             let mut cur_x = x + padding;
             compositor.draw_char(cur_x, cur_y, '>', 0, 255, 0);
-            cur_x += 16; // Abstand nach dem Prompt
+            cur_x += 16;
 
             for c in self.input_buffer.chars() {
-                compositor.draw_char(cur_x, cur_y, c, 0, 255, 0);
+                compositor.draw_char(cur_x, cur_y, c, 255, 255, 255);
                 cur_x += 8;
             }
 
