@@ -1,5 +1,4 @@
 use raw_cpuid::CpuId;
-use x86_64::registers::control::{Cr4, Cr4Flags};
 use alloc::string::String;
 
 pub fn detect_and_init() -> String {

@@ -2,7 +2,6 @@ use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
 use crate::desktop::app::Event;
 use alloc::vec::Vec;
-use alloc::string::ToString;
 use font8x8::UnicodeFonts;
 
 pub struct GraphicalCompositor {

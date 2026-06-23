@@ -55,7 +55,7 @@ jobs:
           success=0
           for i in 1 2 3; do
             echo "Attempt $i to compile RustOS..."
-            if cargo run --bin builder 2>&1 | tee build-error.log; then
+            if cargo --color never run --bin builder 2>&1 | tee build-error.log; then
               echo "Compilation passed successfully!"
               success=1
               break
