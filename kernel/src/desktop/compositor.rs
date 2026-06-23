@@ -158,6 +158,10 @@ impl GraphicalCompositor {
         self.framebuffer.copy_from_slice(&self.backbuffer);
     }
 
+    pub fn swap_buffers(&mut self) {
+        self.framebuffer.copy_from_slice(&self.backbuffer);
+    }
+
     pub fn draw_char(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8) {
         if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::LATIN_FONTS.get(c)) {
             for (row, byte) in bitmap.iter().enumerate() {
@@ -171,20 +175,14 @@ impl GraphicalCompositor {
     }
 
     pub fn dispatch_keyboard_event(&mut self, c: char) {
-        for i in 0..self.windows.len() {
-            if let Some(mut window) = self.windows[i].take() {
-                window.app.handle_event(Event::KeyPress(c));
-                self.windows[i] = Some(window);
-            }
+        if let Some(Some(window)) = self.windows.last_mut() {
+            window.app.handle_event(Event::KeyPress(c));
         }
     }
 
     pub fn dispatch_keycode_event(&mut self, code: u8) {
-        for i in 0..self.windows.len() {
-            if let Some(mut window) = self.windows[i].take() {
-                window.app.handle_event(Event::KeyCode(code));
-                self.windows[i] = Some(window);
-            }
+        if let Some(Some(window)) = self.windows.last_mut() {
+            window.app.handle_event(Event::KeyCode(code));
         }
     }
 }

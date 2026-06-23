@@ -80,6 +80,19 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         compositor.render_all(); // Einmal initial rendern
 
+        // BOOT ANIMATION (VibeOS 2026 Style)
+        for alpha in (0..=255).step_by(5) {
+            compositor.draw_rect(0, 0, width, height, 43, 48, 59); // Background
+            let text = "RUST OS 2026";
+            let mut tx = width / 2 - 48;
+            for c in text.chars() {
+                compositor.draw_char(tx, height / 2, c, alpha, alpha, alpha);
+                tx += 8;
+            }
+            compositor.swap_buffers();
+            for _ in 0..100000 { unsafe { core::arch::asm!("nop"); } }
+        }
+
         // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
         x86_64::instructions::interrupts::enable();
 
@@ -121,21 +134,34 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
                 if clicked_this_frame {
                     let mut found = false;
+                    let mut clicked_idx = None;
+
                     for i in (0..compositor.windows.len()).rev() {
                         if let Some(w) = &compositor.windows[i] {
-                            if mx >= w.x + w.width - 20 && mx <= w.x + w.width && my >= w.y && my <= w.y + 20 {
-                                compositor.windows.remove(i);
-                                found = true;
-                                break;
-                            }
-                            if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + 20 {
-                                compositor.dragging_window = Some(i);
-                                compositor.drag_offset_x = mx as isize - w.x as isize;
-                                compositor.drag_offset_y = my as isize - w.y as isize;
-                                found = true;
+                            if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + w.height {
+                                clicked_idx = Some(i);
                                 break;
                             }
                         }
+                    }
+
+                    if let Some(i) = clicked_idx {
+                        let win = compositor.windows.remove(i);
+                        compositor.windows.push(win);
+                        
+                        let new_i = compositor.windows.len() - 1;
+                        if let Some(w) = &compositor.windows[new_i] {
+                            if my <= w.y + 20 {
+                                if mx >= w.x + w.width - 20 {
+                                    compositor.windows.remove(new_i);
+                                } else {
+                                    compositor.dragging_window = Some(new_i);
+                                    compositor.drag_offset_x = mx as isize - w.x as isize;
+                                    compositor.drag_offset_y = my as isize - w.y as isize;
+                                }
+                            }
+                        }
+                        found = true;
                     }
 
                     if !found {
