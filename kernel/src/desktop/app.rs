@@ -4,6 +4,7 @@ pub enum Event {
     KeyPress(char),
     KeyCode(u8),
     MouseClick { x: usize, y: usize },
+    MouseLongPress { x: usize, y: usize },
 }
 
 pub trait App {

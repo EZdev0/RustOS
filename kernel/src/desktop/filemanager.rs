@@ -97,12 +97,29 @@ impl App for FileManagerApp {
                         crate::fs::RAM_FS.lock().write_file(&self.new_file_name, b"");
                         self.new_file_name.clear();
                         self.is_creating_file = false;
+                        self.update(); // UI nach Erstellung erneuern
                     }
                 } else if c == '\x08' {
                     let _ = self.new_file_name.pop();
                 } else {
                     self.new_file_name.push(c);
                     self.is_creating_file = true;
+                }
+            }
+            Event::MouseLongPress { x, y } => {
+                let sidebar_width = 120;
+                let toolbar_height = 40;
+                // Prüfe ob Klick im Bereich der Dateiliste war
+                if x > sidebar_width && y > toolbar_height + 10 {
+                    let item_y_offset = y.saturating_sub(toolbar_height + 10);
+                    let idx = item_y_offset / 30; // 30 Pixel Höhe pro Datei-Element
+                    if idx < self.items.len() {
+                        let (name, is_dir) = &self.items[idx];
+                        if !*is_dir {
+                            crate::fs::RAM_FS.lock().delete_file(name);
+                            self.update();
+                        }
+                    }
                 }
             }
             _ => {}

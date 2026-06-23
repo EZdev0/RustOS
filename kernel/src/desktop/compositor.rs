@@ -18,7 +18,10 @@ pub struct GraphicalCompositor {
     pub drag_offset_y: isize,
     pub long_press_ticks: usize,
     pub desktop_click_active: bool,
+    pub active_app_click: Option<(usize, usize, usize)>,
     pub ticks: usize,
+    pub dock_y_offset: isize,
+    pub dock_target_offset: isize,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -62,7 +65,10 @@ impl GraphicalCompositor {
             drag_offset_y: 0,
             long_press_ticks: 0,
             desktop_click_active: false,
+            active_app_click: None,
             ticks: 0,
+            dock_y_offset: 0,
+            dock_target_offset: 0,
         }
     }
 
@@ -122,6 +128,33 @@ impl GraphicalCompositor {
         }
     }
 
+    pub fn draw_rect_skew(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8, skew: isize) {
+        if skew == 0 {
+            return self.draw_rect(start_x, start_y, width, height, r, g, b);
+        }
+        for y in 0..height {
+            let shift = skew * (height as isize - y as isize) / height as isize;
+            for x in 0..width {
+                self.draw_pixel((start_x as isize + x as isize + shift).max(0) as usize, start_y + y, r, g, b);
+            }
+        }
+    }
+
+    pub fn draw_char_skew(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8, skew: isize) {
+        if skew == 0 {
+            return self.draw_char(x, y, c, r, g, b);
+        }
+        if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::LATIN_FONTS.get(c)) {
+            for (row, byte) in bitmap.iter().enumerate() {
+                let shift = skew * (8 - row as isize) / 8;
+                for col in 0..8 {
+                    if (*byte & (1 << col)) != 0 {
+                        self.draw_pixel((x as isize + col as isize + shift).max(0) as usize, y + row, r, g, b);
+                    }
+                }
+            }
+        }
+    }
     #[inline]
     pub fn blend_pixel(&mut self, x: usize, y: usize, r: u8, g: u8, b: u8, alpha_256: u16) {
         if x >= self.info.width || y >= self.info.height {
@@ -274,15 +307,26 @@ impl GraphicalCompositor {
 
         let dock_w = 440;
         let dock_h = 60;
+        let dock_y_base = height.saturating_sub(dock_h + 15) as isize;
+        let dock_y_calc = dock_y_base + self.dock_y_offset;
+        
+        if dock_y_calc >= height as isize {
+            return;
+        }
+        let dock_y = dock_y_calc as usize;
         let dock_x = width.saturating_sub(dock_w) / 2;
-        let dock_y = height.saturating_sub(dock_h + 15);
         let corner_r = 16usize; 
         let blur_r = 3usize;
         
         let glass_alpha = 110u16; 
 
-        // Dock Shadow
-        self.draw_shadow_and_glow(dock_x, dock_y, dock_w, dock_h, corner_r, false);
+        let is_dock_hovered = self.mouse_x >= dock_x && self.mouse_x <= dock_x + dock_w 
+                           && self.mouse_y >= dock_y && self.mouse_y <= dock_y + dock_h;
+        
+        let perimeter = (dock_w + dock_h) * 2;
+        let glow_pos = (self.ticks * 8) % perimeter;
+
+        self.draw_shadow_and_glow(dock_x, dock_y, dock_w, dock_h, corner_r, is_dock_hovered);
 
         for dy in 0..dock_h {
             for dx in 0..dock_w {
@@ -335,10 +379,28 @@ impl GraphicalCompositor {
                 let mut out_b = ((255u16 * glass_alpha + final_b as u16 * inv_alpha) >> 8) as u8;
 
                 // Subtle inner border highlight
-                if dist_sq >= (corner_r - 2) * (corner_r - 2) || dx <= 1 || dy <= 1 || dx >= dock_w - 2 || dy >= dock_h - 2 {
+                let is_edge = dist_sq >= (corner_r - 2) * (corner_r - 2) || dx <= 1 || dy <= 1 || dx >= dock_w - 2 || dy >= dock_h - 2;
+                if is_edge {
                     out_r = out_r.saturating_add(40);
                     out_g = out_g.saturating_add(40);
                     out_b = out_b.saturating_add(50);
+                    
+                    if is_dock_hovered {
+                        let p_coord = if dy <= 2 { dx }
+                                      else if dx >= dock_w - 3 { dock_w + dy }
+                                      else if dy >= dock_h - 3 { dock_w + dock_h + dock_w.saturating_sub(dx) }
+                                      else { dock_w * 2 + dock_h + dock_h.saturating_sub(dy) };
+                        
+                        let mut dist = (p_coord as isize - glow_pos as isize).abs() as usize;
+                        dist = dist.min(perimeter.saturating_sub(dist));
+
+                        if dist < 50 {
+                            let intensity = (50 - dist) * 3;
+                            out_r = out_r.saturating_add((intensity / 3) as u8);
+                            out_g = out_g.saturating_add((intensity / 2) as u8);
+                            out_b = out_b.saturating_add(intensity as u8);
+                        }
+                    }
                 }
 
                 let idx = (dy * dock_w + dx) * 3;
@@ -367,37 +429,68 @@ impl GraphicalCompositor {
             }
         }
 
+        let mut hovered_icon = None;
+        if is_dock_hovered && self.mouse_x >= dock_x + 25 {
+            let rel_x = self.mouse_x - (dock_x + 25);
+            let idx = rel_x / 85;
+            let offset_in_icon = rel_x % 85;
+            if offset_in_icon <= 40 && self.mouse_y >= dock_y + 10 && self.mouse_y <= dock_y + 50 {
+                hovered_icon = Some(idx);
+            }
+        }
+
         // Icons
         for i in 0..5 {
-            let icon_x = dock_x + 25 + i * 85;
-            let icon_y = dock_y + 10;
+            let icon_base_x = dock_x + 25 + i * 85;
+            let mut icon_y = dock_y + 10;
+            let is_hovered = hovered_icon == Some(i);
+            let skew = if is_hovered { 6 } else { 0 };
             
-            // Icon Shadow
-            self.draw_shadow_and_glow(icon_x, icon_y, 40, 40, 4, false);
+            if is_hovered {
+                icon_y = icon_y.saturating_sub(4);
+            }
+
+            self.draw_shadow_and_glow(icon_base_x, icon_y, 40, 40, 4, is_hovered);
 
             if i == 0 {
-                self.draw_rect(icon_x, icon_y, 40, 40, 255, 255, 255);
+                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 255, 255, 255, skew);
                 for line in 1..4 {
-                    self.draw_rect(icon_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255);
+                    self.draw_rect_skew(icon_base_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255, skew);
                 }
             } else if i == 1 {
-                self.draw_rect(icon_x, icon_y, 40, 40, 30, 30, 30);
-                self.draw_char(icon_x + 10, icon_y + 15, '>', 0, 255, 0);
+                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 30, 30, 30, skew);
+                self.draw_char_skew(icon_base_x + 10, icon_y + 15, '>', 0, 255, 0, skew);
             } else if i == 2 {
-                self.draw_rect(icon_x, icon_y, 40, 40, 20, 20, 20);
-                self.draw_rect(icon_x + 5, icon_y + 10, 30, 20, 0, 150, 255);
+                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 20, 20, 20, skew);
+                self.draw_rect_skew(icon_base_x + 5, icon_y + 10, 30, 20, 0, 150, 255, skew);
             } else if i == 3 {
-                // Folder icon for Filemanager
-                self.draw_rect(icon_x + 5, icon_y + 15, 30, 20, 100, 180, 255);
-                self.draw_rect(icon_x + 5, icon_y + 10, 15, 5, 100, 180, 255);
+                self.draw_rect_skew(icon_base_x + 5, icon_y + 15, 30, 20, 100, 180, 255, skew);
+                self.draw_rect_skew(icon_base_x + 5, icon_y + 10, 15, 5, 100, 180, 255, skew);
             } else {
-                self.draw_rect(icon_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
+                self.draw_rect_skew(icon_base_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200, skew);
             }
         }
     }
 
     pub fn render_all(&mut self) {
         self.ticks = self.ticks.wrapping_add(1);
+
+        let mut any_maximized = false;
+        for w in &self.windows {
+            if let Some(win) = w {
+                if win.is_maximized {
+                    any_maximized = true;
+                    break;
+                }
+            }
+        }
+        
+        self.dock_target_offset = if any_maximized { 100 } else { 0 };
+        let diff = self.dock_target_offset - self.dock_y_offset;
+        self.dock_y_offset += diff / 4;
+        if diff > 0 && diff < 4 { self.dock_y_offset += 1; }
+        else if diff < 0 && diff > -4 { self.dock_y_offset -= 1; }
+
         self.render_desktop();
         
         let num_windows = self.windows.len();
@@ -542,7 +635,7 @@ impl GraphicalCompositor {
 
             for i in (0..self.windows.len()).rev() {
                 if let Some(w) = &self.windows[i] {
-                    if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + w.height {
+                    if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + w.height + 20 {
                         clicked_idx = Some(i);
                         break;
                     }
@@ -571,6 +664,11 @@ impl GraphicalCompositor {
                                 self.drag_offset_y = my as isize - w.y as isize;
                             }
                         }
+                    } else if my > w.y + 20 && my <= w.y + w.height + 20 {
+                        let rel_x = mx.saturating_sub(w.x);
+                        let rel_y = my.saturating_sub(w.y + 20);
+                        self.active_app_click = Some((new_i, rel_x, rel_y));
+                        self.long_press_ticks = 0;
                     }
                 }
                 
@@ -604,7 +702,8 @@ impl GraphicalCompositor {
             let dock_w = 440;
             let dock_h = 60;
             let dock_x = (width as usize - dock_w) / 2;
-            let dock_y = height as usize - dock_h - 15;
+            let dock_y_base = height as isize - dock_h as isize - 15;
+            let dock_y = (dock_y_base + self.dock_y_offset) as usize;
             let in_dock = mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
 
             if !found {
@@ -660,6 +759,17 @@ impl GraphicalCompositor {
         if released_this_frame {
             self.dragging_window = None;
             self.desktop_click_active = false;
+            
+            if let Some((idx, rel_x, rel_y)) = self.active_app_click {
+                if self.long_press_ticks < 60 {
+                    if idx < self.windows.len() {
+                        if let Some(w) = &mut self.windows[idx] {
+                            w.app.handle_event(Event::MouseClick { x: rel_x, y: rel_y });
+                        }
+                    }
+                }
+            }
+            self.active_app_click = None;
             self.long_press_ticks = 0;
         }
 
@@ -673,7 +783,17 @@ impl GraphicalCompositor {
                         w.y = target_y;
                     }
                 }
+            } else if let Some((idx, rel_x, rel_y)) = self.active_app_click {
+                self.long_press_ticks += 1;
+                if self.long_press_ticks == 60 {
+                    if idx < self.windows.len() {
+                        if let Some(w) = &mut self.windows[idx] {
+                            w.app.handle_event(Event::MouseLongPress { x: rel_x, y: rel_y });
+                        }
+                    }
+                }
             } else if self.desktop_click_active {
+                // (Bestehender Code für Desktop Long Press bleibt hier bestehen)
                 self.long_press_ticks += 1;
                 if self.long_press_ticks == 60 {
                     let file_name = alloc::format!("Desktop_Datei_{}.txt", self.ticks);
