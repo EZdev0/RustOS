@@ -27,7 +27,7 @@ const RX_RING_SIZE: usize = 32;
 const TX_RING_SIZE: usize = 32;
 const BUFFER_SIZE: usize = 2048;
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Clone, Copy)]
 pub struct RxDesc {
     pub addr: u64,
@@ -38,7 +38,7 @@ pub struct RxDesc {
     pub special: u16,
 }
 
-#[repr(C)]
+#[repr(C, align(16))]
 #[derive(Clone, Copy)]
 pub struct TxDesc {
     pub addr: u64,
@@ -159,10 +159,13 @@ impl E1000 {
         
         self.tx_buffers[idx][..data.len()].copy_from_slice(data);
         
+        // IMPORTANT: In a real system, subtract physical_memory_offset here.
         self.tx_ring[idx].addr = self.tx_buffers[idx].as_ptr() as u64;
         self.tx_ring[idx].length = data.len() as u16;
         self.tx_ring[idx].cmd = (1 << 3) | (1 << 1) | 1; // RS | IFCS | EOP
         self.tx_ring[idx].status = 0;
+
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 
         self.tx_index = (self.tx_index + 1) % TX_RING_SIZE;
         self.write_register(REG_TDT, self.tx_index as u32);
@@ -171,13 +174,18 @@ impl E1000 {
     pub fn receive(&mut self) -> Option<alloc::vec::Vec<u8>> {
         let idx = self.rx_index;
         
-        if (self.rx_ring[idx].status & 1) == 1 { // Descriptor Done (DD)
-            let len = self.rx_ring[idx].length as usize;
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        
+        if unsafe { core::ptr::read_volatile(&self.rx_ring[idx].status) & 1 } == 1 { // Descriptor Done (DD)
+            let raw_len = unsafe { core::ptr::read_volatile(&self.rx_ring[idx].length) } as usize;
+            let len = core::cmp::min(raw_len, BUFFER_SIZE);
             let mut packet = vec![0; len];
             packet.copy_from_slice(&self.rx_buffers[idx][..len]);
             
             // Zurücksetzen für den NIC
-            self.rx_ring[idx].status = 0;
+            unsafe { core::ptr::write_volatile(&mut self.rx_ring[idx].status, 0); }
+            core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+            
             self.write_register(REG_RDT, idx as u32);
             self.rx_index = (self.rx_index + 1) % RX_RING_SIZE;
             

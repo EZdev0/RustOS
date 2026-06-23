@@ -88,6 +88,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             for c in pci_str.chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
             }
+            
+            // Initialize TCP/IP Stack
+            network::init(e1000);
+            for c in "[NET] TCP/IP Stack (smoltcp) initialized with IP 10.0.2.15\n".chars() {
+                notepad_app.handle_event(desktop::app::Event::KeyPress(c));
+            }
         } else {
             for c in "\n[PCI] No Intel E1000 Network Card found.\n".chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
@@ -149,9 +155,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // 2. Initialize Executor
         let mut executor = task::executor::Executor::new();
 
-        // 3. Spawn UI Input Tasks
+        // 3. Spawn UI and Network Tasks
         executor.spawn(task::Task::new(task::keyboard::keyboard_task(shared_compositor.clone())));
         executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
+        executor.spawn(task::Task::new(crate::network::network_task()));
 
         // 4. Start Scheduler Loop (never returns)
         executor.run();

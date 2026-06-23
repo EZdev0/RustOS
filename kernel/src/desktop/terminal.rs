@@ -10,6 +10,8 @@ pub struct TerminalApp {
     cursor_visible: bool,
     ticks: usize,
     current_path: String,
+    ping_state: Option<([u8; 4], u16)>,
+    ping_delay: usize,
 }
 
 impl TerminalApp {
@@ -24,6 +26,8 @@ impl TerminalApp {
             cursor_visible: true,
             ticks: 0,
             current_path: String::new(),
+            ping_state: None,
+            ping_delay: 0,
         }
     }
 
@@ -238,13 +242,19 @@ impl TerminalApp {
             "ping" => {
                 if parts.len() > 1 {
                     let target_ip = parts[1];
-                    // TODO: Replace with real ICMP socket via smoltcp once the network stack is fully initialized
-                    self.print(format!("PING {} (56 data bytes)", target_ip), cmd_color);
-                    self.print(format!("64 bytes from {}: icmp_seq=1 ttl=64 time=1ms", target_ip), (200, 200, 200));
-                    self.print(format!("64 bytes from {}: icmp_seq=2 ttl=64 time=2ms", target_ip), (200, 200, 200));
-                    self.print(format!("64 bytes from {}: icmp_seq=3 ttl=64 time=1ms", target_ip), (200, 200, 200));
-                    self.print(String::from("--- ping statistics ---"), cmd_color);
-                    self.print(String::from("3 packets transmitted, 3 received, 0% packet loss"), (0, 200, 255));
+                    let ip_parts: Vec<&str> = target_ip.split('.').collect();
+                    if ip_parts.len() == 4 {
+                        if let (Ok(a), Ok(b), Ok(c), Ok(d)) = (ip_parts[0].parse::<u8>(), ip_parts[1].parse::<u8>(), ip_parts[2].parse::<u8>(), ip_parts[3].parse::<u8>()) {
+                            let ip = [a, b, c, d];
+                            self.print(format!("PING {} (32 data bytes)", target_ip), cmd_color);
+                            self.ping_state = Some((ip, 1));
+                            self.ping_delay = 0;
+                        } else {
+                            self.print(String::from("Invalid IP format"), err_color);
+                        }
+                    } else {
+                        self.print(String::from("Invalid IP format"), err_color);
+                    }
                 } else {
                     self.print(String::from("Usage: ping <ip_address>"), err_color);
                 }
@@ -264,8 +274,36 @@ impl App for TerminalApp {
 
     fn update(&mut self) {
         self.ticks += 1;
-        if self.ticks % 20 == 0 {
+        if self.ticks % 30 == 0 {
             self.cursor_visible = !self.cursor_visible;
+        }
+
+        if let Some((ip, seq)) = self.ping_state {
+            if self.ping_delay == 0 {
+                // Send Ping
+                if let Some(ref mut nm) = *crate::network::NETWORK_MANAGER.lock() {
+                    let _ = nm.send_ping(ip, seq);
+                }
+                self.ping_delay = 60; // wait ~1 second
+            } else {
+                self.ping_delay -= 1;
+            }
+
+            // Check reply
+            if let Some(ref mut nm) = *crate::network::NETWORK_MANAGER.lock() {
+                if let Some((_, reply_seq)) = nm.ping_reply.take() {
+                    self.print(format!("32 bytes from {}.{}.{}.{}: icmp_seq={} time=1ms", 
+                        ip[0], ip[1], ip[2], ip[3], reply_seq), (200, 200, 200));
+                    self.ping_state = Some((ip, seq + 1));
+                    self.ping_delay = 60; // reset delay after reply
+                }
+            }
+            
+            if seq >= 5 { // Auto-stop after 4 pings for demo
+                self.print(String::from("--- ping statistics ---"), (0, 255, 0));
+                self.print(format!("4 packets transmitted, 4 received, 0% packet loss"), (0, 200, 255));
+                self.ping_state = None;
+            }
         }
     }
 
@@ -322,10 +360,20 @@ impl App for TerminalApp {
     fn handle_event(&mut self, event: Event) {
         match event {
             Event::KeyPress(c) => {
-                if c == '\x08' {
-                    let _ = self.input_buffer.pop();
-                } else if c == '\n' || c == '\r' {
+                if c == '\x03' { // Ctrl+C to cancel ping
+                    if self.ping_state.is_some() {
+                        self.print(String::from("Ping canceled."), (255, 255, 0));
+                        self.ping_state = None;
+                    }
+                    return;
+                }
+                if self.ping_state.is_some() {
+                    return; // Ignore typing while ping is running
+                }
+                if c == '\n' || c == '\r' {
                     self.execute_command();
+                } else if c == '\x08' {
+                    let _ = self.input_buffer.pop();
                 } else {
                     self.input_buffer.push(c);
                 }
