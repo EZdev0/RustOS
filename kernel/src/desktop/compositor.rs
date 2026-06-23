@@ -259,7 +259,7 @@ impl GraphicalCompositor {
                 
                 if dist_sq > r_sq {
                     let dist = fast_isqrt(dist_sq) as isize - corner_r as isize;
-                    if dist > 0 && dist < shadow_size {
+                    if dist >= 0 && dist < shadow_size {
                         let alpha = 256 - (dist * 256 / shadow_size);
                         let alpha = alpha * alpha / 256; 
                         let intensity = if is_active { 
@@ -313,10 +313,9 @@ impl GraphicalCompositor {
         if dock_y_calc >= height as isize {
             return;
         }
-        let dock_y = dock_y_calc as usize;
-        let dock_x = width.saturating_sub(dock_w) / 2;
+        let dock_y = (dock_y_base + self.dock_y_offset) as usize;
+        let dock_x = (width as usize).saturating_sub(dock_w) / 2;
         let corner_r = 16usize; 
-        let blur_r = 3usize;
         
         let glass_alpha = 110u16; 
 
@@ -347,30 +346,7 @@ impl GraphicalCompositor {
                 let px = dock_x + dx;
                 let py = dock_y + dy;
 
-                let mut sum_r = 0usize;
-                let mut sum_g = 0usize;
-                let mut sum_b = 0usize;
-                let mut count = 0usize;
-
-                let start_y = py.saturating_sub(blur_r);
-                let end_y = (py + blur_r).min(height - 1);
-                let start_x = px.saturating_sub(blur_r);
-                let end_x = (px + blur_r).min(width - 1);
-
-                // Box Blur
-                for by in start_y..=end_y {
-                    for bx in start_x..=end_x {
-                        let (r, g, b) = self.read_pixel(bx, by);
-                        sum_r += r as usize;
-                        sum_g += g as usize;
-                        sum_b += b as usize;
-                        count += 1;
-                    }
-                }
-
-                let final_r = (sum_r / count) as u8;
-                let final_g = (sum_g / count) as u8;
-                let final_b = (sum_b / count) as u8;
+                let (final_r, final_g, final_b) = self.read_pixel(px, py);
 
                 // Glass blend
                 let inv_alpha = 256 - glass_alpha;
@@ -692,7 +668,7 @@ impl GraphicalCompositor {
                             w.x = 0;
                             w.y = 28;
                             w.width = width as usize;
-                            w.height = height as usize - 28 - 75 - 20;
+                            w.height = (height as usize).saturating_sub(123);
                         }
                     }
                 }
@@ -701,8 +677,8 @@ impl GraphicalCompositor {
 
             let dock_w = 440;
             let dock_h = 60;
-            let dock_x = (width as usize - dock_w) / 2;
-            let dock_y_base = height as isize - dock_h as isize - 15;
+            let dock_x = (width as usize).saturating_sub(dock_w) / 2;
+            let dock_y_base = (height as isize).saturating_sub(dock_h as isize + 15);
             let dock_y = (dock_y_base + self.dock_y_offset) as usize;
             let in_dock = mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
 
@@ -712,7 +688,7 @@ impl GraphicalCompositor {
                         let rel_x = mx - (dock_x + 25);
                         let icon_idx = rel_x / 85;
                         let offset_in_icon = rel_x % 85;
-                        if offset_in_icon <= 40 {
+                        if offset_in_icon <= 40 && self.windows.len() < 12 {
                             let offset = (self.windows.len() * 20) % 100;
                             if icon_idx == 0 {
                                 let notepad_app = crate::desktop::notepad::NotepadApp::new();
@@ -784,17 +760,33 @@ impl GraphicalCompositor {
                     }
                 }
             } else if let Some((idx, rel_x, rel_y)) = self.active_app_click {
-                self.long_press_ticks += 1;
-                if self.long_press_ticks == 60 {
-                    if idx < self.windows.len() {
-                        if let Some(w) = &mut self.windows[idx] {
-                            w.app.handle_event(Event::MouseLongPress { x: rel_x, y: rel_y });
-                        }
+                let mut should_cancel = false;
+                let mut trigger_event = false;
+                
+                if let Some(w) = &self.windows[idx] {
+                    if mx < w.x || mx > w.x + w.width || my <= w.y + 20 || my > w.y + w.height + 20 {
+                        should_cancel = true;
+                    }
+                }
+                
+                if should_cancel {
+                    self.active_app_click = None;
+                    self.long_press_ticks = 0;
+                } else {
+                    self.long_press_ticks = self.long_press_ticks.saturating_add(1);
+                    if self.long_press_ticks == 60 {
+                        trigger_event = true;
+                    }
+                }
+                
+                if trigger_event {
+                    if let Some(w) = &mut self.windows[idx] {
+                        w.app.handle_event(Event::MouseLongPress { x: rel_x, y: rel_y });
                     }
                 }
             } else if self.desktop_click_active {
                 // (Bestehender Code für Desktop Long Press bleibt hier bestehen)
-                self.long_press_ticks += 1;
+                self.long_press_ticks = self.long_press_ticks.saturating_add(1);
                 if self.long_press_ticks == 60 {
                     let file_name = alloc::format!("Desktop_Datei_{}.txt", self.ticks);
                     crate::fs::RAM_FS.lock().write_file(&file_name, b"");

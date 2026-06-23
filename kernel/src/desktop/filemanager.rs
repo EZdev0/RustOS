@@ -41,6 +41,7 @@ impl App for FileManagerApp {
         
         // Sidebar
         let sidebar_width = 120;
+        let content_width = width.saturating_sub(sidebar_width);
         compositor.draw_rect(x, y, sidebar_width, height, 220, 220, 230);
         draw_string(compositor, x + 10, y + 10, "Favorites", 100, 100, 110);
         draw_string(compositor, x + 10, y + 30, " Desktop", 50, 50, 60);
@@ -48,12 +49,12 @@ impl App for FileManagerApp {
         
         // Toolbar
         let toolbar_height = 40;
-        compositor.draw_rect(x + sidebar_width, y, width - sidebar_width, toolbar_height, 230, 230, 240);
+        compositor.draw_rect(x + sidebar_width, y, content_width, toolbar_height, 230, 230, 240);
         draw_string(compositor, x + sidebar_width + 10, y + 15, "New File: Type name & press Enter", 80, 80, 90);
         
         // Separator lines
         compositor.draw_rect(x + sidebar_width - 1, y, 1, height, 200, 200, 200); 
-        compositor.draw_rect(x + sidebar_width, y + toolbar_height - 1, width - sidebar_width, 1, 200, 200, 200);
+        compositor.draw_rect(x + sidebar_width, y + toolbar_height - 1, content_width, 1, 200, 200, 200);
         
         // Content area - File list
         let content_x = x + sidebar_width + 10;
@@ -101,7 +102,7 @@ impl App for FileManagerApp {
                     }
                 } else if c == '\x08' {
                     let _ = self.new_file_name.pop();
-                } else {
+                } else if self.new_file_name.len() < 30 {
                     self.new_file_name.push(c);
                     self.is_creating_file = true;
                 }
