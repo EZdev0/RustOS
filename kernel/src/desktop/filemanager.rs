@@ -1,6 +1,5 @@
 use crate::desktop::app::{App, Event};
 use crate::desktop::compositor::GraphicalCompositor;
-use alloc::format;
 use alloc::vec::Vec;
 use alloc::string::String;
 

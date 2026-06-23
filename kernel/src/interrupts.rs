@@ -1,3 +1,4 @@
+use core::sync::atomic::{AtomicUsize, Ordering};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
@@ -5,6 +6,7 @@ use spin::Mutex;
 use pc_keyboard::{layouts, DecodedKey, HandleControl, PS2Keyboard, ScancodeSet1};
 use heapless::Vec;
 
+pub static TIMER_TICKS: AtomicUsize = AtomicUsize::new(0);
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
 
@@ -152,7 +154,27 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
     }
 }
 
+pub fn init_pit(frequency: u32) {
+    use x86_64::instructions::port::Port;
+    
+    let divisor = 1193182 / frequency;
+    
+    let mut command_port: Port<u8> = Port::new(0x43);
+    let mut data_port: Port<u8> = Port::new(0x40);
+
+    unsafe {
+        command_port.write(0x36);
+        data_port.write((divisor & 0xFF) as u8);
+        data_port.write((divisor >> 8) as u8);
+    }
+}
+
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
+    
+    // Future expansion: Wake up tasks here if needed
+    // crate::task::executor::wake_timer_tasks();
+
     unsafe {
         PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }

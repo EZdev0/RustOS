@@ -10,7 +10,7 @@ pub mod desktop;
 pub mod hardware;
 pub mod interrupts;
 pub mod fs;
-
+pub mod task;
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
 use crate::desktop::app::App;
