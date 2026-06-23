@@ -11,6 +11,10 @@ pub struct GraphicalCompositor {
     pub windows: Vec<Option<Window>>,
     pub mouse_x: usize,
     pub mouse_y: usize,
+    pub mouse_left_down: bool,
+    pub dragging_window: Option<usize>,
+    pub drag_offset_x: isize,
+    pub drag_offset_y: isize,
 }
 
 impl GraphicalCompositor {
@@ -25,7 +29,18 @@ impl GraphicalCompositor {
         let mouse_x = info.width / 2;
         let mouse_y = info.height / 2;
 
-        Self { info, framebuffer: buffer, backbuffer, windows: Vec::new(), mouse_x, mouse_y }
+        Self { 
+            info, 
+            framebuffer: buffer, 
+            backbuffer, 
+            windows: Vec::new(), 
+            mouse_x, 
+            mouse_y,
+            mouse_left_down: false,
+            dragging_window: None,
+            drag_offset_x: 0,
+            drag_offset_y: 0,
+        }
     }
 
     pub fn info(&self) -> &FrameBufferInfo {
@@ -105,7 +120,17 @@ impl GraphicalCompositor {
         // Safe Architecture: Take the window temporarily out of the Vec to bypass borrow conflicts
         for i in 0..self.windows.len() {
             if let Some(mut window) = self.windows[i].take() {
-                window.app.draw(self, window.x, window.y, window.width, window.height);
+                // Draw Title Bar (Dark Grey)
+                self.draw_rect(window.x, window.y, window.width, 20, 60, 60, 60);
+                
+                // Draw Close Button (Red)
+                self.draw_rect(window.x + window.width - 20, window.y, 20, 20, 220, 50, 50);
+
+                // Draw X on Close Button
+                self.draw_char(window.x + window.width - 14, window.y + 6, 'X', 255, 255, 255);
+
+                // Draw App content below title bar
+                window.app.draw(self, window.x, window.y + 20, window.width, window.height);
                 self.windows[i] = Some(window);
             }
         }

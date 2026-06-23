@@ -44,13 +44,13 @@ lazy_static! {
         Mutex::new(PS2Keyboard::new(ScancodeSet1::new(), layouts::Us104Key, HandleControl::Ignore));
 
     static ref KEY_QUEUE: Mutex<Vec<char, 256>> = Mutex::new(Vec::new());
-    static ref MOUSE_QUEUE: Mutex<Vec<(i32, i32), 256>> = Mutex::new(Vec::new());
+    static ref MOUSE_QUEUE: Mutex<Vec<(i32, i32, bool, bool), 256>> = Mutex::new(Vec::new());
 }
 
 static mut MOUSE_PACKET: [u8; 3] = [0; 3];
 static mut MOUSE_CYCLE: u8 = 0;
 
-pub fn pop_mouse_event() -> Option<(i32, i32)> {
+pub fn pop_mouse_event() -> Option<(i32, i32, bool, bool)> {
     if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
         if queue.is_empty() { None } else { Some(queue.remove(0)) }
     } else { None }
@@ -200,9 +200,12 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
                 if (MOUSE_PACKET[0] & 0x10) != 0 { dx -= 256; }
                 if (MOUSE_PACKET[0] & 0x20) != 0 { dy -= 256; }
                 dy = -dy; // Y-Achse invertieren
+
+                let left_click = (MOUSE_PACKET[0] & 1) != 0;
+                let right_click = (MOUSE_PACKET[0] & 2) != 0;
                 
                 if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
-                    let _ = queue.push((dx, dy));
+                    let _ = queue.push((dx, dy, left_click, right_click));
                 }
             },
             _ => { MOUSE_CYCLE = 0; }

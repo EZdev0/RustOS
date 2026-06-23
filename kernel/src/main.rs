@@ -97,7 +97,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 needs_render = true;
             }
 
-            while let Some((dx, dy)) = interrupts::pop_mouse_event() {
+            while let Some((dx, dy, left_down, _right_down)) = interrupts::pop_mouse_event() {
                 let mut new_x = compositor.mouse_x as i32 + dx;
                 let mut new_y = compositor.mouse_y as i32 + dy;
                 
@@ -111,6 +111,63 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 
                 compositor.mouse_x = new_x as usize;
                 compositor.mouse_y = new_y as usize;
+
+                let clicked_this_frame = left_down && !compositor.mouse_left_down;
+                let released_this_frame = !left_down && compositor.mouse_left_down;
+                compositor.mouse_left_down = left_down;
+
+                let mx = compositor.mouse_x;
+                let my = compositor.mouse_y;
+
+                if clicked_this_frame {
+                    let mut found = false;
+                    for i in (0..compositor.windows.len()).rev() {
+                        if let Some(w) = &compositor.windows[i] {
+                            if mx >= w.x + w.width - 20 && mx <= w.x + w.width && my >= w.y && my <= w.y + 20 {
+                                compositor.windows.remove(i);
+                                found = true;
+                                break;
+                            }
+                            if mx >= w.x && mx <= w.x + w.width && my >= w.y && my <= w.y + 20 {
+                                compositor.dragging_window = Some(i);
+                                compositor.drag_offset_x = mx as isize - w.x as isize;
+                                compositor.drag_offset_y = my as isize - w.y as isize;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if !found {
+                        let dock_y = compositor.info().height - 75;
+                        if my >= dock_y && my <= dock_y + 60 {
+                            let mut notepad_app = desktop::notepad::NotepadApp::new();
+                            notepad_app.handle_event(desktop::app::Event::KeyPress('N'));
+                            notepad_app.handle_event(desktop::app::Event::KeyPress('e'));
+                            notepad_app.handle_event(desktop::app::Event::KeyPress('w'));
+                            let window = desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), 50, 50, 400, 300);
+                            compositor.add_window(window);
+                        }
+                    }
+                }
+
+                if released_this_frame {
+                    compositor.dragging_window = None;
+                }
+
+                if left_down {
+                    if let Some(idx) = compositor.dragging_window {
+                        if idx < compositor.windows.len() {
+                            if let Some(w) = &mut compositor.windows[idx] {
+                                let target_x = (compositor.mouse_x as isize - compositor.drag_offset_x).max(0) as usize;
+                                let target_y = (compositor.mouse_y as isize - compositor.drag_offset_y).max(0) as usize;
+                                w.x = target_x;
+                                w.y = target_y;
+                            }
+                        }
+                    }
+                }
+
                 needs_render = true;
             }
 
