@@ -13,9 +13,11 @@ fn read_register(reg: u8) -> u8 {
     let mut address_port = Port::<u8>::new(0x70);
     let mut data_port = Port::<u8>::new(0x71);
     unsafe {
-        // Um NMI (Non-Maskable Interrupts) nicht zu stören, 
-        // ver-odern wir das Register nicht mit 0x80, es sei denn NMI soll aus.
-        address_port.write(reg);
+        // CRITICAL BUGFIX: Das MSB (Bit 7) des CMOS Address Ports kontrolliert NMI!
+        // Wenn wir 0x00 schreiben, ENABLEN wir NMIs. Wenn dann ein NMI feuert, crasht 
+        // das OS mit #GP Error 16 (IDT Vektor 2 * 8), da kein NMI Handler existiert.
+        // Daher MÜSSEN wir das NMI-Mask Bit (0x80) setzen, um NMI zu blockieren!
+        address_port.write(reg | 0x80);
         data_port.read()
     }
 }

@@ -48,7 +48,9 @@ fn main() {
     let qemu_result = Command::new("qemu-system-x86_64")
         .args(&[
             "-drive",
-            &format!("format=raw,file={}", output_disk.display())
+            &format!("format=raw,file={}", output_disk.display()),
+            "-serial",
+            "stdio",
         ])
         .status();
 
