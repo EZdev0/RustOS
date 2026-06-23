@@ -19,7 +19,7 @@ pub struct FileManagerApp {
 impl FileManagerApp {
     pub fn new() -> Self {
         Self {
-            items: crate::fs::RAM_FS.lock().list_dir("").unwrap_or_default(),
+            items: crate::fs::RAM_FS.list_dir("").unwrap_or_default(),
             new_file_name: String::new(),
             is_creating_file: false,
         }
@@ -32,7 +32,7 @@ impl App for FileManagerApp {
     }
 
     fn update(&mut self) {
-        self.items = crate::fs::RAM_FS.lock().list_dir("").unwrap_or_default();
+        self.items = crate::fs::RAM_FS.list_dir("").unwrap_or_default();
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
@@ -95,7 +95,7 @@ impl App for FileManagerApp {
             Event::KeyPress(c) => {
                 if c == '\n' {
                     if !self.new_file_name.is_empty() {
-                        crate::fs::RAM_FS.lock().write_file(&self.new_file_name, b"");
+                        let _ = crate::fs::RAM_FS.write_file(&self.new_file_name, b"");
                         self.new_file_name.clear();
                         self.is_creating_file = false;
                         self.update(); // UI nach Erstellung erneuern
@@ -117,7 +117,7 @@ impl App for FileManagerApp {
                     if idx < self.items.len() {
                         let (name, is_dir) = &self.items[idx];
                         if !*is_dir {
-                            crate::fs::RAM_FS.lock().delete_file(name);
+                            let _ = crate::fs::RAM_FS.delete_file(name);
                             self.update();
                         }
                     }

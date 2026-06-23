@@ -5,8 +5,51 @@ use lazy_static::lazy_static;
 use spin::Mutex;
 use alloc::format;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum FsError {
+    NotFound,
+    AlreadyExists,
+    IsDirectory,
+    NotADirectory,
+    NotEmpty,
+}
+
 lazy_static! {
-    pub static ref RAM_FS: Mutex<RamFs> = Mutex::new(RamFs::new());
+    pub static ref RAM_FS: SafeRamFs = SafeRamFs::new();
+}
+
+pub struct SafeRamFs {
+    inner: Mutex<RamFs>,
+}
+
+impl SafeRamFs {
+    pub fn new() -> Self {
+        Self { inner: Mutex::new(RamFs::new()) }
+    }
+
+    pub fn write_file(&self, path: &str, content: &[u8]) -> Result<(), FsError> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().write_file(path, content))
+    }
+
+    pub fn mkdir(&self, path: &str) -> Result<(), FsError> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().mkdir(path))
+    }
+
+    pub fn read_file(&self, path: &str) -> Result<Vec<u8>, FsError> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().read_file(path))
+    }
+
+    pub fn delete_file(&self, path: &str) -> Result<(), FsError> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().delete_file(path))
+    }
+
+    pub fn list_dir(&self, path: &str) -> Result<Vec<(String, bool)>, FsError> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().list_dir(path))
+    }
+
+    pub fn list_files(&self) -> Vec<String> {
+        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().list_files())
+    }
 }
 
 pub enum FsNode {
@@ -44,9 +87,9 @@ impl RamFs {
         Some(current)
     }
 
-    pub fn write_file(&mut self, path: &str, content: &[u8]) {
+    pub fn write_file(&mut self, path: &str, content: &[u8]) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return; }
+        if parts.is_empty() { return Err(FsError::NotADirectory); }
         
         let file_name = parts.last().unwrap();
         let dir_parts = &parts[0..parts.len()-1];
@@ -57,18 +100,26 @@ impl RamFs {
                 FsNode::Directory { children } => {
                     current = children.entry(String::from(*part)).or_insert(FsNode::Directory { children: BTreeMap::new() });
                 }
-                FsNode::File { .. } => return,
+                FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
         }
         
         if let FsNode::Directory { children } = current {
+            if let Some(existing) = children.get(*file_name) {
+                if let FsNode::Directory { .. } = existing {
+                    return Err(FsError::IsDirectory);
+                }
+            }
             children.insert(String::from(*file_name), FsNode::File { content: content.to_vec() });
+            Ok(())
+        } else {
+            Err(FsError::NotADirectory)
         }
     }
 
-    pub fn mkdir(&mut self, path: &str) {
+    pub fn mkdir(&mut self, path: &str) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return; }
+        if parts.is_empty() { return Err(FsError::NotADirectory); }
         
         let mut current = &mut self.root;
         for part in parts {
@@ -76,22 +127,23 @@ impl RamFs {
                 FsNode::Directory { children } => {
                     current = children.entry(String::from(part)).or_insert(FsNode::Directory { children: BTreeMap::new() });
                 }
-                FsNode::File { .. } => return,
+                FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
         }
+        Ok(())
     }
 
-    pub fn read_file(&self, path: &str) -> Option<Vec<u8>> {
+    pub fn read_file(&self, path: &str) -> Result<Vec<u8>, FsError> {
         if let Some(FsNode::File { content }) = self.resolve_node(path) {
-            Some(content.clone())
+            Ok(content.clone())
         } else {
-            None
+            Err(FsError::NotFound)
         }
     }
     
-    pub fn delete_file(&mut self, path: &str) -> bool {
+    pub fn delete_file(&mut self, path: &str) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return false; }
+        if parts.is_empty() { return Err(FsError::NotFound); }
         
         let name = parts.last().unwrap();
         let dir_parts = &parts[0..parts.len()-1];
@@ -103,21 +155,30 @@ impl RamFs {
                     if let Some(child) = children.get_mut(*part) {
                         current = child;
                     } else {
-                        return false;
+                        return Err(FsError::NotFound);
                     }
                 }
-                FsNode::File { .. } => return false,
+                FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
         }
         
         if let FsNode::Directory { children } = current {
-            children.remove(*name).is_some()
+            if let Some(FsNode::Directory { children: sub }) = children.get(*name) {
+                if !sub.is_empty() {
+                    return Err(FsError::NotEmpty);
+                }
+            }
+            if children.remove(*name).is_some() {
+                Ok(())
+            } else {
+                Err(FsError::NotFound)
+            }
         } else {
-            false
+            Err(FsError::NotADirectory)
         }
     }
 
-    pub fn list_dir(&self, path: &str) -> Option<Vec<(String, bool)>> {
+    pub fn list_dir(&self, path: &str) -> Result<Vec<(String, bool)>, FsError> {
         if let Some(FsNode::Directory { children }) = self.resolve_node(path) {
             let mut list = Vec::new();
             for (name, node) in children.iter() {
@@ -127,9 +188,9 @@ impl RamFs {
                 };
                 list.push((name.clone(), is_dir));
             }
-            Some(list)
+            Ok(list)
         } else {
-            None
+            Err(FsError::NotFound)
         }
     }
     

@@ -769,34 +769,34 @@ impl GraphicalCompositor {
                             let offset = (self.windows.len() * 20) % 100;
                             if icon_idx == 0 {
                                 let notepad_app = crate::desktop::notepad::NotepadApp::new();
-                                let win_width = if width > 600 { width as usize - 200 } else { width as usize - 40 };
-                                let win_height = if height > 400 { height as usize - 150 } else { height as usize - 80 };
-                                let win_x = (width as usize - win_width) / 2 + offset;
-                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let win_width = if width > 600 { (width as usize).saturating_sub(200) } else { (width as usize).saturating_sub(40).max(100) };
+                                let win_height = if height > 400 { (height as usize).saturating_sub(150) } else { (height as usize).saturating_sub(80).max(100) };
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             } else if icon_idx == 1 {
                                 let terminal_app = crate::desktop::terminal::TerminalApp::new();
                                 let win_width = 500;
                                 let win_height = 350;
-                                let win_x = (width as usize - win_width) / 2 + offset;
-                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(terminal_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             } else if icon_idx == 2 {
                                 let tm_app = crate::desktop::taskmanager::TaskManagerApp::new();
                                 let win_width = 400;
                                 let win_height = 250;
-                                let win_x = (width as usize - win_width) / 2 + offset;
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
                                 let win_y = (height as usize - win_height) / 2 - 20 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(tm_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             } else if icon_idx == 3 {
                                 let fm_app = crate::desktop::filemanager::FileManagerApp::new();
-                                let win_width = 500;
+                                let win_width = 600;
                                 let win_height = 400;
-                                let win_x = (width as usize - win_width) / 2 + offset;
-                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             }
@@ -868,7 +868,7 @@ impl GraphicalCompositor {
                 self.long_press_ticks = self.long_press_ticks.saturating_add(1);
                 if self.long_press_ticks == 60 {
                     let file_name = alloc::format!("Desktop_Datei_{}.txt", self.ticks);
-                    crate::fs::RAM_FS.lock().write_file(&file_name, b"");
+                    let _ = crate::fs::RAM_FS.write_file(&file_name, b"");
                     
                     self.desktop_click_active = false;
                     self.long_press_ticks = 0;
@@ -878,14 +878,15 @@ impl GraphicalCompositor {
     }
 
     fn get_perimeter_pixel(x: usize, y: usize, w: usize, h: usize, i: usize) -> (usize, usize) {
+        if w == 0 || h == 0 { return (x, y); }
         if i < w {
             (x + i, y)
         } else if i < w + h {
-            (x + w - 1, y + (i - w))
+            (x + w.saturating_sub(1), y + (i - w))
         } else if i < 2 * w + h {
-            (x + w - 1 - (i - (w + h)), y + h - 1)
+            (x + w.saturating_sub(1).saturating_sub(i - (w + h)), y + h.saturating_sub(1))
         } else {
-            (x, y + h - 1 - (i - (2 * w + h)))
+            (x, y + h.saturating_sub(1).saturating_sub(i - (2 * w + h)))
         }
     }
 

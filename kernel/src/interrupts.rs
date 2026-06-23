@@ -2,9 +2,6 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
-use spin::Mutex;
-use pc_keyboard::{layouts, HandleControl, PS2Keyboard, ScancodeSet1};
-use heapless::Vec;
 
 pub static TIMER_TICKS: AtomicUsize = AtomicUsize::new(0);
 pub const PIC_1_OFFSET: u8 = 32;
@@ -31,7 +28,10 @@ lazy_static! {
     static ref IDT: InterruptDescriptorTable = {
         let mut idt = InterruptDescriptorTable::new();
         idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.double_fault.set_handler_fn(double_fault_handler);
+        unsafe {
+            idt.double_fault.set_handler_fn(double_fault_handler)
+                .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
+        }
         idt.page_fault.set_handler_fn(page_fault_handler);
         idt.general_protection_fault.set_handler_fn(gp_fault_handler);
         idt[InterruptIndex::Timer.as_u8()].set_handler_fn(timer_interrupt_handler);
@@ -41,22 +41,8 @@ lazy_static! {
     };
 }
 
-lazy_static! {
-    static ref KEYBOARD: Mutex<PS2Keyboard<layouts::Us104Key, ScancodeSet1>> =
-        Mutex::new(PS2Keyboard::new(ScancodeSet1::new(), layouts::Us104Key, HandleControl::Ignore));
-
-    static ref KEY_QUEUE: Mutex<Vec<char, 256>> = Mutex::new(Vec::new());
-    static ref MOUSE_QUEUE: Mutex<Vec<(i32, i32, bool, bool), 256>> = Mutex::new(Vec::new());
-}
-
 static mut MOUSE_PACKET: [u8; 3] = [0; 3];
 static mut MOUSE_CYCLE: u8 = 0;
-
-pub fn pop_mouse_event() -> Option<(i32, i32, bool, bool)> {
-    if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
-        if queue.is_empty() { None } else { Some(queue.remove(0)) }
-    } else { None }
-}
 
 fn mouse_wait(a_type: u8) {
     use x86_64::instructions::port::Port;
@@ -69,6 +55,7 @@ fn mouse_wait(a_type: u8) {
         } else {
             if (status & 2) == 0 { return; }
         }
+        core::hint::spin_loop();
     }
 }
 
@@ -101,18 +88,6 @@ pub fn init_mouse() {
         port_60.write(0xF4);
         mouse_wait(0);
         port_60.read(); // Acknowledge
-    }
-}
-
-pub fn pop_key() -> Option<char> {
-    if let Some(mut queue) = KEY_QUEUE.try_lock() {
-        if queue.is_empty() {
-            None
-        } else {
-            Some(queue.remove(0))
-        }
-    } else {
-        None
     }
 }
 

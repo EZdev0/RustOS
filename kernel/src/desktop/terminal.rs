@@ -29,6 +29,9 @@ impl TerminalApp {
 
     fn print(&mut self, text: String, color: (u8, u8, u8)) {
         self.output.push((text, color));
+        if self.output.len() > 500 {
+            self.output.remove(0);
+        }
     }
 
     fn execute_command(&mut self) {
@@ -58,7 +61,7 @@ impl TerminalApp {
             }
             "ls" => {
                 let current = if self.current_path.is_empty() { "/" } else { &self.current_path };
-                if let Some(files) = crate::fs::RAM_FS.lock().list_dir(current) {
+                if let Ok(files) = crate::fs::RAM_FS.list_dir(current) {
                     if files.is_empty() {
                         self.print(String::from("(empty)"), cmd_color);
                     } else {
@@ -78,7 +81,7 @@ impl TerminalApp {
                     } else {
                         format!("{}/{}", self.current_path, parts[1])
                     };
-                    crate::fs::RAM_FS.lock().mkdir(&path);
+                    let _ = crate::fs::RAM_FS.mkdir(&path);
                     self.print(String::from("Created directory"), cmd_color);
                 } else {
                     self.print(String::from("Usage: mkdir <dirname>"), err_color);
@@ -102,7 +105,7 @@ impl TerminalApp {
                             format!("{}/{}", self.current_path, target)
                         };
                         
-                        if let Some(_) = crate::fs::RAM_FS.lock().list_dir(&path) {
+                        if crate::fs::RAM_FS.list_dir(&path).is_ok() {
                             self.current_path = path;
                         } else {
                             self.print(String::from("Directory not found"), err_color);
@@ -115,7 +118,7 @@ impl TerminalApp {
             "touch" => {
                 if parts.len() > 1 {
                     let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
-                    crate::fs::RAM_FS.lock().write_file(&path, b"");
+                    let _ = crate::fs::RAM_FS.write_file(&path, b"");
                     self.print(String::from("Created file"), cmd_color);
                 } else {
                     self.print(String::from("Usage: touch <filename>"), err_color);
@@ -124,7 +127,7 @@ impl TerminalApp {
             "rm" => {
                 if parts.len() > 1 {
                     let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
-                    if crate::fs::RAM_FS.lock().delete_file(&path) {
+                    if crate::fs::RAM_FS.delete_file(&path).is_ok() {
                         self.print(String::from("Deleted file"), cmd_color);
                     } else {
                         self.print(String::from("File not found"), err_color);
@@ -136,7 +139,7 @@ impl TerminalApp {
             "cat" => {
                 if parts.len() > 1 {
                     let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
-                    if let Some(content) = crate::fs::RAM_FS.lock().read_file(&path) {
+                    if let Ok(content) = crate::fs::RAM_FS.read_file(&path) {
                         if let Ok(s) = core::str::from_utf8(&content) {
                             self.print(String::from(s), cmd_color);
                         } else {
@@ -156,7 +159,7 @@ impl TerminalApp {
                             let filename = parts[pos + 1];
                             let path = if self.current_path.is_empty() { String::from(filename) } else { format!("{}/{}", self.current_path, filename) };
                             let content = parts[1..pos].join(" ");
-                            crate::fs::RAM_FS.lock().write_file(&path, content.as_bytes());
+                            let _ = crate::fs::RAM_FS.write_file(&path, content.as_bytes());
                             self.print(String::from("File written"), cmd_color);
                             return;
                         }

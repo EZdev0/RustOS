@@ -10,6 +10,7 @@ pub mod desktop;
 pub mod hardware;
 pub mod interrupts;
 pub mod fs;
+pub mod gdt;
 pub mod task;
 use bootloader_api::{entry_point, BootInfo};
 use core::panic::PanicInfo;
@@ -32,8 +33,10 @@ pub static mut CRASH_SCREEN_INFO: Option<RawFrameBufferInfo> = None;
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    gdt::init();
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
+    interrupts::init_pit(1000);
 
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
@@ -81,6 +84,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         compositor.render_all(); // Einmal initial rendern
 
+        // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
+        x86_64::instructions::interrupts::enable();
+
         // BOOT ANIMATION (VibeOS 2026 Style)
         for alpha in (0..=255).step_by(5) {
             compositor.draw_rect(0, 0, width, height, 43, 48, 59); // Background
@@ -91,11 +97,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 tx += 8;
             }
             compositor.swap_buffers();
-            for _ in 0..100000 { unsafe { core::arch::asm!("nop"); } }
+            
+            let start = crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed);
+            while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed) < start + 5 {
+                core::hint::spin_loop();
+            }
         }
-
-        // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
-        x86_64::instructions::interrupts::enable();
 
         // 1. Arc/Mutex wrapper for the compositor so multiple async tasks can share it
         let shared_compositor = alloc::sync::Arc::new(spin::Mutex::new(compositor));

@@ -1,5 +1,7 @@
 use raw_cpuid::CpuId;
 use alloc::string::String;
+use x86_64::registers::control::{Cr4, Cr4Flags};
+use x86_64::registers::xcontrol::{XCr0, XCr0Flags};
 
 pub fn detect_and_init() -> String {
     let cpuid = CpuId::new();
@@ -14,11 +16,15 @@ pub fn detect_and_init() -> String {
         }
         if info.has_avx() {
             features.push_str("[AVX] ");
-            // unsafe {
-            //     let mut cr4 = Cr4::read();
-            //     cr4.insert(Cr4Flags::OSXSAVE);
-            //     Cr4::write(cr4);
-            // }
+            unsafe {
+                let mut cr4 = Cr4::read();
+                cr4.insert(Cr4Flags::OSXSAVE);
+                Cr4::write(cr4);
+
+                let mut xcr0 = XCr0::read();
+                xcr0.insert(XCr0Flags::SSE | XCr0Flags::AVX);
+                XCr0::write(xcr0);
+            }
         }
     }
 
