@@ -19,7 +19,6 @@ entry_point!(kernel_main);
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
-    x86_64::instructions::interrupts::enable();
 
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
@@ -51,6 +50,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         // Optional: put compositor in a global mutex for interrupts, or just handle interrupts via a queue.
         // For simplicity, we just loop and render
+        // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
+        x86_64::instructions::interrupts::enable();
+
         loop {
             // Process events from a global queue (implemented in interrupts.rs)
             if let Some(c) = interrupts::pop_key() {

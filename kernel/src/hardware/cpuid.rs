@@ -15,12 +15,11 @@ pub fn detect_and_init() -> String {
         }
         if info.has_avx() {
             features.push_str("[AVX] ");
-            // Attempt to enable OSXSAVE if supported
-            unsafe {
-                let mut cr4 = Cr4::read();
-                cr4.insert(Cr4Flags::OSXSAVE);
-                Cr4::write(cr4);
-            }
+            // unsafe {
+            //     let mut cr4 = Cr4::read();
+            //     cr4.insert(Cr4Flags::OSXSAVE);
+            //     Cr4::write(cr4);
+            // }
         }
     }
 

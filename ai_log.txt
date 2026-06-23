@@ -1,0 +1,919 @@
+Build RustOS (ubuntu-latest)	Set up job	﻿2026-06-23T08:11:34.4348195Z Current runner version: '2.335.1'
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4428511Z ##[group]Runner Image Provisioner
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4429979Z Hosted Compute Agent
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4430976Z Version: 20260611.554
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4432151Z Commit: 5e0782fdc9014723d3be820dd114dd31555c2bd1
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4433375Z Build Date: 2026-06-11T21:40:46Z
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4434758Z Worker ID: {9b5e50b9-9e1e-450a-a4f2-b8d462b54230}
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4436033Z Azure Region: northcentralus
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4457837Z ##[endgroup]
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4468329Z ##[group]Operating System
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4469481Z Ubuntu
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4470423Z 24.04.4
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4471499Z LTS
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4472457Z ##[endgroup]
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4473530Z ##[group]Runner Image
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4474694Z Image: ubuntu-24.04
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4475826Z Version: 20260615.205.1
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4498390Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260615.205/images/ubuntu/Ubuntu2404-Readme.md
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4501641Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260615.205
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4503466Z ##[endgroup]
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4505574Z ##[group]GITHUB_TOKEN Permissions
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4509231Z Contents: write
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4510302Z Metadata: read
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4511428Z ##[endgroup]
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4514681Z Secret source: Actions
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.4537509Z Prepare workflow directory
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.5211437Z Prepare all required actions
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.5270006Z Getting action download info
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.7968837Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:34.9325713Z Download action repository 'dtolnay/rust-toolchain@nightly' (SHA:5b842231ba77f5c045dba54ac5560fed2db780e2)
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:35.4613846Z Download action repository 'actions/cache@v3' (SHA:6f8efc29b200d32929f49075959781ed54ec270c)
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:36.0818553Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+Build RustOS (ubuntu-latest)	Set up job	2026-06-23T08:11:36.6102906Z Complete job name: Build RustOS (ubuntu-latest)
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	﻿2026-06-23T08:11:36.6824608Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6833198Z ##[group]Run actions/checkout@v4
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6833778Z with:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6834063Z   repository: JONIMONI09/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6837857Z   token: ***
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6838156Z   ssh-strict: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6838416Z   ssh-user: git
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6838681Z   persist-credentials: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6838967Z   clean: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6839240Z   sparse-checkout-cone-mode: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6839546Z   fetch-depth: 1
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6839833Z   fetch-tags: false
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6840112Z   show-progress: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6840373Z   lfs: false
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6840609Z   submodules: false
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6840919Z   set-safe-directory: true
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.6841529Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.7954731Z Syncing repository: JONIMONI09/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.7957894Z ##[group]Getting Git version info
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.7959030Z Working directory is '/home/runner/work/RustOS/RustOS'
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.7960925Z [command]/usr/bin/git version
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8081647Z git version 2.54.0
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8106025Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8124388Z Temporarily overriding HOME='/home/runner/work/_temp/ea87f08b-d647-4970-ac73-c762312465d4' before making global git config changes
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8127775Z Adding repository directory to the temporary git global config as a safe directory
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8132104Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RustOS/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8190742Z Deleting the contents of '/home/runner/work/RustOS/RustOS'
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8196588Z ##[group]Initializing the repository
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8202017Z [command]/usr/bin/git init /home/runner/work/RustOS/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8337143Z hint: Using 'master' as the name for the initial branch. This default branch name
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8339026Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8340854Z hint: to use in all of your new repositories, which will suppress this warning,
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8341670Z hint: call:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8342090Z hint:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8342656Z hint: 	git config --global init.defaultBranch <name>
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8343404Z hint:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8348694Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8352036Z hint: 'development'. The just-created branch can be renamed via this command:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8354253Z hint:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8355002Z hint: 	git branch -m <name>
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8355677Z hint:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8356860Z hint: Disable this message with "git config set advice.defaultBranchName false"
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8358392Z Initialized empty Git repository in /home/runner/work/RustOS/RustOS/.git/
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8362212Z [command]/usr/bin/git remote add origin https://github.com/JONIMONI09/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8413078Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8414158Z ##[group]Disabling automatic garbage collection
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8418602Z [command]/usr/bin/git config --local gc.auto 0
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8453564Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8454764Z ##[group]Setting up auth
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8462099Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8502316Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8914080Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.8950297Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9225876Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9262911Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9506507Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9545246Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9549319Z ##[group]Fetching the repository
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:36.9557889Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +253f9af57e8f7a448b08fce40b1b354829fc5177:refs/remotes/origin/main
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3586606Z From https://github.com/JONIMONI09/RustOS
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3592874Z  * [new ref]         253f9af57e8f7a448b08fce40b1b354829fc5177 -> origin/main
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3601640Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3602337Z ##[group]Determining the checkout info
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3602987Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3603397Z [command]/usr/bin/git sparse-checkout disable
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3831896Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3843305Z ##[group]Checking out the ref
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3844265Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3845498Z Switched to a new branch 'main'
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3847065Z branch 'main' set up to track 'origin/main'.
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3848710Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3861355Z [command]/usr/bin/git log -1 --format=%H
+Build RustOS (ubuntu-latest)	📥 Checkout Repository	2026-06-23T08:11:37.3899379Z 253f9af57e8f7a448b08fce40b1b354829fc5177
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	﻿2026-06-23T08:11:37.4354354Z ##[group]Run dtolnay/rust-toolchain@nightly
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4354727Z with:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4354955Z   components: rust-src, llvm-tools-preview
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4355240Z   toolchain: nightly
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4355459Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4513797Z ##[group]Run : parse toolchain version
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4514472Z ^[[36;1m: parse toolchain version^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4514990Z ^[[36;1mif [[ -z $toolchain ]]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4515971Z ^[[36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4517381Z ^[[36;1m  echo "'toolchain' is a required input" >&2^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4517987Z ^[[36;1m  exit 1^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4518618Z ^[[36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4519415Z ^[[36;1m  if [[ Linux == macOS ]]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4520415Z ^[[36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4521482Z ^[[36;1m  else^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4522234Z ^[[36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4523125Z ^[[36;1m  fi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4523674Z ^[[36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4524648Z ^[[36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4525528Z ^[[36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4526801Z ^[[36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4527779Z ^[[36;1melse^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4528255Z ^[[36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4528834Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4783084Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4783765Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4784134Z   toolchain: nightly
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.4784531Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5021450Z ##[group]Run : construct rustup command line
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5022111Z ^[[36;1m: construct rustup command line^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5022968Z ^[[36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5024191Z ^[[36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5025212Z ^[[36;1mecho "downgrade= --allow-downgrade" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5071434Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5072070Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5072388Z   targets: 
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5072791Z   components: rust-src, llvm-tools-preview
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5073287Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5206440Z ##[group]Run : set $CARGO_HOME
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5206983Z ^[[36;1m: set $CARGO_HOME^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5207541Z ^[[36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5242364Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5242749Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5330416Z ##[group]Run : install rustup if needed
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5330757Z ^[[36;1m: install rustup if needed^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5331057Z ^[[36;1mif ! command -v rustup &>/dev/null; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5331834Z ^[[36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5332603Z ^[[36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5332886Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5361630Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5361988Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5362456Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5362906Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5447428Z ##[group]Run rustup toolchain install nightly --component rust-src --component llvm-tools-preview --profile minimal --allow-downgrade --no-self-update
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5448527Z ^[[36;1mrustup toolchain install nightly --component rust-src --component llvm-tools-preview --profile minimal --allow-downgrade --no-self-update^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5477452Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5477820Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5478030Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5478299Z   RUSTUP_PERMIT_COPY_RENAME: 1
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.5478533Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.6499736Z info: syncing channel updates for nightly-x86_64-unknown-linux-gnu
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.9503234Z info: latest update on 2026-06-23 for version 1.98.0-nightly (4429659e4 2026-06-22)
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:37.9517829Z info: downloading 5 components
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6425027Z 
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6503565Z   nightly-x86_64-unknown-linux-gnu installed - rustc 1.98.0-nightly (4429659e4 2026-06-22)
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6504802Z 
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6594863Z ##[group]Run rustup default nightly
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6595214Z ^[[36;1mrustup default nightly^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6626513Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6626895Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6627120Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6627394Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6732226Z info: using existing install for nightly-x86_64-unknown-linux-gnu
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6738626Z info: default toolchain set to nightly-x86_64-unknown-linux-gnu
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6739184Z 
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6813310Z   nightly-x86_64-unknown-linux-gnu unchanged - rustc 1.98.0-nightly (4429659e4 2026-06-22)
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6814341Z 
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6850431Z ##[group]Run : create cachekey
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6850796Z ^[[36;1m: create cachekey^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6851393Z ^[[36;1mDATE=$(rustc +nightly --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6852139Z ^[[36;1mHASH=$(rustc +nightly --version --verbose | sed -ne 's/^commit-hash: //p')^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6852697Z ^[[36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6884380Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6884786Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6885013Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.6885317Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7252038Z ##[group]Run : disable incremental compilation
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7252458Z ^[[36;1m: disable incremental compilation^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7252806Z ^[[36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7253179Z ^[[36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7253486Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7284812Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7285288Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7285520Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7285804Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7391049Z ##[group]Run : enable colors in Cargo output
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7391630Z ^[[36;1m: enable colors in Cargo output^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7392295Z ^[[36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7392925Z ^[[36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7393447Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7427194Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7427629Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7427836Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7428118Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7428333Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7504961Z ##[group]Run : enable Cargo sparse registry
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7505318Z ^[[36;1m: enable Cargo sparse registry^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7505693Z ^[[36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7507155Z ^[[36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7507922Z ^[[36;1m  if rustc +nightly --version --verbose | grep -q '^release: 1\.6[89]\.'; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7508520Z ^[[36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7509073Z ^[[36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7509609Z ^[[36;1m  elif rustc +nightly --version --verbose | grep -q '^release: 1\.6[67]\.'; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7510206Z ^[[36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7510745Z ^[[36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7511113Z ^[[36;1m  fi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7511310Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7540827Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7541202Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7541407Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7541688Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7541919Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7542156Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7888713Z ##[group]Run : work around spurious network errors in curl 8.0
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7889217Z ^[[36;1m: work around spurious network errors in curl 8.0^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7889810Z ^[[36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7890488Z ^[[36;1mif rustc +nightly --version --verbose | grep -q '^release: 1\.7[01]\.'; then^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7890976Z ^[[36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7891309Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7922096Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7922486Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7922716Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7923014Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7923273Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.7923513Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8134296Z ##[group]Run rustc +nightly --version --verbose
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8134707Z ^[[36;1mrustc +nightly --version --verbose^[[0m
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8165522Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8165918Z env:
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8166473Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8166777Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8167032Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8167277Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8341193Z rustc 1.98.0-nightly (4429659e4 2026-06-22)
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8342390Z binary: rustc
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8343138Z commit-hash: 4429659e4745016bd3f26a4a421843edc7fbc422
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8343907Z commit-date: 2026-06-22
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8344633Z host: x86_64-unknown-linux-gnu
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8345289Z release: 1.98.0-nightly
+Build RustOS (ubuntu-latest)	🦀 Setup Rust Nightly Toolchain	2026-06-23T08:11:48.8345902Z LLVM version: 22.1.7
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	﻿2026-06-23T08:11:48.9349076Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9350920Z ##[group]Run actions/cache@v3
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9351187Z with:
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9351420Z   path: ~/.cargo/registry
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	~/.cargo/git
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	target
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9351978Z   key: Linux-cargo-rustos-c5bfe1ecd393b2c8c84d72341ae9aa13e066f73dd58bcab75f8bf4ae1e515b1e
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9352509Z   enableCrossOsArchive: false
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9352770Z   fail-on-cache-miss: false
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9353010Z   lookup-only: false
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9353224Z env:
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9353421Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9353673Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9354120Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:48.9354347Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:49.0504829Z (node:2145) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:49.0506852Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:49.1883475Z Cache hit for: Linux-cargo-rustos-c5bfe1ecd393b2c8c84d72341ae9aa13e066f73dd58bcab75f8bf4ae1e515b1e
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:49.2027754Z (node:2145) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:50.2605586Z Received 125590912 of 125590912 (100.0%), 124.8 MBs/sec
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:50.2628196Z Cache Size: ~120 MB (125590912 B)
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:50.2670966Z [command]/usr/bin/tar -xf /home/runner/work/_temp/c24884be-0a25-46f9-8638-818372175435/cache.tzst -P -C /home/runner/work/RustOS/RustOS --use-compress-program unzstd
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:52.2149065Z Cache restored successfully
+Build RustOS (ubuntu-latest)	📦 Cache Cargo Registry & Build	2026-06-23T08:11:52.5762079Z Cache restored from key: Linux-cargo-rustos-c5bfe1ecd393b2c8c84d72341ae9aa13e066f73dd58bcab75f8bf4ae1e515b1e
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	﻿2026-06-23T08:11:52.6125407Z ##[group]Run set -o pipefail
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6125800Z ^[[36;1mset -o pipefail^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6126348Z ^[[36;1mecho "════════════════════════════════════════"^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6126874Z ^[[36;1mecho "🚀 STARTING BARE-METAL COMPILATION ON ubuntu-latest..."^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6127380Z ^[[36;1mecho "════════════════════════════════════════"^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6127743Z ^[[36;1msuccess=0^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6127998Z ^[[36;1mfor i in 1 2 3; do^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6128333Z ^[[36;1m  echo "Attempt $i to compile RustOS..."^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6128808Z ^[[36;1m  if cargo run --bin builder 2>&1 | tee build-error.log; then^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6129297Z ^[[36;1m    echo "Compilation passed successfully!"^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6129685Z ^[[36;1m    success=1^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6129945Z ^[[36;1m    break^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6130191Z ^[[36;1m  else^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6130545Z ^[[36;1m    echo "Compilation failed on attempt $i. Retrying in 10s..."^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6130992Z ^[[36;1m    sleep 10^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6131279Z ^[[36;1m  fi^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6131506Z ^[[36;1mdone^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6131748Z ^[[36;1mif [ $success -eq 0 ]; then^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6132125Z ^[[36;1m  echo "Compilation failed after 3 attempts."^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6132491Z ^[[36;1m  exit 1^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6132724Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6174408Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6174768Z env:
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6174973Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6175441Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6175681Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6175914Z   RUSTC_BOOTSTRAP: 1
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.6176383Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.8090067Z ════════════════════════════════════════
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.8091116Z 🚀 STARTING BARE-METAL COMPILATION ON ubuntu-latest...
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.8092065Z ════════════════════════════════════════
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.8092747Z Attempt 1 to compile RustOS...
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9718139Z ^[[1m^[[33mwarning^[[0m: profiles for the non root package will be ignored, specify profiles at the workspace root:
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9719640Z package:   /home/runner/work/RustOS/RustOS/kernel/Cargo.toml
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9720464Z workspace: /home/runner/work/RustOS/RustOS/Cargo.toml
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9722445Z ^[[1m^[[33mwarning^[[0m^[[1m: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2021 which implies `resolver = "2"`^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9724108Z   ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9725415Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: to keep the current resolver, specify `workspace.resolver = "1"` in the workspace root's manifest
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9727896Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: to use the edition 2021 resolver, specify `workspace.resolver = "2"` in the workspace root's manifest
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9730199Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: for more details see https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9731734Z ^[[1m^[[33mwarning^[[0m: Cargo.toml: unused manifest key: profile.dev.resolver
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9732899Z ^[[1m^[[33mwarning^[[0m: workspace (manifest) generated 1 warning
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:52.9888774Z ^[[1m^[[92m    Updating^[[0m crates.io index
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:53.5938461Z ^[[1m^[[92m     Locking^[[0m 76 packages to latest compatible versions
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:53.6307398Z ^[[1m^[[92m      Adding^[[0m spin v0.9.8 ^[[1m^[[33m(available: v0.12.0)^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:53.6778143Z ^[[1m^[[92m   Compiling^[[0m builder v0.2.0 (/home/runner/work/RustOS/RustOS/builder)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0354936Z ^[[1m^[[92m    Finished^[[0m `dev` profile [optimized + debuginfo] target(s) in 1.21s
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0517156Z ^[[1m^[[92m     Running^[[0m `target/debug/builder`
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0557032Z ================================================================
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0558301Z    🦀 RUST OS WORKSPACE BUILDER (BOOTLOADER v0.11 PROTOKOL)  
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0559263Z ================================================================
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0562018Z [1/3] Rufe Cross-Compiler für x86_64 Kernel auf...
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0741974Z ^[[1m^[[33mwarning^[[0m: profiles for the non root package will be ignored, specify profiles at the workspace root:
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0743752Z package:   /home/runner/work/RustOS/RustOS/kernel/Cargo.toml
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0744724Z workspace: /home/runner/work/RustOS/RustOS/Cargo.toml
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0746770Z ^[[1m^[[33mwarning^[[0m^[[1m: virtual workspace defaulting to `resolver = "1"` despite one or more workspace members being on edition 2021 which implies `resolver = "2"`^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0748532Z   ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0749997Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: to keep the current resolver, specify `workspace.resolver = "1"` in the workspace root's manifest
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0762686Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: to use the edition 2021 resolver, specify `workspace.resolver = "2"` in the workspace root's manifest
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0764650Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: for more details see https://doc.rust-lang.org/cargo/reference/resolver.html#resolver-versions
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0766410Z ^[[1m^[[33mwarning^[[0m: Cargo.toml: unused manifest key: profile.dev.resolver
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.0767614Z ^[[1m^[[33mwarning^[[0m: workspace (manifest) generated 1 warning
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.1374555Z ^[[1m^[[92m   Compiling^[[0m compiler_builtins v0.1.160 (/home/runner/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.1378051Z ^[[1m^[[92m   Compiling^[[0m core v0.0.0 (/home/runner/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.3337920Z ^[[1m^[[92m   Compiling^[[0m bootloader_api v0.11.15
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:11:54.3358887Z ^[[1m^[[92m   Compiling^[[0m heapless v0.9.3
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:06.0778771Z ^[[1m^[[92m   Compiling^[[0m alloc v0.0.0 (/home/runner/.rustup/toolchains/nightly-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:08.7748071Z ^[[1m^[[92m   Compiling^[[0m scopeguard v1.2.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:08.7749229Z ^[[1m^[[92m   Compiling^[[0m bitflags v2.13.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:08.7750137Z ^[[1m^[[92m   Compiling^[[0m bit_field v0.10.3
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:08.8907917Z ^[[1m^[[92m   Compiling^[[0m lock_api v0.4.14
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.0657481Z ^[[1m^[[92m   Compiling^[[0m byteorder v1.5.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.1977128Z ^[[1m^[[92m   Compiling^[[0m volatile v0.4.6
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.2587754Z ^[[1m^[[92m   Compiling^[[0m spin v0.9.8
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.2837481Z ^[[1m^[[92m   Compiling^[[0m x86_64 v0.15.4
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.3672146Z ^[[1m^[[92m   Compiling^[[0m hash32 v0.3.1
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.4796919Z ^[[1m^[[92m   Compiling^[[0m spinning_top v0.2.5
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.5748430Z ^[[1m^[[92m   Compiling^[[0m stable_deref_trait v1.2.1
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.6157947Z ^[[1m^[[92m   Compiling^[[0m lazy_static v1.5.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.7067567Z ^[[1m^[[92m   Compiling^[[0m linked_list_allocator v0.10.6
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:09.7498146Z ^[[1m^[[92m   Compiling^[[0m raw-cpuid v11.6.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:10.0897504Z ^[[1m^[[92m   Compiling^[[0m font8x8 v0.3.1
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:11.2767489Z ^[[1m^[[92m   Compiling^[[0m pc-keyboard v0.9.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:11.9840538Z ^[[1m^[[92m   Compiling^[[0m pic8259 v0.11.0
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.8876607Z ^[[1m^[[92m   Compiling^[[0m kernel v0.2.0 (/home/runner/work/RustOS/RustOS/kernel)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9084431Z ^[[1m^[[33mwarning^[[0m^[[1m: unused import: `alloc::string::ToString`^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9085469Z  ^[[1m^[[94m--> ^[[0mkernel/src/desktop/compositor.rs:5:5
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9097531Z   ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9098612Z ^[[1m^[[94m5^[[0m ^[[1m^[[94m|^[[0m use alloc::string::ToString;
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9099705Z   ^[[1m^[[94m|^[[0m     ^[[1m^[[33m^^^^^^^^^^^^^^^^^^^^^^^^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9100769Z   ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9102351Z   ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9103120Z 
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9477701Z ^[[1m^[[33mwarning^[[0m^[[1m: creating a mutable reference to mutable static^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9479850Z   ^[[1m^[[94m--> ^[[0mkernel/src/allocator.rs:14:31
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9480748Z    ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9481701Z ^[[1m^[[94m14^[[0m ^[[1m^[[94m|^[[0m         ALLOCATOR.lock().init(HEAP.as_mut_ptr() as *mut u8, HEAP_SIZE);
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9483129Z    ^[[1m^[[94m|^[[0m                               ^[[1m^[[33m^^^^^^^^^^^^^^^^^^[[0m ^[[1m^[[33mmutable reference to mutable static^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9484075Z    ^[[1m^[[94m|^[[0m
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9485997Z    ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: mutable references to mutable statics are dangerous; it's undefined behavior if any other pointer to the static is used or if any other reference is created for the static while the mutable reference lives
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9488925Z    ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: for more information, see <https://doc.rust-lang.org/edition-guide/rust-2024/static-mut-references.html>
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9490771Z    ^[[1m^[[94m= ^[[0m^[[1mnote^[[0m: `#[warn(static_mut_refs)]` (part of `#[warn(rust_2024_compatibility)]`) on by default
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:12.9491807Z 
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3285815Z ^[[1m^[[33mwarning^[[0m: `kernel` (bin "kernel") generated 2 warnings (run `cargo fix --bin "kernel" -p kernel` to apply 1 suggestion)
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3288232Z ^[[1m^[[92m    Finished^[[0m `release` profile [optimized] target(s) in 19.26s
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3333297Z [2/3] Konvertiere Kernel-ELF in ein bootfähiges MBR-Festplattenimage...
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3408923Z ✅ Image erfolgreich generiert: target/my_rust_os_desktop.img
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3410097Z [3/3] Starte QEMU Emulator mit angehängter virtueller Festplatte...
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3411236Z 
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3412137Z 💡 HINWEIS: Falls QEMU nicht öffnet, vergewissere dich, dass 'qemu-system-x86_64'
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3414801Z    installiert und zu den System-Umgebungsvariablen (PATH) hinzugefügt wurde.
+Build RustOS (ubuntu-latest)	🛠️ Compile RustOS with 3 Retries (Subagent Orchestration)	2026-06-23T08:12:13.3418309Z Compilation passed successfully!
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	﻿2026-06-23T08:12:13.3452186Z ##[group]Run echo "Installing Ollama for Local AI Debugging..."
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3452801Z ^[[36;1mecho "Installing Ollama for Local AI Debugging..."^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3453362Z ^[[36;1mcurl -fsSL https://ollama.com/install.sh | command sh^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3453824Z ^[[36;1mollama serve &^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3454257Z ^[[36;1msleep 5^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3454553Z ^[[36;1m^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3454880Z ^[[36;1mecho "Loading qwen2.5-coder:3b..."^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3455328Z ^[[36;1mfor i in 1 2 3; do^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3455734Z ^[[36;1m  if ollama pull qwen2.5-coder:3b; then^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3456511Z ^[[36;1m    echo "Model loaded!"^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3456890Z ^[[36;1m    break^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3457213Z ^[[36;1m  else^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3457633Z ^[[36;1m    echo "Retrying..."^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3458178Z ^[[36;1m    sleep 5^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3458524Z ^[[36;1m  fi^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3458803Z ^[[36;1mdone^[[0m
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3544237Z shell: /usr/bin/bash -e {0}
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3544757Z env:
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3545070Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3545551Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3545931Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3546582Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.3600841Z Installing Ollama for Local AI Debugging...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.6712204Z >>> Installing ollama to /usr/local
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:13.9622940Z >>> Downloading ollama-linux-amd64.tar.zst
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.1789039Z #=#=#                                                                          
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.2846954Z ##O#-#                                                                         
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.2859064Z 
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.4263064Z                                                                            0.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.5640752Z #                                                                          2.5%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.6490684Z ###                                                                        4.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.7578466Z ####                                                                       6.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:14.8852703Z ######                                                                     9.0%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.0047124Z ########                                                                  11.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.1687395Z ##########                                                                14.1%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.2615727Z ############                                                              17.0%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.3768966Z #############                                                             19.2%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.5262933Z ###############                                                           21.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.7447294Z #################                                                         23.6%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:15.8785931Z #################                                                         24.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.0094238Z ##################                                                        25.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.1140143Z ###################                                                       27.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.2194060Z ####################                                                      28.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.3558449Z #####################                                                     30.2%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.5217730Z #######################                                                   32.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.6713051Z ########################                                                  33.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.8222169Z #########################                                                 35.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:16.9508090Z ##########################                                                36.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.0739554Z ############################                                              39.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.1890129Z ##############################                                            42.0%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.3286633Z ###############################                                           44.2%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.4468480Z ################################                                          45.6%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.5660887Z ##################################                                        47.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.7011356Z ####################################                                      50.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.8089696Z ######################################                                    52.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:17.9170602Z #######################################                                   54.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.0537044Z ########################################                                  55.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.1721999Z #########################################                                 57.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.2800869Z ##########################################                                59.5%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.4037133Z ############################################                              61.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.5057241Z #############################################                             63.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.6578687Z ###############################################                           65.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.8121739Z ################################################                          67.5%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:18.9535235Z ##################################################                        69.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:19.0571683Z ###################################################                       71.2%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:19.1745521Z ####################################################                      72.6%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:19.6203872Z #####################################################                     74.1%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:19.8428604Z #####################################################                     74.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.0463641Z ######################################################                    75.5%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.1817338Z #######################################################                   77.0%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.2817874Z ########################################################                  78.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.4085804Z #########################################################                 79.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.5166615Z ##########################################################                81.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.6290104Z ###########################################################               82.8%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.7711524Z ############################################################              84.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:20.8927618Z #############################################################             85.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.0083979Z ##############################################################            87.2%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.1101369Z ###############################################################           88.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.2724875Z ################################################################          89.4%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.4655817Z #################################################################         90.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.5685870Z ##################################################################        92.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.7085837Z ##################################################################        93.1%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.8117702Z ####################################################################      95.3%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:21.9663959Z #####################################################################     96.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:22.2003998Z #######################################################################   98.9%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:22.4405560Z #######################################################################   99.7%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:22.4409373Z ######################################################################## 100.0%
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:12:22.4871506Z >>> Creating ollama user...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.4272675Z >>> Adding ollama user to render group...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.4551960Z >>> Adding ollama user to video group...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.4727225Z >>> Adding current user to ollama group...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.4997644Z >>> Creating ollama systemd service...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.5112821Z >>> Enabling and starting ollama service...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:35.8409300Z Created symlink /etc/systemd/system/default.target.wants/ollama.service → /etc/systemd/system/ollama.service.
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.5825674Z >>> The Ollama API is now available at 127.0.0.1:11434.
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.5827152Z WARNING: No NVIDIA/AMD GPU detected. Ollama will run in CPU-only mode.
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.5828440Z >>> Install complete. Run "ollama" from the command line.
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6211161Z Couldn't find '/home/runner/.ollama/id_ed25519'. Generating new private key.
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6253946Z time=2026-06-23T08:13:38.623Z level=INFO source=routes.go:1919 msg="server config" env="map[CUDA_VISIBLE_DEVICES: GGML_VK_VISIBLE_DEVICES: GPU_DEVICE_ORDINAL: HIP_VISIBLE_DEVICES: HSA_OVERRIDE_GFX_VERSION: HTTPS_PROXY: HTTP_PROXY: LLAMA_ARG_FIT: LLAMA_ARG_FIT_TARGET: NO_PROXY: OLLAMA_CONTEXT_LENGTH:0 OLLAMA_DEBUG:INFO OLLAMA_DEBUG_LOG_REQUESTS:false OLLAMA_EDITOR: OLLAMA_FLASH_ATTENTION:false OLLAMA_GO_TEMPLATE:true OLLAMA_GPU_OVERHEAD:0 OLLAMA_HOST:http://127.0.0.1:11434 OLLAMA_IGPU_ENABLE: OLLAMA_KEEP_ALIVE:5m0s OLLAMA_KV_CACHE_TYPE: OLLAMA_LLM_LIBRARY: OLLAMA_LOAD_TIMEOUT:5m0s OLLAMA_MAX_LOADED_MODELS:0 OLLAMA_MAX_QUEUE:512 OLLAMA_MAX_TRANSFER_STREAMS:4 OLLAMA_MODELS:/home/runner/.ollama/models OLLAMA_NOHISTORY:false OLLAMA_NOPRUNE:false OLLAMA_NO_CLOUD:false OLLAMA_NUM_PARALLEL:1 OLLAMA_ORIGINS:[http://localhost https://localhost http://localhost:* https://localhost:* http://127.0.0.1 https://127.0.0.1 http://127.0.0.1:* https://127.0.0.1:* http://0.0.0.0 https://0.0.0.0 http://0.0.0.0:* https://0.0.0.0:* app://* file://* tauri://* vscode-webview://* vscode-file://*] OLLAMA_REMOTES:[ollama.com] OLLAMA_SCHED_SPREAD:false OLLAMA_VULKAN:true ROCR_VISIBLE_DEVICES: http_proxy: https_proxy: no_proxy:]"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6262604Z time=2026-06-23T08:13:38.623Z level=INFO source=routes.go:1921 msg="Ollama cloud disabled: false"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6263636Z time=2026-06-23T08:13:38.624Z level=INFO source=images.go:864 msg="total blobs: 0"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6264668Z time=2026-06-23T08:13:38.624Z level=INFO source=images.go:871 msg="total unused blobs removed: 0"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6265894Z time=2026-06-23T08:13:38.624Z level=INFO source=routes.go:1981 msg="Listening on 127.0.0.1:11434 (version 0.30.10)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6288253Z time=2026-06-23T08:13:38.625Z level=INFO source=model_list_cache.go:111 msg="model list cache hydration complete" models=0 failures=0 elapsed=105.366µs
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6289476Z Your new public key is: 
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6289780Z 
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6290342Z ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILuBtT8q0VpZ81xw+pN4QlVrx416wqnNxnyKqc3Tp6zp
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6291091Z 
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.6291626Z time=2026-06-23T08:13:38.626Z level=INFO source=runner.go:60 msg="discovering available GPUs..."
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.7924323Z time=2026-06-23T08:13:38.792Z level=INFO source=model_recommendations.go:177 msg="model recommendations cache sleep scheduled" wait=3h42m12.591061785s consecutive_failures=0
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.8364250Z time=2026-06-23T08:13:38.836Z level=INFO source=types.go:50 msg="inference compute" id=cpu library=cpu compute="" name=cpu description=cpu libdirs=ollama driver="" pci_id="" type="" total="7.8 GiB" available="6.8 GiB"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:38.8366637Z time=2026-06-23T08:13:38.836Z level=INFO source=routes.go:2031 msg="vram-based default context" total_vram="0 B" default_num_ctx=4096
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:43.6059804Z Loading qwen2.5-coder:3b...
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:43.6208321Z [GIN] 2026/06/23 - 08:13:43 | 200 |      87.092µs |       127.0.0.1 | HEAD     "/"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.0546997Z ^[[?2026h^[[?25l^[[1Gpulling manifest ⠋ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[1Gpulling manifest ⠙ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[1Gpulling manifest ⠹ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[1Gpulling manifest ⠸ ^[[K^[[?25h^[[?2026ltime=2026-06-23T08:13:44.054Z level=INFO source=download.go:179 msg="downloading 4a188102020e in 16 120 MB part(s)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.3299474Z ^[[?2026h^[[?25l^[[1Gpulling manifest ⠼ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[1Gpulling manifest ⠦ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.4239664Z pulling 4a188102020e:   3% ▕                  ▏  51 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.5209361Z pulling 4a188102020e:   7% ▕█                 ▏ 129 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.6218520Z pulling 4a188102020e:   9% ▕█                 ▏ 173 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.7273633Z pulling 4a188102020e:  13% ▕██                ▏ 242 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.8235598Z pulling 4a188102020e:  16% ▕██                ▏ 312 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:44.9228378Z pulling 4a188102020e:  18% ▕███               ▏ 347 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.0258681Z pulling 4a188102020e:  22% ▕███               ▏ 421 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.1216394Z pulling 4a188102020e:  25% ▕████              ▏ 478 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.2479287Z pulling 4a188102020e:  27% ▕████              ▏ 519 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.3314569Z pulling 4a188102020e:  30% ▕█████             ▏ 581 MB/1.9 GB                  ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.4249869Z pulling 4a188102020e:  33% ▕█████             ▏ 639 MB/1.9 GB  590 MB/s      2s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.5218778Z pulling 4a188102020e:  36% ▕██████            ▏ 692 MB/1.9 GB  590 MB/s      2s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.6224714Z pulling 4a188102020e:  38% ▕██████            ▏ 736 MB/1.9 GB  590 MB/s      2s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.7230874Z pulling 4a188102020e:  42% ▕███████           ▏ 804 MB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.8225480Z pulling 4a188102020e:  43% ▕███████           ▏ 830 MB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:45.9224370Z pulling 4a188102020e:  47% ▕████████          ▏ 902 MB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.0222893Z pulling 4a188102020e:  50% ▕█████████         ▏ 971 MB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.1220988Z pulling 4a188102020e:  52% ▕█████████         ▏ 1.0 GB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.2218746Z pulling 4a188102020e:  56% ▕██████████        ▏ 1.1 GB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.3228084Z pulling 4a188102020e:  59% ▕██████████        ▏ 1.1 GB/1.9 GB  590 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.4214466Z pulling 4a188102020e:  61% ▕███████████       ▏ 1.2 GB/1.9 GB  583 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.5213229Z pulling 4a188102020e:  65% ▕███████████       ▏ 1.3 GB/1.9 GB  583 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.6228453Z pulling 4a188102020e:  69% ▕████████████      ▏ 1.3 GB/1.9 GB  583 MB/s      1s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.7220833Z pulling 4a188102020e:  71% ▕████████████      ▏ 1.4 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.8220169Z pulling 4a188102020e:  75% ▕█████████████     ▏ 1.4 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:46.9254679Z pulling 4a188102020e:  77% ▕█████████████     ▏ 1.5 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.0212837Z pulling 4a188102020e:  80% ▕██████████████    ▏ 1.5 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.1212588Z pulling 4a188102020e:  83% ▕██████████████    ▏ 1.6 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.2252700Z pulling 4a188102020e:  84% ▕███████████████   ▏ 1.6 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.3278709Z pulling 4a188102020e:  87% ▕███████████████   ▏ 1.7 GB/1.9 GB  583 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.4215143Z pulling 4a188102020e:  90% ▕████████████████  ▏ 1.7 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.5211383Z pulling 4a188102020e:  92% ▕████████████████  ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.6210567Z pulling 4a188102020e:  92% ▕████████████████  ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.7216135Z pulling 4a188102020e:  93% ▕████████████████  ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.8211159Z pulling 4a188102020e:  93% ▕████████████████  ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:47.9213781Z pulling 4a188102020e:  94% ▕████████████████  ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.0209207Z pulling 4a188102020e:  95% ▕█████████████████ ▏ 1.8 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.1214475Z pulling 4a188102020e:  96% ▕█████████████████ ▏ 1.9 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.2217549Z pulling 4a188102020e:  97% ▕█████████████████ ▏ 1.9 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.3214330Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  575 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.4216187Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.5211755Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.6215461Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.7207178Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.8213578Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:48.9218390Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.0210673Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.1215076Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.2210374Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.3210264Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.4216365Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  468 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.5211209Z pulling 4a188102020e:  98% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.6208157Z pulling 4a188102020e:  99% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.7217644Z pulling 4a188102020e:  99% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.8209650Z pulling 4a188102020e:  99% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:49.9210722Z pulling 4a188102020e: 100% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.0215094Z pulling 4a188102020e: 100% ▕█████████████████ ▏ 1.9 GB/1.9 GB  375 MB/s      0s^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.1207910Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.2212780Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.3208236Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.4212037Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.5215707Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.6210394Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.7213418Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.8216639Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.8270198Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026ltime=2026-06-23T08:13:50.826Z level=INFO source=download.go:179 msg="downloading 66b9ea09bd5b in 1 68 B part(s)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:50.9214475Z ^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.0211712Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.0213206Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.1215847Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.1217565Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.2212104Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.2213175Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.3215169Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.3217101Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.4208819Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.4209817Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.5213250Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.5214288Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.6217462Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.6219138Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.7209476Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.7210824Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.8214954Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.8216712Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.9208382Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:51.9209567Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.0069047Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026ltime=2026-06-23T08:13:52.006Z level=INFO source=download.go:179 msg="downloading 1e65450c3067 in 1 1.6 KB part(s)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.0209411Z ^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.0210191Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.1217127Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.1218234Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.2208276Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.2209757Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.2210522Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.3215059Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.3216749Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.3217879Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.4217581Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.4218976Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.4220201Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.5212019Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.5213579Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.5215444Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.6208885Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.6210391Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.6211724Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.7215167Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.7216840Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.7218032Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.8218984Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.8220545Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.8221938Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.9211539Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.9212952Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:52.9213999Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.0217629Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.0219240Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.0220417Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.1219211Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.1220358Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.1221172Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.2093726Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026ltime=2026-06-23T08:13:53.208Z level=INFO source=download.go:179 msg="downloading 45fc3ea7579a in 1 7.4 KB part(s)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.2209144Z ^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.2210219Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.2211028Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.3210058Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.3211622Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.3212728Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.4214480Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.4216438Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.4217822Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.4219139Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.5210554Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.5212412Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.5213735Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.5215025Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.6214948Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.6216936Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.6218757Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.6220021Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.7210725Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8214960Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8215882Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8217421Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8219159Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8220797Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8221718Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.8222504Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.9217279Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.9218782Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.9219553Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:53.9220276Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.0212433Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.0214195Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.0215439Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.0216549Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.1216873Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.1218019Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.1218837Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.1219635Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.2210261Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.2212025Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.2213746Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.2214985Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.3214147Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.3860907Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.3861886Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.3863053Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.3864739Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026ltime=2026-06-23T08:13:54.385Z level=INFO source=download.go:179 msg="downloading bb967eff3bda in 1 487 B part(s)"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.4216404Z ^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.4217360Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.4218328Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.4219297Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.5216330Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.5217903Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.5218978Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.5219775Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.5220490Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.6210271Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.6211495Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.6212693Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.6213408Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.6214119Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.7214468Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.7215615Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.7216971Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.7218806Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.7220098Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.8208967Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.8211164Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.8212786Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.8213837Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.8214851Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.9213317Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.9214750Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.9215849Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.9217246Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:54.9218406Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.0216757Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.0218665Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.0220005Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.0221078Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.0222192Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.1214519Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.1216613Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.1217742Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.1218920Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.1220065Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.2217651Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.2219334Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.2220850Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.2223160Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.2224135Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.3212057Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.3213839Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.3214958Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.3215752Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.3216874Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.4216827Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.4218674Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.4220016Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.4221351Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.4222647Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5211943Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5213630Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5215218Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5217101Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5218496Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.5219704Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6214068Z verifying sha256 digest ⠋ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6215910Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6217709Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6218968Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6220065Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.6221165Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7212050Z verifying sha256 digest ⠙ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7213406Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7214103Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7214790Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7215414Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.7216294Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8217053Z verifying sha256 digest ⠹ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8218506Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8219662Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8220792Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8221926Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.8222987Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9211359Z verifying sha256 digest ⠸ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9212741Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9215303Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9216494Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9217416Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:55.9218352Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0216476Z verifying sha256 digest ⠼ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0218212Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0219693Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0221371Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0222762Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.0223958Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1210813Z verifying sha256 digest ⠴ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1213458Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1214758Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1216403Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1218122Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.1219525Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2215777Z verifying sha256 digest ⠦ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2217668Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2219134Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2220292Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2221692Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.2222900Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3210908Z verifying sha256 digest ⠧ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3214268Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3215330Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3216632Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3217516Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.3218394Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4220557Z verifying sha256 digest ⠇ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4222037Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4223700Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4224921Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4226238Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.4227340Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5210420Z verifying sha256 digest ⠏ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5227092Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5228341Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5246861Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5266833Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.5272050Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6211840Z verifying sha256 digest ⠋ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6214204Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6215814Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6217345Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6218550Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.6219987Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7209185Z verifying sha256 digest ⠙ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7211170Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7212474Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7213683Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7214822Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.7215943Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8216540Z verifying sha256 digest ⠹ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8218375Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8219687Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8220991Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8222199Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8223389Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8570242Z [GIN] 2026/06/23 - 08:13:56 | 200 | 13.236219273s |       127.0.0.1 | POST     "/api/pull"
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8571843Z verifying sha256 digest ⠸ ^[[K^[[?25h^[[?2026l^[[?2026h^[[?25l^[[A^[[A^[[A^[[A^[[A^[[A^[[1Gpulling manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8573117Z pulling 4a188102020e: 100% ▕██████████████████▏ 1.9 GB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8574164Z pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8575189Z pulling 1e65450c3067: 100% ▕██████████████████▏ 1.6 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8575926Z pulling 45fc3ea7579a: 100% ▕██████████████████▏ 7.4 KB                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8576972Z pulling bb967eff3bda: 100% ▕██████████████████▏  487 B                         ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8577419Z verifying sha256 digest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8577691Z writing manifest ^[[K
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8577961Z success ^[[K^[[?25h^[[?2026l
+Build RustOS (ubuntu-latest)	🤖 Install and Start Ollama (AI Build Analyst)	2026-06-23T08:13:56.8594462Z Model loaded!
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	﻿2026-06-23T08:14:01.8674363Z ##[group]Run LOG_CONTENT=$(tail -n 40 build-error.log || echo "No errors found.")
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8675273Z ^[[36;1mLOG_CONTENT=$(tail -n 40 build-error.log || echo "No errors found.")^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8675783Z ^[[36;1mif [ "success" == "success" ]; then^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8677349Z ^[[36;1m  PROMPT="You are an expert Rust systems programmer. The Rust bare-metal build succeeded! Please provide a short congratulatory summary and highlight any warnings or interesting logs from the successful build output:\n\n$LOG_CONTENT"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8678659Z ^[[36;1m  ISSUE_TITLE="🤖 AI Report: Build Success (Run 13)"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8679057Z ^[[36;1melse^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8679889Z ^[[36;1m  PROMPT="You are an expert Rust systems programmer. The following Rust bare-metal build failed. Please analyze the compiler error and provide a clear fix:\n\n$LOG_CONTENT"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8680715Z ^[[36;1m  ISSUE_TITLE="🤖 AI Bug Report: Build Crash (Run 13)"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8681056Z ^[[36;1mfi^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8681287Z ^[[36;1m^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8681486Z ^[[36;1mecho "Sending log to AI..."^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8681901Z ^[[36;1m# Wir nutzen jq (auf Ubuntu-Runnern vorinstalliert) um die Antwort zu parsen^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8682762Z ^[[36;1mAI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d "{\"model\": \"qwen2.5-coder:3b\", \"prompt\": \"$PROMPT\", \"stream\": false}" | jq -r '.response')^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8683482Z ^[[36;1m^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8683677Z ^[[36;1mecho "AI Insights:"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8683928Z ^[[36;1mecho "$AI_RESPONSE"^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8684159Z ^[[36;1m^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8684387Z ^[[36;1mgh issue create --title "$ISSUE_TITLE" \^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8684716Z ^[[36;1m  --body "## 📊 Build Analysis^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8684982Z ^[[36;1m  ^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8685179Z ^[[36;1m  **Logs (Tail):**^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8685411Z ^[[36;1m  \`\`\`rust^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8685627Z ^[[36;1m  $LOG_CONTENT^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8685863Z ^[[36;1m  \`\`\`^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8686304Z ^[[36;1m  ^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8686593Z ^[[36;1m  **🤖 Local AI Insights (qwen2.5-coder:3b):**^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8687169Z ^[[36;1m  $AI_RESPONSE" || echo "Note: Issue creation might fail if issues are disabled or token lacks permissions."^[[0m
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8749721Z shell: /usr/bin/bash -e {0}
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8749987Z env:
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8750194Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8750479Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8750713Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8754619Z   GITHUB_TOKEN: ***
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8754858Z ##[endgroup]
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8844512Z Sending log to AI...
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8931548Z AI Insights:
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:01.8932103Z null
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:02.6785289Z GraphQL: Resource not accessible by integration (createIssue)
+Build RustOS (ubuntu-latest)	🧠 AI Build Analysis & Auto-Issue Creation	2026-06-23T08:14:03.3945398Z Note: Issue creation might fail if issues are disabled or token lacks permissions.
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	﻿2026-06-23T08:14:03.4014292Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4017073Z ##[group]Run actions/upload-artifact@v4
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4017568Z with:
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4017980Z   name: RustOS-Limbo-Image-ubuntu-latest
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4018541Z   path: target/my_rust_os_desktop.img
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4019021Z   retention-days: 14
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4019433Z   if-no-files-found: warn
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4019855Z   compression-level: 6
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4020297Z   overwrite: false
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4020715Z   include-hidden-files: false
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4021168Z env:
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4021540Z   CARGO_HOME: /home/runner/.cargo
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4022032Z   CARGO_INCREMENTAL: 0
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4022413Z   CARGO_TERM_COLOR: always
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:03.4022915Z ##[endgroup]
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3956766Z (node:2870) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3958075Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3960580Z (node:2870) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3965609Z With the provided path, there will be 1 file uploaded
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3966801Z Artifact name is valid!
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3967166Z Root directory input is valid!
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3971697Z Beginning upload of artifact content to blob storage
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3972850Z Uploaded bytes 124858
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3973282Z Finished uploading artifact content to blob storage!
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3974184Z SHA256 digest of uploaded artifact zip is 8f8e1eaf8dc063a7959fd6a0b3a694066cc55cc70a2074d0654e16c933b674e6
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3975084Z Finalizing artifact upload
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3978437Z Artifact RustOS-Limbo-Image-ubuntu-latest.zip successfully finalized. Artifact ID 7815110642
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3979284Z Artifact RustOS-Limbo-Image-ubuntu-latest has been successfully uploaded! Final size is 124858 bytes. Artifact ID is 7815110642
+Build RustOS (ubuntu-latest)	📦 Upload OS Disk Image Artifact	2026-06-23T08:14:05.3980118Z Artifact download URL: https://github.com/JONIMONI09/RustOS/actions/runs/28012022331/artifacts/7815110642
+Build RustOS (ubuntu-latest)	Post 📦 Cache Cargo Registry & Build	﻿2026-06-23T08:14:06.4072840Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build RustOS (ubuntu-latest)	Post 📦 Cache Cargo Registry & Build	2026-06-23T08:14:06.4075274Z Post job cleanup.
+Build RustOS (ubuntu-latest)	Post 📦 Cache Cargo Registry & Build	2026-06-23T08:14:06.5456780Z Cache hit occurred on the primary key Linux-cargo-rustos-c5bfe1ecd393b2c8c84d72341ae9aa13e066f73dd58bcab75f8bf4ae1e515b1e, not saving cache.
+Build RustOS (ubuntu-latest)	Post 📦 Cache Cargo Registry & Build	2026-06-23T08:14:06.5459122Z (node:2899) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+Build RustOS (ubuntu-latest)	Post 📦 Cache Cargo Registry & Build	2026-06-23T08:14:06.5461491Z (Use `node --trace-deprecation ...` to show where the warning was created)
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	﻿2026-06-23T08:14:06.5667158Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.5669613Z Post job cleanup.
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6738752Z [command]/usr/bin/git version
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6787163Z git version 2.54.0
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6870569Z Temporarily overriding HOME='/home/runner/work/_temp/51672903-e1c0-4761-b83c-7a9000ee77bf' before making global git config changes
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6872135Z Adding repository directory to the temporary git global config as a safe directory
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6873538Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/RustOS/RustOS
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6915725Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.6956943Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7231267Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7261626Z http.https://github.com/.extraheader
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7275979Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7314702Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7559937Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+Build RustOS (ubuntu-latest)	Post 📥 Checkout Repository	2026-06-23T08:14:06.7598703Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+Build RustOS (ubuntu-latest)	Complete job	﻿2026-06-23T08:14:06.7998030Z Cleaning up orphan processes
+Build RustOS (ubuntu-latest)	Complete job	2026-06-23T08:14:06.8642472Z Terminate orphan process: pid (2734) (ollama)
+Build RustOS (ubuntu-latest)	Complete job	2026-06-23T08:14:06.8687650Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/cache@v3, actions/checkout@v4, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
