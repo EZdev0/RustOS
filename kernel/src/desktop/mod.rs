@@ -5,4 +5,5 @@ pub mod app;
 pub mod notepad;
 pub mod filemanager;
 pub mod taskmanager;
+pub mod settings;
 pub mod renderer;

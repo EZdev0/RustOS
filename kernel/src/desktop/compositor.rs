@@ -393,6 +393,17 @@ impl GraphicalCompositor {
             }
         }
         self.draw_char(10, 6, 'V', 0, 180, 255);
+
+        // Hardware RTC Top-Bar Clock
+        let rtc = crate::hardware::rtc::read_rtc();
+        let mut time_str = alloc::string::String::new();
+        use core::fmt::Write;
+        let _ = write!(&mut time_str, "{:02}:{:02} UTC", rtc.hour, rtc.minute);
+        let mut text_x = width.saturating_sub(100);
+        for c in time_str.chars() {
+            self.draw_char(text_x, 6, c, 255, 255, 255);
+            text_x += 8;
+        }
     }
 
     pub fn render_glass_dock(&mut self) {
@@ -535,6 +546,11 @@ impl GraphicalCompositor {
             } else if i == 3 {
                 self.draw_rect(icon_base_x + 5, icon_y + 15, 30, 20, 100, 180, 255);
                 self.draw_rect(icon_base_x + 5, icon_y + 10, 15, 5, 100, 180, 255);
+            } else if i == 4 {
+                // Settings Icon (Zahnrad Mockup)
+                self.draw_rect(icon_base_x + 5, icon_y + 5, 30, 30, 100, 100, 110);
+                self.draw_rect(icon_base_x + 10, icon_y + 10, 20, 20, 150, 150, 160);
+                self.draw_rect(icon_base_x + 15, icon_y + 15, 10, 10, 50, 50, 60);
             } else {
                 self.draw_rect(icon_base_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
             }
@@ -882,6 +898,14 @@ impl GraphicalCompositor {
                                 let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
                                 let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
+                            } else if icon_idx == 4 {
+                                let settings_app = crate::desktop::settings::SettingsApp::new();
+                                let win_width = 500;
+                                let win_height = 350;
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
+                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(settings_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             }
                         }
