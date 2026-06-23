@@ -18,3 +18,4 @@ spin = "0.9.8"           # Synchronisationsprimitiven für Ring 0
 x86_64 = "0.15.4"
 crossbeam-queue = { version = "0.3.11", default-features = false, features = ["alloc"] }
 conquer-once = { version = "0.2.0", default-features = false }
+futures-util = { version = "0.3.30", default-features = false, features = ["alloc"] }

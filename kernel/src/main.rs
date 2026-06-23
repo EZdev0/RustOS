@@ -97,30 +97,18 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         // INTERRUPTS ERST HIER AKTIVIEREN, WENN ALLES BEREIT IST!
         x86_64::instructions::interrupts::enable();
 
-        loop {
-            let mut needs_render = false;
-            // Process events from a global queue (implemented in interrupts.rs)
-            while let Some(c) = interrupts::pop_key() {
-                if c == '\x08' {
-                    compositor.dispatch_keyboard_event('\x08');
-                } else if c == '\n' {
-                    compositor.dispatch_keyboard_event('\n');
-                } else {
-                    compositor.dispatch_keyboard_event(c);
-                }
-                needs_render = true;
-            }
+        // 1. Arc/Mutex wrapper for the compositor so multiple async tasks can share it
+        let shared_compositor = alloc::sync::Arc::new(spin::Mutex::new(compositor));
 
-            while let Some((dx, dy, left_down, right_down)) = interrupts::pop_mouse_event() {
-                compositor.handle_mouse_event(dx, dy, left_down, right_down);
-                needs_render = true;
-            }
+        // 2. Initialize Executor
+        let mut executor = task::executor::Executor::new();
 
-            if needs_render {
-                compositor.render_all();
-            }
-            x86_64::instructions::hlt();
-        }
+        // 3. Spawn UI Input Tasks
+        executor.spawn(task::Task::new(task::keyboard::keyboard_task(shared_compositor.clone())));
+        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
+
+        // 4. Start Scheduler Loop (never returns)
+        executor.run();
     }
 
     loop {

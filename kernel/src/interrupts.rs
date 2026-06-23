@@ -3,7 +3,7 @@ use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, Pag
 use lazy_static::lazy_static;
 use pic8259::ChainedPics;
 use spin::Mutex;
-use pc_keyboard::{layouts, DecodedKey, HandleControl, PS2Keyboard, ScancodeSet1};
+use pc_keyboard::{layouts, HandleControl, PS2Keyboard, ScancodeSet1};
 use heapless::Vec;
 
 pub static TIMER_TICKS: AtomicUsize = AtomicUsize::new(0);
@@ -130,23 +130,11 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
     _stack_frame: InterruptStackFrame,
 ) {
     use x86_64::instructions::port::Port;
-
-    let mut keyboard = KEYBOARD.lock();
+    
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-
-    if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-        if let Some(key) = keyboard.process_keyevent(key_event) {
-            match key {
-                DecodedKey::Unicode(character) => {
-                    if let Some(mut queue) = KEY_QUEUE.try_lock() {
-                        let _ = queue.push(character);
-                    }
-                },
-                DecodedKey::RawKey(_) => {},
-            }
-        }
-    }
+    
+    crate::task::keyboard::add_scancode(scancode);
 
     unsafe {
         PICS.lock()
@@ -227,9 +215,7 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
                 let left_click = (MOUSE_PACKET[0] & 1) != 0;
                 let right_click = (MOUSE_PACKET[0] & 2) != 0;
                 
-                if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
-                    let _ = queue.push((dx, dy, left_click, right_click));
-                }
+                crate::task::mouse::add_mouse_event(dx, dy, left_click, right_click);
             },
             _ => { MOUSE_CYCLE = 0; }
         }
