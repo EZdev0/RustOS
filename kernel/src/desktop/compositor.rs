@@ -7,15 +7,26 @@ use font8x8::UnicodeFonts;
 
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
-    buffer: &'static mut [u8],
+    framebuffer: &'static mut [u8],
+    backbuffer: Vec<u8>,
     pub windows: Vec<Option<Window>>,
+    pub mouse_x: usize,
+    pub mouse_y: usize,
 }
 
 impl GraphicalCompositor {
     pub fn new(framebuffer: &'static mut FrameBuffer) -> Self {
         let info = framebuffer.info();
         let buffer = framebuffer.buffer_mut();
-        Self { info, buffer, windows: Vec::new() }
+        let size = buffer.len();
+        
+        let mut backbuffer = Vec::with_capacity(size);
+        backbuffer.resize(size, 0);
+        
+        let mouse_x = info.width / 2;
+        let mouse_y = info.height / 2;
+
+        Self { info, framebuffer: buffer, backbuffer, windows: Vec::new(), mouse_x, mouse_y }
     }
 
     pub fn info(&self) -> &FrameBufferInfo {
@@ -35,20 +46,21 @@ impl GraphicalCompositor {
         // Berechnung des Pixel-Offsets im linearen FrameBuffer
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
 
-        if pixel_offset + 2 < self.buffer.len() {
+        // Zeichnen in den BACKBUFFER!
+        if pixel_offset + 2 < self.backbuffer.len() {
             match self.info.pixel_format {
                 PixelFormat::Rgb => {
-                    self.buffer[pixel_offset] = r;
-                    self.buffer[pixel_offset + 1] = g;
-                    self.buffer[pixel_offset + 2] = b;
+                    self.backbuffer[pixel_offset] = r;
+                    self.backbuffer[pixel_offset + 1] = g;
+                    self.backbuffer[pixel_offset + 2] = b;
                 }
                 PixelFormat::Bgr => {
-                    self.buffer[pixel_offset] = b;
-                    self.buffer[pixel_offset + 1] = g;
-                    self.buffer[pixel_offset + 2] = r;
+                    self.backbuffer[pixel_offset] = b;
+                    self.backbuffer[pixel_offset + 1] = g;
+                    self.backbuffer[pixel_offset + 2] = r;
                 }
                 _ => {
-                    self.buffer[pixel_offset] = b;
+                    self.backbuffer[pixel_offset] = b;
                 }
             }
         }
@@ -100,12 +112,12 @@ impl GraphicalCompositor {
         }
 
         // 5. Hardware-Mauszeiger (Präzises Grafik-Dreieck im Zentrum)
-        let mouse_x = self.info.width / 2;
-        let mouse_y = self.info.height / 2;
         for i in 0..16 {
-            self.draw_rect(mouse_x + i, mouse_y + i, 16 - i, 1, 255, 255, 255);
-            self.draw_pixel(mouse_x + i, mouse_y + i, 5, 5, 10);
+            self.draw_rect(self.mouse_x + i, self.mouse_y + i, 16 - i, 1, 255, 255, 255);
+            self.draw_pixel(self.mouse_x + i, self.mouse_y + i, 5, 5, 10);
         }
+
+        self.framebuffer.copy_from_slice(&self.backbuffer);
     }
 
     pub fn draw_char(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8) {

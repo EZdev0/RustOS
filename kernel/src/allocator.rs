@@ -3,7 +3,7 @@ use linked_list_allocator::LockedHeap;
 #[global_allocator]
 static ALLOCATOR: LockedHeap = LockedHeap::empty();
 
-pub const HEAP_SIZE: usize = 256 * 1024; // 256 KiB Heap
+pub const HEAP_SIZE: usize = 16 * 1024 * 1024; // 16 MiB Heap
 
 pub fn init_heap() {
     // Da wir noch kein vollwertiges Paging (Memory Management Unit) haben, 

@@ -16,6 +16,7 @@ pub static PICS: spin::Mutex<ChainedPics> =
 pub enum InterruptIndex {
     Timer = PIC_1_OFFSET,
     Keyboard,
+    Mouse = PIC_1_OFFSET + 12,
 }
 
 impl InterruptIndex {
@@ -33,6 +34,7 @@ lazy_static! {
         idt.general_protection_fault.set_handler_fn(gp_fault_handler);
         idt[InterruptIndex::Timer.as_u8()].set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_u8()].set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::Mouse.as_u8()].set_handler_fn(mouse_interrupt_handler);
         idt
     };
 }
@@ -42,6 +44,62 @@ lazy_static! {
         Mutex::new(PS2Keyboard::new(ScancodeSet1::new(), layouts::Us104Key, HandleControl::Ignore));
 
     static ref KEY_QUEUE: Mutex<Vec<char, 256>> = Mutex::new(Vec::new());
+    static ref MOUSE_QUEUE: Mutex<Vec<(i32, i32), 256>> = Mutex::new(Vec::new());
+}
+
+static mut MOUSE_PACKET: [u8; 3] = [0; 3];
+static mut MOUSE_CYCLE: u8 = 0;
+
+pub fn pop_mouse_event() -> Option<(i32, i32)> {
+    if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
+        if queue.is_empty() { None } else { Some(queue.remove(0)) }
+    } else { None }
+}
+
+fn mouse_wait(a_type: u8) {
+    use x86_64::instructions::port::Port;
+    let mut port_64 = Port::<u8>::new(0x64);
+    let timeout = 100000;
+    for _ in 0..timeout {
+        let status = unsafe { port_64.read() };
+        if a_type == 0 {
+            if (status & 1) == 1 { return; }
+        } else {
+            if (status & 2) == 0 { return; }
+        }
+    }
+}
+
+pub fn init_mouse() {
+    use x86_64::instructions::port::Port;
+    let mut port_64 = Port::<u8>::new(0x64);
+    let mut port_60 = Port::<u8>::new(0x60);
+    
+    unsafe {
+        // Enable auxiliary mouse device
+        mouse_wait(1);
+        port_64.write(0xA8);
+        
+        // Read Compaq Status Byte
+        mouse_wait(1);
+        port_64.write(0x20);
+        mouse_wait(0);
+        let status = port_60.read();
+        
+        // Enable IRQ12
+        mouse_wait(1);
+        port_64.write(0x60);
+        mouse_wait(1);
+        port_60.write(status | 2);
+        
+        // Enable Data Reporting
+        mouse_wait(1);
+        port_64.write(0xD4);
+        mouse_wait(1);
+        port_60.write(0xF4);
+        mouse_wait(0);
+        port_60.read(); // Acknowledge
+    }
 }
 
 pub fn pop_key() -> Option<char> {
@@ -117,4 +175,38 @@ extern "x86-interrupt" fn gp_fault_handler(
     stack_frame: InterruptStackFrame, error_code: u64
 ) {
     panic!("EXCEPTION: GENERAL PROTECTION FAULT\nError Code: {}\n{:#?}", error_code, stack_frame);
+}
+
+extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFrame) {
+    use x86_64::instructions::port::Port;
+    let mut port = Port::<u8>::new(0x60);
+    let packet = unsafe { port.read() };
+    
+    unsafe {
+        match MOUSE_CYCLE {
+            0 => {
+                if (packet & 0x08) != 0 {
+                    MOUSE_PACKET[0] = packet;
+                    MOUSE_CYCLE = 1;
+                }
+            },
+            1 => { MOUSE_PACKET[1] = packet; MOUSE_CYCLE = 2; },
+            2 => {
+                MOUSE_PACKET[2] = packet; MOUSE_CYCLE = 0;
+                
+                let mut dx = MOUSE_PACKET[1] as i32;
+                let mut dy = MOUSE_PACKET[2] as i32;
+                
+                if (MOUSE_PACKET[0] & 0x10) != 0 { dx -= 256; }
+                if (MOUSE_PACKET[0] & 0x20) != 0 { dy -= 256; }
+                dy = -dy; // Y-Achse invertieren
+                
+                if let Some(mut queue) = MOUSE_QUEUE.try_lock() {
+                    let _ = queue.push((dx, dy));
+                }
+            },
+            _ => { MOUSE_CYCLE = 0; }
+        }
+        PICS.lock().notify_end_of_interrupt(InterruptIndex::Mouse.as_u8());
+    }
 }

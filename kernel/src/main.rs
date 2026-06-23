@@ -36,6 +36,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
+    interrupts::init_mouse();
 
     // Detect CPU features and initialize SIMD/AVX
     let cpu_features = hardware::cpuid::detect_and_init();
@@ -93,6 +94,23 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                 } else {
                     compositor.dispatch_keyboard_event(c);
                 }
+                needs_render = true;
+            }
+
+            while let Some((dx, dy)) = interrupts::pop_mouse_event() {
+                let mut new_x = compositor.mouse_x as i32 + dx;
+                let mut new_y = compositor.mouse_y as i32 + dy;
+                
+                let width = compositor.info().width as i32;
+                let height = compositor.info().height as i32;
+                
+                if new_x < 0 { new_x = 0; }
+                if new_y < 0 { new_y = 0; }
+                if new_x >= width { new_x = width - 1; }
+                if new_y >= height { new_y = height - 1; }
+                
+                compositor.mouse_x = new_x as usize;
+                compositor.mouse_y = new_y as usize;
                 needs_render = true;
             }
 
