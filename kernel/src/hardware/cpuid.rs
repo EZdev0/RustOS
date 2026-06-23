@@ -1,0 +1,34 @@
+use raw_cpuid::CpuId;
+use x86_64::registers::control::{Cr4, Cr4Flags};
+use alloc::string::String;
+
+pub fn detect_and_init() -> String {
+    let cpuid = CpuId::new();
+    let mut features = String::from("CPU Features: ");
+
+    if let Some(info) = cpuid.get_feature_info() {
+        if info.has_sse42() {
+            features.push_str("[SSE4.2] ");
+        }
+        if info.has_aesni() {
+            features.push_str("[AES-NI] ");
+        }
+        if info.has_avx() {
+            features.push_str("[AVX] ");
+            // Attempt to enable OSXSAVE if supported
+            unsafe {
+                let mut cr4 = Cr4::read();
+                cr4.insert(Cr4Flags::OSXSAVE);
+                Cr4::write(cr4);
+            }
+        }
+    }
+
+    if let Some(ext) = cpuid.get_extended_feature_info() {
+        if ext.has_avx2() {
+            features.push_str("[AVX2] ");
+        }
+    }
+
+    features
+}
