@@ -1,8 +1,8 @@
 use crate::hardware::e1000::E1000;
-use smoltcp::phy::{Device, DeviceCapabilities, RxToken, TxToken, Medium};
+use smoltcp::phy::{Device, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
 use smoltcp::iface::{Interface, Config, SocketSet, SocketHandle};
-use smoltcp::wire::{EthernetAddress, HardwareAddress, IpAddress, IpCidr, Icmpv4Packet, Icmpv4Repr, Icmpv4Message};
+use smoltcp::wire::{EthernetAddress, HardwareAddress, IpAddress, IpCidr, Icmpv4Packet, Icmpv4Repr};
 use smoltcp::socket::icmp;
 use alloc::vec::Vec;
 use spin::Mutex;
@@ -144,9 +144,9 @@ pub fn init(mut e1000: E1000) {
         let _ = addrs.push(IpCidr::new(IpAddress::v4(10, 0, 2, 15), 24));
     });
 
-    let icmp_rx_buffer = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
-    let icmp_tx_buffer = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
-    let icmp_socket = icmp::Socket::new(icmp_rx_buffer, icmp_tx_buffer);
+    let icmp_rx_buf = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
+    let icmp_tx_buf = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
+    let icmp_socket = icmp::Socket::new(icmp_rx_buf, icmp_tx_buf);
 
     let mut sockets = SocketSet::new(alloc::vec![]);
     let icmp_handle = sockets.add(icmp_socket);
@@ -160,6 +160,7 @@ pub fn init(mut e1000: E1000) {
     });
 }
 
+#[allow(clippy::unused_async)]
 pub async fn network_task() {
     loop {
         if let Some(ref mut nm) = *NETWORK_MANAGER.lock() {
