@@ -1,7 +1,8 @@
 use crate::desktop::app::{App, Event};
 use crate::desktop::compositor::GraphicalCompositor;
-use alloc::string::String;
+use alloc::format;
 use alloc::vec::Vec;
+use alloc::string::String;
 
 fn draw_string(compositor: &mut GraphicalCompositor, mut x: usize, y: usize, s: &str, r: u8, g: u8, b: u8) {
     for c in s.chars() {
@@ -11,7 +12,7 @@ fn draw_string(compositor: &mut GraphicalCompositor, mut x: usize, y: usize, s: 
 }
 
 pub struct FileManagerApp {
-    files: Vec<String>,
+    items: Vec<(String, bool)>,
     new_file_name: String,
     is_creating_file: bool,
 }
@@ -19,7 +20,7 @@ pub struct FileManagerApp {
 impl FileManagerApp {
     pub fn new() -> Self {
         Self {
-            files: crate::fs::RAM_FS.lock().list_files(),
+            items: crate::fs::RAM_FS.lock().list_dir("").unwrap_or_default(),
             new_file_name: String::new(),
             is_creating_file: false,
         }
@@ -32,7 +33,7 @@ impl App for FileManagerApp {
     }
 
     fn update(&mut self) {
-        self.files = crate::fs::RAM_FS.lock().list_files();
+        self.items = crate::fs::RAM_FS.lock().list_dir("").unwrap_or_default();
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
@@ -59,10 +60,10 @@ impl App for FileManagerApp {
         let content_x = x + sidebar_width + 10;
         let mut content_y = y + toolbar_height + 10;
         
-        for file in &self.files {
+        for (name, is_dir) in &self.items {
             if content_y + 20 > y + height { break; } 
             
-            if file.contains(".") {
+            if !is_dir {
                 // Document icon
                 compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255);
                 compositor.draw_rect(content_x, content_y, 16, 1, 150, 150, 150);
@@ -75,7 +76,7 @@ impl App for FileManagerApp {
                 compositor.draw_rect(content_x, content_y, 10, 4, 100, 180, 255);
             }
             
-            draw_string(compositor, content_x + 30, content_y + 4, file, 30, 30, 40);
+            draw_string(compositor, content_x + 30, content_y + 4, name, 30, 30, 40);
             content_y += 30;
         }
 

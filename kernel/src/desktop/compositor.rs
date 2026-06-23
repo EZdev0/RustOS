@@ -383,6 +383,13 @@ impl GraphicalCompositor {
             } else if i == 1 {
                 self.draw_rect(icon_x, icon_y, 40, 40, 30, 30, 30);
                 self.draw_char(icon_x + 10, icon_y + 15, '>', 0, 255, 0);
+            } else if i == 2 {
+                self.draw_rect(icon_x, icon_y, 40, 40, 20, 20, 20);
+                self.draw_rect(icon_x + 5, icon_y + 10, 30, 20, 0, 150, 255);
+            } else if i == 3 {
+                // Folder icon for Filemanager
+                self.draw_rect(icon_x + 5, icon_y + 15, 30, 20, 100, 180, 255);
+                self.draw_rect(icon_x + 5, icon_y + 10, 15, 5, 100, 180, 255);
             } else {
                 self.draw_rect(icon_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
             }
@@ -632,6 +639,14 @@ impl GraphicalCompositor {
                                 let win_y = (height as usize - win_height) / 2 - 20 + offset;
                                 let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(tm_app), win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
+                            } else if icon_idx == 3 {
+                                let fm_app = crate::desktop::filemanager::FileManagerApp::new();
+                                let win_width = 500;
+                                let win_height = 400;
+                                let win_x = (width as usize - win_width) / 2 + offset;
+                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
                             }
                         }
                     }
@@ -661,14 +676,8 @@ impl GraphicalCompositor {
             } else if self.desktop_click_active {
                 self.long_press_ticks += 1;
                 if self.long_press_ticks == 60 {
-                    let fm_app = crate::desktop::filemanager::FileManagerApp::new();
-                    let win_width = 500;
-                    let win_height = 400;
-                    let offset = (self.windows.len() * 20) % 100;
-                    let win_x = (width as usize - win_width) / 2 + offset;
-                    let win_y = (height as usize - win_height) / 2 - 20 + offset;
-                    let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
-                    self.add_window(new_win);
+                    let file_name = alloc::format!("Desktop_Datei_{}.txt", self.ticks);
+                    crate::fs::RAM_FS.lock().write_file(&file_name, b"");
                     
                     self.desktop_click_active = false;
                     self.long_press_ticks = 0;
