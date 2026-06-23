@@ -19,3 +19,6 @@ x86_64 = "0.15.4"
 crossbeam-queue = { version = "0.3.11", default-features = false, features = ["alloc"] }
 conquer-once = { version = "0.2.0", default-features = false }
 futures-util = { version = "0.3.30", default-features = false, features = ["alloc"] }
+smoltcp = { version = "0.11.0", default-features = false, features = ["alloc", "log", "medium-ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp", "socket-udp", "socket-icmp", "socket-dhcpv4"] }
+bit_field = "0.10.2"
+volatile = "0.4.6"
