@@ -4,6 +4,14 @@ use crate::desktop::app::Event;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;
 
+#[derive(Clone, Copy)]
+pub struct Rect {
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
+}
+
 pub struct GraphicalCompositor {
     info: FrameBufferInfo,
     framebuffer: &'static mut [u8],
@@ -22,6 +30,7 @@ pub struct GraphicalCompositor {
     pub ticks: usize,
     pub dock_y_offset: isize,
     pub dock_target_offset: isize,
+    pub dirty_rects: Vec<Rect>,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -69,6 +78,7 @@ impl GraphicalCompositor {
             ticks: 0,
             dock_y_offset: 0,
             dock_target_offset: 0,
+            dirty_rects: Vec::new(),
         }
     }
 

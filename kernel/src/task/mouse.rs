@@ -54,7 +54,16 @@ pub async fn mouse_task(compositor: alloc::sync::Arc<spin::Mutex<crate::desktop:
     let mut stream = MouseStream::new();
     use futures_util::stream::StreamExt;
     
-    while let Some((dx, dy, left, right)) = stream.next().await {
+    while let Some((mut dx, mut dy, mut left, mut right)) = stream.next().await {
+        if let Ok(queue) = MOUSE_QUEUE.try_get() {
+            while let Some((ndx, ndy, nleft, nright)) = queue.pop() {
+                dx += ndx;
+                dy += ndy;
+                left = nleft;
+                right = nright;
+            }
+        }
+        
         let mut comp = compositor.lock();
         comp.handle_mouse_event(dx, dy, left, right);
         comp.render_all();
