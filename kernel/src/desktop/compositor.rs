@@ -108,10 +108,24 @@ impl GraphicalCompositor {
         let dock_y = height - dock_h - 15;
         self.draw_rect(dock_x, dock_y, dock_w, dock_h, 255, 255, 255);
 
-        // Icons im Dock simulieren (Fünf Farbquadrate)
+        // Echte Icons im Dock zeichnen
         for i in 0..5 {
             let icon_x = dock_x + 25 + i * 85;
-            self.draw_rect(icon_x, dock_y + 10, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
+            let icon_y = dock_y + 10;
+            if i == 0 {
+                // Notepad Icon: Weißes Blatt mit blauen Linien
+                self.draw_rect(icon_x, icon_y, 40, 40, 255, 255, 255);
+                for line in 1..4 {
+                    self.draw_rect(icon_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255);
+                }
+            } else if i == 1 {
+                // Terminal Icon: Schwarzes Quadrat mit grünem '>'
+                self.draw_rect(icon_x, icon_y, 40, 40, 0, 0, 0);
+                self.draw_char(icon_x + 10, icon_y + 15, '>', 0, 255, 0);
+            } else {
+                // Standard Icons
+                self.draw_rect(icon_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
+            }
         }
     }
 

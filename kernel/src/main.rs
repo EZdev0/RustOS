@@ -88,7 +88,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             // Process events from a global queue (implemented in interrupts.rs)
             while let Some(c) = interrupts::pop_key() {
                 if c == '\x08' {
-                    compositor.dispatch_keycode_event(0x08);
+                    compositor.dispatch_keyboard_event('\x08');
                 } else if c == '\n' {
                     compositor.dispatch_keyboard_event('\n');
                 } else {
@@ -139,14 +139,37 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
                     }
 
                     if !found {
-                        let dock_y = compositor.info().height - 75;
-                        if my >= dock_y && my <= dock_y + 60 {
-                            let mut notepad_app = desktop::notepad::NotepadApp::new();
-                            notepad_app.handle_event(desktop::app::Event::KeyPress('N'));
-                            notepad_app.handle_event(desktop::app::Event::KeyPress('e'));
-                            notepad_app.handle_event(desktop::app::Event::KeyPress('w'));
-                            let window = desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), 50, 50, 400, 300);
-                            compositor.add_window(window);
+                        // Check if dock clicked
+                        let dock_w = 440;
+                        let dock_h = 60;
+                        let dock_x = (width as usize - dock_w) / 2;
+                        let dock_y = height as usize - dock_h - 15;
+                        if mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h {
+                            if mx >= dock_x + 25 {
+                                let rel_x = mx - (dock_x + 25);
+                                let icon_idx = rel_x / 85;
+                                let offset_in_icon = rel_x % 85;
+                                if offset_in_icon <= 40 {
+                                    let offset = (compositor.windows.len() * 20) % 100;
+                                    if icon_idx == 0 {
+                                        let notepad_app = crate::desktop::notepad::NotepadApp::new();
+                                        let win_width = if width > 600 { width as usize - 200 } else { width as usize - 40 };
+                                        let win_height = if height > 400 { height as usize - 150 } else { height as usize - 80 };
+                                        let win_x = (width as usize - win_width) / 2 + offset;
+                                        let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                        let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), win_x, win_y, win_width, win_height);
+                                        compositor.add_window(new_win);
+                                    } else if icon_idx == 1 {
+                                        let terminal_app = crate::desktop::terminal::TerminalApp::new();
+                                        let win_width = 500;
+                                        let win_height = 350;
+                                        let win_x = (width as usize - win_width) / 2 + offset;
+                                        let win_y = (height as usize - win_height) / 2 - 20 + offset;
+                                        let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(terminal_app), win_x, win_y, win_width, win_height);
+                                        compositor.add_window(new_win);
+                                    }
+                                }
+                            }
                         }
                     }
                 }

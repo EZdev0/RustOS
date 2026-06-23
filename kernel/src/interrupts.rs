@@ -185,7 +185,8 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
     unsafe {
         match MOUSE_CYCLE {
             0 => {
-                if (packet & 0x08) != 0 {
+                // Ensure alignment: PS/2 Byte 1 always has bit 3 set to 1
+                if (packet & 8) == 8 {
                     MOUSE_PACKET[0] = packet;
                     MOUSE_CYCLE = 1;
                 }
