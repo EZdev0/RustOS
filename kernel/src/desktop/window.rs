@@ -7,6 +7,11 @@ pub struct Window {
     pub width: usize,
     pub height: usize,
     pub app: Box<dyn App>,
+    pub is_maximized: bool,
+    pub orig_x: usize,
+    pub orig_y: usize,
+    pub orig_w: usize,
+    pub orig_h: usize,
 }
 
 impl Window {
@@ -17,6 +22,11 @@ impl Window {
             width,
             height,
             app,
+            is_maximized: false,
+            orig_x: x,
+            orig_y: y,
+            orig_w: width,
+            orig_h: height,
         }
     }
 }

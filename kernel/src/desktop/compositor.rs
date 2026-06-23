@@ -18,6 +18,7 @@ pub struct GraphicalCompositor {
     pub drag_offset_y: isize,
     pub long_press_ticks: usize,
     pub desktop_click_active: bool,
+    pub ticks: usize,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -61,6 +62,7 @@ impl GraphicalCompositor {
             drag_offset_y: 0,
             long_press_ticks: 0,
             desktop_click_active: false,
+            ticks: 0,
         }
     }
 
@@ -183,6 +185,9 @@ impl GraphicalCompositor {
             (0, 0, 0) // Shadow Color (Black)
         };
 
+        let pulse = self.ticks % 100;
+        let intensity_mod = if pulse < 50 { pulse } else { 100 - pulse };
+
         for py in ext_y..(ext_y + ext_h) {
             if py >= self.info.height { break; }
             for px in ext_x..(ext_x + ext_w) {
@@ -213,11 +218,14 @@ impl GraphicalCompositor {
                         let alpha = 256 - (dist * 256 / shadow_size);
                         let alpha = alpha * alpha / 256; 
                         let intensity = if is_active { 
-                            alpha * 220 / 256 
+                            let base = (alpha * 180 / 256) as usize;
+                            let breathe = (intensity_mod * 80 / 50) as usize;
+                            base + breathe
                         } else { 
-                            alpha * 180 / 256 
+                            (alpha * 180 / 256) as usize
                         };
-                        self.blend_pixel(px, py, sr, sg, sb, intensity as u16);
+                        let intensity = intensity.min(255) as u16;
+                        self.blend_pixel(px, py, sr, sg, sb, intensity);
                     }
                 }
             }
@@ -369,6 +377,7 @@ impl GraphicalCompositor {
     }
 
     pub fn render_all(&mut self) {
+        self.ticks = self.ticks.wrapping_add(1);
         self.render_desktop();
         
         let num_windows = self.windows.len();
@@ -400,8 +409,15 @@ impl GraphicalCompositor {
 
                 // 3. Draw standard solid rectangular window contents
                 self.draw_rect(win_x, win_y, win_w, 20, 60, 60, 60); // Title Bar
-                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); // Close Button
+                
+                // Close Button
+                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); 
                 self.draw_char(win_x + win_w - 14, win_y + 6, 'X', 255, 255, 255);
+                
+                // Maximize Button
+                self.draw_rect(win_x + win_w - 40, win_y, 20, 20, 50, 150, 50); 
+                self.draw_char(win_x + win_w - 34, win_y + 6, '^', 255, 255, 255);
+                
                 window.app.update();
                 window.app.draw(self, win_x, win_y + 20, win_w, window.height); // App content
                 
@@ -518,14 +534,47 @@ impl GraphicalCompositor {
                 self.windows.push(win);
                 
                 let new_i = self.windows.len() - 1;
+                
+                let mut close_win = false;
+                let mut toggle_max = false;
+                
                 if let Some(w) = &self.windows[new_i] {
-                    if my <= w.y + 20 {
+                    if my <= w.y + 20 && my >= w.y {
                         if mx >= w.x + w.width - 20 {
-                            self.windows.remove(new_i);
+                            close_win = true;
+                        } else if mx >= w.x + w.width - 40 && mx < w.x + w.width - 20 {
+                            toggle_max = true;
                         } else {
-                            self.dragging_window = Some(new_i);
-                            self.drag_offset_x = mx as isize - w.x as isize;
-                            self.drag_offset_y = my as isize - w.y as isize;
+                            if !w.is_maximized {
+                                self.dragging_window = Some(new_i);
+                                self.drag_offset_x = mx as isize - w.x as isize;
+                                self.drag_offset_y = my as isize - w.y as isize;
+                            }
+                        }
+                    }
+                }
+                
+                if close_win {
+                    self.windows.remove(new_i);
+                } else if toggle_max {
+                    if let Some(w) = &mut self.windows[new_i] {
+                        if w.is_maximized {
+                            w.is_maximized = false;
+                            w.x = w.orig_x;
+                            w.y = w.orig_y;
+                            w.width = w.orig_w;
+                            w.height = w.orig_h;
+                        } else {
+                            w.is_maximized = true;
+                            w.orig_x = w.x;
+                            w.orig_y = w.y;
+                            w.orig_w = w.width;
+                            w.orig_h = w.height;
+                            
+                            w.x = 0;
+                            w.y = 28;
+                            w.width = width as usize;
+                            w.height = height as usize - 28 - 75 - 20;
                         }
                     }
                 }
