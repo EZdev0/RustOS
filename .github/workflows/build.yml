@@ -123,8 +123,8 @@ jobs:
             gh issue create --title "$ISSUE_TITLE" \
               --body "## 📊 Build Analysis\n\n**Logs (Tail):**\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n**🤖 AI Insights:**\n$AI_RESPONSE" || true
           else
-            # Failure Auto-Fix Protocol
-            echo "Build failed. Initiating Autonomous AI Fix Protocol..."
+            # Failure Fix Suggestion Protocol (Safe Mode)
+            echo "Build failed. Initiating AI Safe Fix Suggestion Protocol..."
             
             # 1. Try to find the file that caused the error
             FAILED_FILE=$(grep -Eo 'kernel/src/[a-zA-Z0-9_/-]+\.rs' build-error.log | head -1)
@@ -133,31 +133,18 @@ jobs:
               echo "Detected failing file: $FAILED_FILE"
               CODE_CONTENT=$(cat $FAILED_FILE || echo "")
               
-              PROMPT="You are an expert autonomous AI developer. The following Rust file failed to compile. Fix the code. RETURN ONLY THE RAW FIXED RUST CODE. Do not use markdown code blocks. Do not explain.\n\nError:\n$LOG_CONTENT\n\nFile ($FAILED_FILE):\n$CODE_CONTENT"
+              # NEW SAFE PROMPT: No code deletion, only safe suggestions
+              PROMPT="You are an expert Rust systems programmer and AI safety assistant. The following Rust file failed to compile. Analyze the error and suggest a SAFE fix. EXTREMELY IMPORTANT: DO NOT suggest deleting functionality. DO NOT remove code unless absolutely necessary to fix the bug. Provide your suggestions as a detailed explanation with safe code snippets. Focus on stability and correctness.\n\nError:\n$LOG_CONTENT\n\nFile ($FAILED_FILE):\n$CODE_CONTENT"
               
               jq -n --arg prompt "$PROMPT" '{"model": "qwen2.5-coder:3b", "prompt": $prompt, "stream": false}' > payload.json
-              FIXED_CODE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response')
+              AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response')
               
-              # Strip possible markdown code blocks from LLM output
-              echo "$FIXED_CODE" | sed 's/^```[a-z]*//; s/^```$//' > "$FAILED_FILE"
+              echo "Creating GitHub Issue with AI suggestion..."
               
-              echo "Code patched by AI."
-              
-              # Push to branch and create PR
-              git config user.name "🤖 AI Automated Developer"
-              git config user.email "ai@rustos.local"
-              
-              BRANCH_NAME="ai-autofix/run-${{ github.run_number }}"
-              git checkout -b $BRANCH_NAME
-              git add "$FAILED_FILE"
-              git commit -m "🤖 AI Auto-Fix: Compilation error in $FAILED_FILE"
-              git push origin $BRANCH_NAME || true
-              
-              gh pr create \
-                --title "🤖 AI Fix: Build Failure in $FAILED_FILE" \
-                --body "The CI build crashed. I (Ollama AI) autonomously analyzed the logs and rewrote the file to fix it.\n\n### Error Logs:\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`" \
-                --base main \
-                --head $BRANCH_NAME || true
+              # Post ONLY as an issue, NO direct code changes, NO PRs
+              gh issue create \
+                --title "🤖 AI Fix Suggestion: Build Failure in $FAILED_FILE" \
+                --body "The CI build crashed. I (Ollama AI) analyzed the logs and the file to suggest a safe fix.\n\n### Error Logs:\n\`\`\`rust\n$LOG_CONTENT\n\`\`\`\n\n### 🤖 AI Suggested Fix:\n$AI_RESPONSE" || true
             else
               echo "Could not parse failing file. Creating standard bug issue..."
               PROMPT="You are an expert Rust systems programmer. The Rust bare-metal build failed. Please analyze the compiler error and provide a clear fix:\n\n$LOG_CONTENT"
