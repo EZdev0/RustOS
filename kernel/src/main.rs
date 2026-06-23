@@ -247,8 +247,8 @@ fn panic(info: &PanicInfo) -> ! {
             }
 
             let mut writer = FbWriter {
-                fb: fb,
-                buffer: buffer,
+                fb,
+                buffer,
                 x: 50,
                 y: 50,
                 scale: 3, 

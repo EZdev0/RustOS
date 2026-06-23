@@ -4,7 +4,13 @@ use alloc::string::String;
 
 pub struct SettingsApp {
     active_tab: usize,
-    timezone_offset: i8, // Timezone offset in hours
+    timezone_offset: i8, // UTC offset in hours
+}
+
+impl Default for SettingsApp {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SettingsApp {
@@ -38,24 +44,24 @@ impl App for SettingsApp {
         if let Event::MouseClick { x, y } = event {
             let sidebar_width = 150;
             if x < sidebar_width {
-                if y >= 50 && y <= 80 {
+                // General Tab
+                if (50..=80).contains(&y) {
                     self.active_tab = 0;
                 }
-                if y >= 90 && y <= 120 {
+                // Info Tab
+                if (90..=120).contains(&y) {
                     self.active_tab = 1;
                 }
             } else if self.active_tab == 1 {
                 // Handle Timezone Click
                 let content_x = sidebar_width;
-                if x >= content_x + 150 && x <= content_x + 330 {
-                    if y >= 110 && y <= 140 {
+                if (content_x + 150..=content_x + 330).contains(&x) && (110..=140).contains(&y) {
                         // Toggle timezone offset between UTC (0) and Germany (+1) and Japan (+9)
                         self.timezone_offset = match self.timezone_offset {
                             0 => 1,
                             1 => 9,
                             _ => 0,
                         };
-                    }
                 }
             }
         }
@@ -136,8 +142,9 @@ impl App for SettingsApp {
             draw_string(compositor, content_x + 30, y + 160, &mem_str, 80, 80, 90);
             
             // Dynamic Progress Bar
-            let track_width = 250;
-            let filled_width = if total > 0 { (used * track_width) / total } else { 0 };
+            let track_width = 300;
+            let mut filled_width = (used * track_width).checked_div(total).unwrap_or(0);
+            if filled_width > track_width { filled_width = track_width; }
             
             compositor.draw_rect(content_x + 30, y + 180, track_width, 10, 220, 220, 230); // Track
             compositor.draw_rect(content_x + 30, y + 180, filled_width, 10, 0, 200, 100);  // Fill

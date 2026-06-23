@@ -8,6 +8,12 @@ pub struct NotepadApp {
     ticks: usize,
 }
 
+impl Default for NotepadApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NotepadApp {
     pub fn new() -> Self {
         Self {
@@ -25,7 +31,7 @@ impl App for NotepadApp {
 
     fn update(&mut self) {
         self.ticks += 1;
-        if self.ticks % 20 == 0 {
+        if self.ticks.is_multiple_of(20) {
             self.cursor_visible = !self.cursor_visible;
         }
     }
@@ -60,17 +66,12 @@ impl App for NotepadApp {
     }
 
     fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::KeyPress(c) => {
-                if c == '\x08' {
-                    let _ = self.text.pop();
-                } else if c == '\n' || c == '\r' {
-                    self.text.push('\n');
-                } else {
-                    self.text.push(c);
-                }
+        if let Event::KeyPress(c) = event {
+            match c {
+                '\x08' => { let _ = self.text.pop(); }
+                '\n' | '\r' => self.text.push('\n'),
+                _ => self.text.push(c),
             }
-            _ => {}
         }
     }
 }

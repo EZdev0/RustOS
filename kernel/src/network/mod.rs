@@ -92,11 +92,9 @@ impl NetworkManager {
         let socket = self.sockets.get_mut::<icmp::Socket>(self.icmp_handle);
         if socket.can_recv() {
             if let Ok((payload, _)) = socket.recv() {
-                if let Ok(repr) = Icmpv4Repr::parse(&Icmpv4Packet::new_unchecked(payload), &smoltcp::phy::ChecksumCapabilities::default()) {
-                    if let Icmpv4Repr::EchoReply { seq_no, .. } = repr {
-                        // Reply received
-                        self.ping_reply = Some(([0,0,0,0], seq_no));
-                    }
+                if let Ok(Icmpv4Repr::EchoReply { seq_no, .. }) = Icmpv4Repr::parse(&Icmpv4Packet::new_unchecked(payload), &smoltcp::phy::ChecksumCapabilities::default()) {
+                    // Reply received
+                    self.ping_reply = Some(([0,0,0,0], seq_no));
                 }
             }
         }

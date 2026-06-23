@@ -22,6 +22,12 @@ pub struct SafeRamFs {
     inner: Mutex<RamFs>,
 }
 
+impl Default for SafeRamFs {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SafeRamFs {
     pub fn new() -> Self {
         Self { inner: Mutex::new(RamFs::new()) }
@@ -59,6 +65,12 @@ pub enum FsNode {
 
 pub struct RamFs {
     root: FsNode,
+}
+
+impl Default for RamFs {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RamFs {
@@ -105,10 +117,8 @@ impl RamFs {
         }
         
         if let FsNode::Directory { children } = current {
-            if let Some(existing) = children.get(*file_name) {
-                if let FsNode::Directory { .. } = existing {
-                    return Err(FsError::IsDirectory);
-                }
+            if let Some(FsNode::Directory { .. }) = children.get(*file_name) {
+                return Err(FsError::IsDirectory);
             }
             children.insert(String::from(*file_name), FsNode::File { content: content.to_vec() });
             Ok(())

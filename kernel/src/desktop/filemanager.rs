@@ -16,6 +16,12 @@ pub struct FileManagerApp {
     is_creating_file: bool,
 }
 
+impl Default for FileManagerApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FileManagerApp {
     pub fn new() -> Self {
         Self {
@@ -81,12 +87,10 @@ impl App for FileManagerApp {
         }
 
         // Show typing indicator if creating file
-        if self.is_creating_file || self.new_file_name.len() > 0 {
-            if content_y + 20 <= y + height {
-                compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255); // Doc icon
-                draw_string(compositor, content_x + 30, content_y + 4, &self.new_file_name, 0, 0, 255);
-                draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y + 4, "_", 0, 0, 255);
-            }
+        if (self.is_creating_file || !self.new_file_name.is_empty()) && content_y + 20 <= y + height {
+            compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255); // Doc icon
+            draw_string(compositor, content_x + 30, content_y + 4, &self.new_file_name, 0, 0, 255);
+            draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y + 4, "_", 0, 0, 255);
         }
     }
 
