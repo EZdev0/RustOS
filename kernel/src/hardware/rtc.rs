@@ -9,6 +9,37 @@ pub struct DateTime {
     pub second: u8,
 }
 
+impl DateTime {
+    /// Basic timezone adjustment (assumes 30 days/month for simplicity when rolling over)
+    pub fn apply_timezone(&mut self, hours_offset: i8) {
+        let mut h = self.hour as i32 + hours_offset as i32;
+        if h < 0 {
+            h += 24;
+            self.day = self.day.saturating_sub(1);
+            if self.day == 0 {
+                self.month = self.month.saturating_sub(1);
+                if self.month == 0 {
+                    self.month = 12;
+                    self.year = self.year.saturating_sub(1);
+                }
+                self.day = 30; 
+            }
+        } else if h >= 24 {
+            h -= 24;
+            self.day += 1;
+            if self.day > 30 {
+                self.day = 1;
+                self.month += 1;
+                if self.month > 12 {
+                    self.month = 1;
+                    self.year += 1;
+                }
+            }
+        }
+        self.hour = h as u8;
+    }
+}
+
 fn read_register(reg: u8) -> u8 {
     let mut address_port = Port::<u8>::new(0x70);
     let mut data_port = Port::<u8>::new(0x71);
