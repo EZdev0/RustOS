@@ -14,6 +14,7 @@ impl IntelligentRenderer {
         }
     }
 
+    #[allow(clippy::not_unsafe_ptr_arg_deref)]
     pub fn draw_dirty_rect(&self, src: *const u8, dst: *mut u8, size_bytes: usize) {
         unsafe {
             (self.blitter)(src, dst, size_bytes);

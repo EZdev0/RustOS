@@ -18,6 +18,12 @@ pub struct TaskManagerApp {
     expanded_section: AccordionSection,
 }
 
+impl Default for TaskManagerApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskManagerApp {
     pub fn new() -> Self {
         Self {
@@ -167,8 +173,8 @@ impl App for TaskManagerApp {
     }
 
     fn update(&mut self) {
-        self.ticks = self.ticks.wrapping_add(1);
-        if self.ticks % 5 == 0 {
+        self.ticks += 1;
+        if self.ticks.is_multiple_of(5) {
             let mut cpu_usage = (self.ticks % 100) as u8; 
             if cpu_usage > 50 { cpu_usage = 100 - cpu_usage; }
             cpu_usage = cpu_usage.saturating_add(10);

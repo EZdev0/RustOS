@@ -51,7 +51,7 @@ jobs:
           RUSTC_BOOTSTRAP: 1
         run: |
           echo "Running Cargo Clippy..."
-          if ! cargo clippy --bin kernel --target x86_64-unknown-none -- -D warnings 2>&1 | tee clippy-error.log; then
+          if ! cargo clippy -p kernel --target x86_64-unknown-none -- -D warnings 2>&1 | tee clippy-error.log; then
             echo "::warning::Clippy checks failed, but CI will continue to allow AI analysis!"
             cp clippy-error.log build-error.log
             exit 1

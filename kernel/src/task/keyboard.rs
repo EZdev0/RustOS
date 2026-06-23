@@ -9,7 +9,7 @@ static WAKER: AtomicWaker = AtomicWaker::new();
 
 pub(crate) fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        if let Err(_) = queue.push(scancode) {
+        if queue.push(scancode).is_err() {
             // Queue full
         } else {
             WAKER.wake();
@@ -19,6 +19,12 @@ pub(crate) fn add_scancode(scancode: u8) {
 
 pub struct ScancodeStream {
     _private: (),
+}
+
+impl Default for ScancodeStream {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ScancodeStream {
@@ -39,7 +45,7 @@ impl Stream for ScancodeStream {
             return Poll::Ready(Some(scancode));
         }
 
-        WAKER.register(&cx.waker());
+        WAKER.register(cx.waker());
         
         match queue.pop() {
             Some(scancode) => {

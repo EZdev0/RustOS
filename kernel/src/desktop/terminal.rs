@@ -14,6 +14,12 @@ pub struct TerminalApp {
     ping_delay: usize,
 }
 
+impl Default for TerminalApp {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TerminalApp {
     pub fn new() -> Self {
         let mut output = Vec::new();
@@ -274,7 +280,7 @@ impl App for TerminalApp {
 
     fn update(&mut self) {
         self.ticks += 1;
-        if self.ticks % 30 == 0 {
+        if self.ticks.is_multiple_of(30) {
             self.cursor_visible = !self.cursor_visible;
         }
 
@@ -301,7 +307,7 @@ impl App for TerminalApp {
             
             if seq >= 5 { // Auto-stop after 4 pings for demo
                 self.print(String::from("--- ping statistics ---"), (0, 255, 0));
-                self.print(format!("4 packets transmitted, 4 received, 0% packet loss"), (0, 200, 255));
+                self.print("4 packets transmitted, 4 received, 0% packet loss".to_string(), (0, 200, 255));
                 self.ping_state = None;
             }
         }
@@ -358,27 +364,24 @@ impl App for TerminalApp {
     }
 
     fn handle_event(&mut self, event: Event) {
-        match event {
-            Event::KeyPress(c) => {
-                if c == '\x03' { // Ctrl+C to cancel ping
-                    if self.ping_state.is_some() {
-                        self.print(String::from("Ping canceled."), (255, 255, 0));
-                        self.ping_state = None;
-                    }
-                    return;
-                }
+        if let Event::KeyPress(c) = event {
+            if c == '\x03' { // Ctrl+C to cancel ping
                 if self.ping_state.is_some() {
-                    return; // Ignore typing while ping is running
+                    self.print(String::from("Ping canceled."), (255, 255, 0));
+                    self.ping_state = None;
                 }
-                if c == '\n' || c == '\r' {
-                    self.execute_command();
-                } else if c == '\x08' {
-                    let _ = self.input_buffer.pop();
-                } else {
-                    self.input_buffer.push(c);
-                }
+                return;
             }
-            _ => {}
+            if self.ping_state.is_some() {
+                return; // Ignore typing while ping is running
+            }
+            if c == '\n' || c == '\r' {
+                self.execute_command();
+            } else if c == '\x08' {
+                let _ = self.input_buffer.pop();
+            } else {
+                self.input_buffer.push(c);
+            }
         }
     }
 }

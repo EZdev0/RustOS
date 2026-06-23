@@ -8,7 +8,7 @@ static WAKER: AtomicWaker = AtomicWaker::new();
 
 pub(crate) fn add_mouse_event(dx: i32, dy: i32, left: bool, right: bool) {
     if let Ok(queue) = MOUSE_QUEUE.try_get() {
-        if let Err(_) = queue.push((dx, dy, left, right)) {
+        if queue.push((dx, dy, left, right)).is_err() {
             // Queue full
         } else {
             WAKER.wake();
@@ -18,6 +18,12 @@ pub(crate) fn add_mouse_event(dx: i32, dy: i32, left: bool, right: bool) {
 
 pub struct MouseStream {
     _private: (),
+}
+
+impl Default for MouseStream {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MouseStream {
@@ -38,7 +44,7 @@ impl Stream for MouseStream {
             return Poll::Ready(Some(event));
         }
 
-        WAKER.register(&cx.waker());
+        WAKER.register(cx.waker());
         
         match queue.pop() {
             Some(event) => {

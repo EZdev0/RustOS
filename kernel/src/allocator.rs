@@ -24,6 +24,8 @@ impl TrackingAllocator {
         (used, HEAP_SIZE)
     }
 
+    /// # Safety
+    /// The caller must ensure that `heap_bottom` and `heap_size` are valid and the memory is unused.
     pub unsafe fn init(&self, heap_bottom: *mut u8, heap_size: usize) {
         self.inner.lock().init(heap_bottom, heap_size);
     }

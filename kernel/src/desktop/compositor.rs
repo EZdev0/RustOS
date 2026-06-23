@@ -1,5 +1,6 @@
 use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
+
 use crate::desktop::app::Event;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;
@@ -54,11 +55,9 @@ impl GraphicalCompositor {
         let buffer = framebuffer.buffer_mut();
         let size = buffer.len();
         
-        let mut backbuffer = Vec::with_capacity(size);
-        backbuffer.resize(size, 0);
-
-        let mut dock_buffer = Vec::with_capacity(440 * 60 * 3);
-        dock_buffer.resize(440 * 60 * 3, 0);
+        let backbuffer = alloc::vec![0; size];
+        
+        let dock_buffer = alloc::vec![0; 440 * 60 * 3];
         
         let renderer = IntelligentRenderer::init(buffer.as_mut_ptr());
         let mouse_x = info.width / 2;
@@ -144,6 +143,7 @@ impl GraphicalCompositor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_rect_skew(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8, skew: isize) {
         if skew == 0 {
             return self.draw_rect(start_x, start_y, width, height, r, g, b);
@@ -156,6 +156,7 @@ impl GraphicalCompositor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_char_skew(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8, skew: isize) {
         if skew == 0 {
             return self.draw_char(x, y, c, r, g, b);
@@ -246,6 +247,7 @@ impl GraphicalCompositor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_rect(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8) {
         let end_y = (start_y + height).min(self.info.height);
         let end_x = start_x + width;
@@ -271,6 +273,7 @@ impl GraphicalCompositor {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_glowing_ring(&mut self, cx: usize, cy: usize, radius: usize, thickness: usize, core_alpha: u16, r: u8, g: u8, b: u8) {
         let ext = radius + thickness;
         let start_x = cx.saturating_sub(ext);
@@ -360,7 +363,7 @@ impl GraphicalCompositor {
                         let alpha = alpha * alpha / 256; 
                         let intensity = if is_active { 
                             let base = (alpha * 180 / 256) as usize;
-                            let breathe = (intensity_mod * 80 / 50) as usize;
+                            let breathe = intensity_mod * 80 / 50;
                             base + breathe
                         } else { 
                             (alpha * 180 / 256) as usize
@@ -419,7 +422,7 @@ impl GraphicalCompositor {
             return;
         }
         let dock_y = (dock_y_base + self.dock_y_offset) as usize;
-        let dock_x = (width as usize).saturating_sub(dock_w) / 2;
+        let dock_x = width.saturating_sub(dock_w) / 2;
         let corner_r = 16usize; 
         
         let glass_alpha = 110u16; 
@@ -435,11 +438,9 @@ impl GraphicalCompositor {
         for dy in 0..dock_h {
             for dx in 0..dock_w {
                 let c_dx = if dx < corner_r { corner_r - dx - 1 } 
-                           else if dx >= dock_w - corner_r { dx - (dock_w - corner_r) } 
-                           else { 0 };
+                           else { dx.saturating_sub(dock_w - corner_r) };
                 let c_dy = if dy < corner_r { corner_r - dy - 1 } 
-                           else if dy >= dock_h - corner_r { dy - (dock_h - corner_r) } 
-                           else { 0 };
+                           else { dy.saturating_sub(dock_h - corner_r) };
                 
                 let dist_sq = c_dx * c_dx + c_dy * c_dy;
                 let r_sq = corner_r * corner_r;
@@ -472,7 +473,7 @@ impl GraphicalCompositor {
                                       else if dy >= dock_h - 3 { dock_w + dock_h + dock_w.saturating_sub(dx) }
                                       else { dock_w * 2 + dock_h + dock_h.saturating_sub(dy) };
                         
-                        let mut dist = (p_coord as isize - glow_pos as isize).abs() as usize;
+                        let mut dist = (p_coord as isize - glow_pos as isize).unsigned_abs();
                         dist = dist.min(perimeter.saturating_sub(dist));
 
                         if dist < 50 {
@@ -495,11 +496,9 @@ impl GraphicalCompositor {
         for dy in 0..dock_h {
             for dx in 0..dock_w {
                 let c_dx = if dx < corner_r { corner_r - dx - 1 } 
-                           else if dx >= dock_w - corner_r { dx - (dock_w - corner_r) } 
-                           else { 0 };
+                           else { dx.saturating_sub(dock_w - corner_r) };
                 let c_dy = if dy < corner_r { corner_r - dy - 1 } 
-                           else if dy >= dock_h - corner_r { dy - (dock_h - corner_r) } 
-                           else { 0 };
+                           else { dy.saturating_sub(dock_h - corner_r) };
                 
                 if c_dx * c_dx + c_dy * c_dy >= corner_r * corner_r {
                     continue; 
@@ -561,12 +560,10 @@ impl GraphicalCompositor {
         self.ticks = self.ticks.wrapping_add(1);
 
         let mut any_maximized = false;
-        for w in &self.windows {
-            if let Some(win) = w {
-                if win.is_maximized {
-                    any_maximized = true;
-                    break;
-                }
+        for win in self.windows.iter().flatten() {
+            if win.is_maximized {
+                any_maximized = true;
+                break;
             }
         }
         
@@ -922,11 +919,9 @@ impl GraphicalCompositor {
             self.desktop_click_active = false;
             
             if let Some((idx, rel_x, rel_y)) = self.active_app_click {
-                if self.long_press_ticks < 60 {
-                    if idx < self.windows.len() {
-                        if let Some(w) = &mut self.windows[idx] {
-                            w.app.handle_event(Event::MouseClick { x: rel_x, y: rel_y });
-                        }
+                if self.long_press_ticks < 60 && idx < self.windows.len() {
+                    if let Some(w) = &mut self.windows[idx] {
+                        w.app.handle_event(Event::MouseClick { x: rel_x, y: rel_y });
                     }
                 }
             }
