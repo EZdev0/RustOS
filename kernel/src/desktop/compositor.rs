@@ -570,7 +570,10 @@ impl GraphicalCompositor {
         let width = self.info.width;
         let height = self.info.height;
 
-        let dock_w = 440;
+        let max_apps_possible = width.saturating_sub(40) / 85;
+        let apps_to_draw = self.apps.len().min(max_apps_possible);
+        
+        let dock_w = apps_to_draw * 85 + 15;
         let dock_h = 60;
         let dock_y_base = height.saturating_sub(dock_h + 15) as isize;
         let dock_y_calc = dock_y_base + self.dock_y_offset;
@@ -677,7 +680,10 @@ impl GraphicalCompositor {
         }
 
         // Icons
-        for i in 0..self.apps.len() {
+        let max_apps_possible = width.saturating_sub(40) / 85;
+        let apps_to_draw = self.apps.len().min(max_apps_possible);
+
+        for i in 0..apps_to_draw {
             let icon_base_x = dock_x + 25 + i * 85;
             let mut icon_y = dock_y + 10;
             let is_hovered = hovered_icon == Some(i);
@@ -1040,7 +1046,9 @@ impl GraphicalCompositor {
                 found = true;
             }
 
-            let dock_w = 440;
+            let max_apps_possible = width.saturating_sub(40) as usize / 85;
+            let apps_to_draw = self.apps.len().min(max_apps_possible);
+            let dock_w = apps_to_draw * 85 + 15;
             let dock_h = 60;
             let dock_x = (width as usize).saturating_sub(dock_w) / 2;
             let dock_y_base = (height as isize).saturating_sub(dock_h as isize + 15);
@@ -1054,7 +1062,7 @@ impl GraphicalCompositor {
                         let icon_idx = rel_x / 85;
                         let offset_in_icon = rel_x % 85;
                         if offset_in_icon <= 40 && my >= dock_y + 6 && my <= dock_y + 50 && self.windows.len() < 12
-                            && icon_idx < self.apps.len() {
+                            && icon_idx < apps_to_draw {
                                 let offset = (self.windows.len() * 20) % 100;
                                 let desc = &self.apps[icon_idx];
                                 let app = (desc.spawn)();
