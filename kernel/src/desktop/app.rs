@@ -5,6 +5,7 @@ pub enum Event {
     KeyCode(u8),
     MouseClick { x: usize, y: usize },
     MouseLongPress { x: usize, y: usize },
+    MouseScroll { delta: i32 },
 }
 
 pub trait App {

@@ -16,6 +16,7 @@ pub struct TaskManagerApp {
     cpu_history: Vec<u8>,
     ram_history: Vec<u8>,
     expanded_section: Option<AccordionSection>,
+    scroll_y: isize,
 }
 
 impl Default for TaskManagerApp {
@@ -31,6 +32,7 @@ impl TaskManagerApp {
             cpu_history: alloc::vec![0; 50],
             ram_history: alloc::vec![0; 50],
             expanded_section: Some(AccordionSection::Performance),
+            scroll_y: 0,
         }
     }
 
@@ -200,19 +202,42 @@ impl App for TaskManagerApp {
             (AccordionSection::Support, "Support"),
         ];
 
-        let mut current_y = y + 5;
+        let mut current_y = y as isize + 5 - self.scroll_y;
         
         for (section, title) in sections.iter() {
             let is_expanded = self.expanded_section == Some(*section);
-            let header_height = self.draw_header(compositor, title, x + 5, current_y, width - 10, is_expanded);
+            
+            // Only draw header if it's within bounds or just let clipping handle it
+            let header_height = if current_y > y as isize - 25 && current_y < (y + height) as isize {
+                self.draw_header(compositor, title, x + 5, current_y as usize, width - 10, is_expanded) as isize
+            } else {
+                25 // Assume fixed height for header
+            };
+            
             current_y += header_height;
 
             if is_expanded {
                 let content_height = match section {
-                    AccordionSection::Performance => self.draw_performance(compositor, x + 5, current_y, width - 10),
-                    AccordionSection::OsAnalysis => self.draw_os_analysis(compositor, x + 5, current_y, width - 10),
-                    AccordionSection::DeviceInfo => self.draw_device_info(compositor, x + 5, current_y, width - 10),
-                    AccordionSection::Support => self.draw_support(compositor, x + 5, current_y, width - 10),
+                    AccordionSection::Performance => {
+                        if current_y > y as isize - 160 && current_y < (y + height) as isize {
+                            self.draw_performance(compositor, x + 5, current_y as usize, width - 10) as isize
+                        } else { 160 }
+                    },
+                    AccordionSection::OsAnalysis => {
+                        if current_y > y as isize - 70 && current_y < (y + height) as isize {
+                            self.draw_os_analysis(compositor, x + 5, current_y as usize, width - 10) as isize
+                        } else { 70 }
+                    },
+                    AccordionSection::DeviceInfo => {
+                        if current_y > y as isize - 70 && current_y < (y + height) as isize {
+                            self.draw_device_info(compositor, x + 5, current_y as usize, width - 10) as isize
+                        } else { 70 }
+                    },
+                    AccordionSection::Support => {
+                        if current_y > y as isize - 60 && current_y < (y + height) as isize {
+                            self.draw_support(compositor, x + 5, current_y as usize, width - 10) as isize
+                        } else { 60 }
+                    },
                 };
                 current_y += content_height;
             }
@@ -222,34 +247,45 @@ impl App for TaskManagerApp {
     }
 
     fn handle_event(&mut self, event: Event) {
-        if let Event::MouseClick { x: _rel_x, y: rel_y } = event {
-            let mut current_y = 5;
-            
-            let sections = [
-                AccordionSection::Performance,
-                AccordionSection::OsAnalysis,
-                AccordionSection::DeviceInfo,
-                AccordionSection::Support,
-            ];
-
-            for section in sections.iter() {
-                // Prüfen ob Klick im Header (25px Höhe) landete
-                if rel_y >= current_y && rel_y < current_y + 25 {
-                    if self.expanded_section == Some(*section) {
-                        self.expanded_section = None;
-                    } else {
-                        self.expanded_section = Some(*section);
-                    }
-                    break;
-                }
-                current_y += 25;
+        match event {
+            Event::MouseClick { x: _rel_x, y: rel_y } => {
+                let adjusted_y = rel_y as isize + self.scroll_y;
+                let mut current_y = 5isize;
                 
-                // Content Height aufaddieren, falls Sektion gerade ausgeklappt ist
-                if self.expanded_section == Some(*section) {
-                    current_y += Self::get_content_height(*section);
+                let sections = [
+                    AccordionSection::Performance,
+                    AccordionSection::OsAnalysis,
+                    AccordionSection::DeviceInfo,
+                    AccordionSection::Support,
+                ];
+
+                for section in sections.iter() {
+                    // Prüfen ob Klick im Header (25px Höhe) landete
+                    if adjusted_y >= current_y && adjusted_y < current_y + 25 {
+                        if self.expanded_section == Some(*section) {
+                            self.expanded_section = None;
+                        } else {
+                            self.expanded_section = Some(*section);
+                        }
+                        break;
+                    }
+                    current_y += 25;
+                    
+                    if self.expanded_section == Some(*section) {
+                        current_y += Self::get_content_height(*section) as isize;
+                    }
+                    current_y += 5; // Spacing
                 }
-                current_y += 5; // Spacing
-            }
+            },
+            Event::MouseScroll { delta } => {
+                self.scroll_y += (delta as isize) * 20; // Scroll speed
+                if self.scroll_y < 0 {
+                    self.scroll_y = 0;
+                }
+                
+                // Wir könnten auch den maximalen Scroll berechnen, aber 0-Begrenzung ist fürs Erste ok.
+            },
+            _ => {}
         }
     }
 }

@@ -35,6 +35,7 @@ pub struct GraphicalCompositor {
     pub dirty_rects: Vec<Rect>,
     pub full_redraw: bool,
     pub renderer: IntelligentRenderer,
+    pub clip_rect: Option<Rect>,
 }
 
 // Fast Integer Square Root for software rendering algorithms
@@ -84,6 +85,7 @@ impl GraphicalCompositor {
             dirty_rects: Vec::new(),
             full_redraw: true,
             renderer,
+            clip_rect: None,
         }
     }
 
@@ -120,6 +122,11 @@ impl GraphicalCompositor {
     pub fn draw_pixel(&mut self, x: usize, y: usize, r: u8, g: u8, b: u8) {
         if x >= self.info.width || y >= self.info.height {
             return;
+        }
+        if let Some(clip) = self.clip_rect {
+            if x < clip.x || y < clip.y || x >= clip.x + clip.width || y >= clip.y + clip.height {
+                return;
+            }
         }
 
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
@@ -177,6 +184,11 @@ impl GraphicalCompositor {
         if x >= self.info.width || y >= self.info.height {
             return;
         }
+        if let Some(clip) = self.clip_rect {
+            if x < clip.x || y < clip.y || x >= clip.x + clip.width || y >= clip.y + clip.height {
+                return;
+            }
+        }
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
         if pixel_offset + 2 < self.backbuffer.len() {
             let inv_alpha = 256 - alpha_256;
@@ -215,7 +227,15 @@ impl GraphicalCompositor {
 
     pub fn draw_hline(&mut self, start_x: usize, end_x: usize, y: usize, r: u8, g: u8, b: u8) {
         if y >= self.info.height || start_x >= self.info.width { return; }
-        let end_x = end_x.min(self.info.width);
+        let mut start_x = start_x;
+        let mut end_x = end_x.min(self.info.width);
+        
+        if let Some(clip) = self.clip_rect {
+            if y < clip.y || y >= clip.y + clip.height { return; }
+            start_x = start_x.max(clip.x);
+            end_x = end_x.min(clip.x + clip.width);
+        }
+        
         if start_x >= end_x { return; }
 
         let bpp = self.info.bytes_per_pixel;
@@ -664,7 +684,9 @@ impl GraphicalCompositor {
                 self.draw_rect(win_x, win_y, win_w, 20, 60, 60, 60); // Title Bar
                 
                 window.app.update();
+                self.clip_rect = Some(Rect { x: win_x, y: win_y + 20, width: win_w, height: window.height });
                 window.app.draw(self, win_x, win_y + 20, win_w, window.height); // App content
+                self.clip_rect = None;
                 
                 // 4. Restore Corners
                 let r_sq = r * r;
@@ -776,6 +798,11 @@ impl GraphicalCompositor {
 
     pub fn dispatch_keycode_event(&mut self, code: u8) {
         if let Some(Some(window)) = self.windows.last_mut() {
+            if code == 0x48 { // Up Arrow
+                window.app.handle_event(Event::MouseScroll { delta: -1 });
+            } else if code == 0x50 { // Down Arrow
+                window.app.handle_event(Event::MouseScroll { delta: 1 });
+            }
             window.app.handle_event(Event::KeyCode(code));
         }
     }
