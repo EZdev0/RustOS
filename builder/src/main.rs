@@ -32,14 +32,24 @@ fn main() {
 
     // 2. Pfade definieren
     let kernel_elf = Path::new("target/x86_64-unknown-none/release/kernel");
-    let output_disk = Path::new("target/my_rust_os_desktop.img");
+    
+    // Stelle sicher, dass der Build-Ordner im Root existiert
+    let build_dir = Path::new("../RustOS_Build_Output");
+    if !build_dir.exists() {
+        std::fs::create_dir_all(build_dir).expect("Konnte Build Ordner nicht erstellen");
+    }
+    
+    let output_disk = build_dir.join("my_rust_os_desktop.img");
+    let output_elf = build_dir.join("kernel.elf");
 
     // 3. Verwende das offizielle Bootloader-Crate, um ein startbares BIOS-Image zu verknüpfen
-    // BiosBoot wird gewählt, da es nativ auf JEDEM QEMU läuft, ohne UEFI-Firmware-Pfade konfigurieren zu müssen!
     println!("[2/3] Konvertiere Kernel-ELF in ein bootfähiges MBR-Festplattenimage...");
     let bios_boot = bootloader::BiosBoot::new(kernel_elf);
-    bios_boot.create_disk_image(output_disk)
+    bios_boot.create_disk_image(&output_disk)
         .expect("Fehler: Das Erstellen des bootfähigen Festplattenimages ist fehlgeschlagen.");
+        
+    // Kopiere auch die pure ELF Datei für eventuelles Debugging
+    std::fs::copy(kernel_elf, output_elf).expect("Fehler: Konnte kernel.elf nicht kopieren");
 
     println!("✅ Image erfolgreich generiert: {}", output_disk.display());
 
