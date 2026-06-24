@@ -64,31 +64,46 @@ pub fn init_mouse() {
     let mut port_64 = Port::<u8>::new(0x64);
     let mut port_60 = Port::<u8>::new(0x60);
     
-    unsafe {
-        // Enable auxiliary mouse device
-        mouse_wait(1);
-        port_64.write(0xA8);
-        
-        // Read Compaq Status Byte
-        mouse_wait(1);
-        port_64.write(0x20);
-        mouse_wait(0);
-        let status = port_60.read();
-        
-        // Enable IRQ12
-        mouse_wait(1);
-        port_64.write(0x60);
-        mouse_wait(1);
-        port_60.write(status | 2);
-        
-        // Enable Data Reporting
-        mouse_wait(1);
-        port_64.write(0xD4);
-        mouse_wait(1);
-        port_60.write(0xF4);
-        mouse_wait(0);
-        port_60.read(); // Acknowledge
-    }
+    x86_64::instructions::interrupts::without_interrupts(|| {
+        unsafe {
+            // Clear input buffer
+            while (port_64.read() & 1) == 1 {
+                port_60.read();
+            }
+
+            // Enable auxiliary mouse device
+            mouse_wait(1);
+            port_64.write(0xA8);
+            
+            // Read Compaq Status Byte
+            mouse_wait(1);
+            port_64.write(0x20);
+            mouse_wait(0);
+            let status = port_60.read();
+            
+            // Enable IRQ12 and clear disable clock bit (bit 5)
+            mouse_wait(1);
+            port_64.write(0x60);
+            mouse_wait(1);
+            port_60.write((status | 2) & !0x20);
+            
+            // Set Defaults
+            mouse_wait(1);
+            port_64.write(0xD4);
+            mouse_wait(1);
+            port_60.write(0xF6);
+            mouse_wait(0);
+            port_60.read(); // Acknowledge
+
+            // Enable Data Reporting
+            mouse_wait(1);
+            port_64.write(0xD4);
+            mouse_wait(1);
+            port_60.write(0xF4);
+            mouse_wait(0);
+            port_60.read(); // Acknowledge
+        }
+    });
 }
 
 pub fn init_idt() {
