@@ -206,8 +206,11 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
                 if packet == 0xFA {
                     // Do nothing
                 }
-                // Ensure alignment: PS/2 Byte 1 always has bit 3 set to 1
-                else if (packet & 8) == 8 {
+                // Ensure alignment: PS/2 Byte 1 always has bit 3 set to 1.
+                // We also check that overflow bits (bit 6 and 7) are 0 to prevent 
+                // misinterpreting a negative X/Y movement byte (like 0xFE) as a header.
+                // 0xC8 = 11001000b (Checks bit 7, 6, and 3). 
+                else if (packet & 0xC8) == 0x08 {
                     MOUSE_PACKET[0] = packet;
                     MOUSE_CYCLE = 1;
                 }

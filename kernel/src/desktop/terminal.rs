@@ -63,7 +63,44 @@ impl TerminalApp {
 
         match parts[0] {
             "help" => {
-                self.print(String::from("Available commands: help, clear, echo, date, uname, sysinfo, mem, reboot, ping, ls, touch, rm, cat, mkdir, cd, pwd"), cmd_color);
+                if parts.len() > 1 {
+                    match parts[1] {
+                        "ping" => {
+                            self.print(String::from("Command: ping"), (0, 200, 255));
+                            self.print(String::from("Description: Sends ICMP ECHO_REQUEST packets to network hosts to check connectivity."), cmd_color);
+                            self.print(String::from("Syntax: ping <ip_address>"), cmd_color);
+                            self.print(String::from("Example: ping 8.8.8.8"), cmd_color);
+                            self.print(String::from("Note: Press Ctrl+C to cancel an ongoing ping."), (200, 200, 200));
+                        }
+                        "sysfetch" => {
+                            self.print(String::from("Command: sysfetch"), (0, 200, 255));
+                            self.print(String::from("Description: Displays a cool ASCII logo and system information."), cmd_color);
+                        }
+                        _ => {
+                            self.print(format!("No detailed help available for '{}'.", parts[1]), err_color);
+                        }
+                    }
+                } else {
+                    self.print(String::from("RustOS v0.2 - Available Commands"), (0, 200, 255));
+                    self.print(String::from("Type 'help <command>' for specific details."), (200, 200, 200));
+                    self.print(String::from(""), cmd_color);
+                    self.print(String::from("SYSTEM     sysinfo, uname, mem, sysfetch, date, reboot, clear"), cmd_color);
+                    self.print(String::from("NETWORK    ping"), cmd_color);
+                    self.print(String::from("FILE       ls, cd, pwd, cat, touch, mkdir, rm, echo"), cmd_color);
+                }
+            }
+            "sysfetch" => {
+                self.print(String::from("   ____           _    ___  ____  "), (0, 200, 255));
+                self.print(String::from("  |  _ \\ _   _ __| |_ / _ \\/ ___| "), (0, 200, 255));
+                self.print(String::from("  | |_) | | | / __| __| | | \\___ \\"), (0, 200, 255));
+                self.print(String::from("  |  _ <| |_| \\__ \\ |_| |_| |___) |"), (0, 200, 255));
+                self.print(String::from("  |_| \\_\\\\__,_|___/\\__|\\___/|____/ "), (0, 200, 255));
+                self.print(String::from(""), cmd_color);
+                self.print(String::from("  OS: RustOS v0.2 Bare-Metal"), cmd_color);
+                self.print(String::from("  Arch: x86_64"), cmd_color);
+                self.print(format!("  Uptime: {} ticks", self.ticks), cmd_color);
+                self.print(String::from("  RAM: 128 MB (Emulated)"), cmd_color);
+                self.print(String::from("  Shell: RustTerm 1.0"), cmd_color);
             }
             "clear" => {
                 self.output.clear();
