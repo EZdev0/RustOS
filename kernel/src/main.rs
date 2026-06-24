@@ -79,9 +79,10 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             notepad_app.handle_event(desktop::app::Event::KeyPress(c));
         }
 
+        let phys_offset = boot_info.physical_memory_offset.into_option().unwrap_or(0);
         // Initialize PCI and Network
         let pci_devices = hardware::pci::scan_pci();
-        if let Some(e1000) = hardware::e1000::init_e1000(&pci_devices) {
+        if let Some(e1000) = hardware::e1000::init_e1000(&pci_devices, phys_offset) {
             let mac = e1000.mac_address();
             let pci_str = alloc::format!("\n[PCI] Intel PRO/1000 E1000 Network Card found!\n[NET] MAC Address: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}\n", 
                 mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

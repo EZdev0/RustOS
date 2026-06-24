@@ -59,10 +59,11 @@ pub struct E1000 {
     tx_buffers: Vec<[u8; BUFFER_SIZE]>,
     rx_index: usize,
     tx_index: usize,
+    phys_offset: u64,
 }
 
 impl E1000 {
-    pub fn new(pci_device: &PciDevice) -> Self {
+    pub fn new(pci_device: &PciDevice, phys_offset: u64) -> Self {
         let mut mmio_base = (pci_device.bar0 & !0xF) as usize;
         
         // SAFETY FIX: In some QEMU configurations without SeaBIOS, BAR0 is uninitialized (0).
@@ -99,6 +100,7 @@ impl E1000 {
             tx_buffers: Vec::new(),
             rx_index: 0,
             tx_index: 0,
+            phys_offset,
         }
     }
 
@@ -120,10 +122,10 @@ impl E1000 {
 
             // RX
             for i in 0..RX_RING_SIZE {
-                self.rx_ring[i].addr = self.rx_buffers[i].as_ptr() as u64;
+                self.rx_ring[i].addr = (self.rx_buffers[i].as_ptr() as u64).saturating_sub(self.phys_offset);
             }
 
-            let rx_addr = self.rx_ring.as_ptr() as u64;
+            let rx_addr = (self.rx_ring.as_ptr() as u64).saturating_sub(self.phys_offset);
             self.write_register(REG_RDBAL, (rx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_RDBAH, (rx_addr >> 32) as u32);
             self.write_register(REG_RDLEN, (RX_RING_SIZE * core::mem::size_of::<RxDesc>()) as u32);
@@ -135,10 +137,10 @@ impl E1000 {
 
             // TX
             for i in 0..TX_RING_SIZE {
-                self.tx_ring[i].addr = self.tx_buffers[i].as_ptr() as u64;
+                self.tx_ring[i].addr = (self.tx_buffers[i].as_ptr() as u64).saturating_sub(self.phys_offset);
             }
 
-            let tx_addr = self.tx_ring.as_ptr() as u64;
+            let tx_addr = (self.tx_ring.as_ptr() as u64).saturating_sub(self.phys_offset);
             self.write_register(REG_TDBAL, (tx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_TDBAH, (tx_addr >> 32) as u32);
             self.write_register(REG_TDLEN, (TX_RING_SIZE * core::mem::size_of::<TxDesc>()) as u32);
@@ -159,8 +161,8 @@ impl E1000 {
         
         self.tx_buffers[idx][..data.len()].copy_from_slice(data);
         
-        // IMPORTANT: In a real system, subtract physical_memory_offset here.
-        self.tx_ring[idx].addr = self.tx_buffers[idx].as_ptr() as u64;
+        // Convert virtual to physical address for DMA
+        self.tx_ring[idx].addr = (self.tx_buffers[idx].as_ptr() as u64).saturating_sub(self.phys_offset);
         self.tx_ring[idx].length = data.len() as u16;
         self.tx_ring[idx].cmd = (1 << 3) | (1 << 1) | 1; // RS | IFCS | EOP
         self.tx_ring[idx].status = 0;
@@ -212,10 +214,10 @@ impl E1000 {
     }
 }
 
-pub fn init_e1000(devices: &[PciDevice]) -> Option<E1000> {
+pub fn init_e1000(devices: &[PciDevice], phys_offset: u64) -> Option<E1000> {
     for dev in devices {
         if dev.vendor_id == E1000_VENDOR_ID && dev.device_id == E1000_DEVICE_ID {
-            let mut nic = E1000::new(dev);
+            let mut nic = E1000::new(dev, phys_offset);
             nic.init();
             return Some(nic);
         }
