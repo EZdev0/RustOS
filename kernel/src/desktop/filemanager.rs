@@ -62,7 +62,7 @@ impl App for FileManagerApp {
         
         // Sidebar
         let sidebar_width = 120;
-        let mut content_width = width.saturating_sub(sidebar_width);
+        let content_width = width.saturating_sub(sidebar_width);
         compositor.draw_rect(x, y, sidebar_width, height, sb_r, sb_g, sb_b);
         draw_string(compositor, x + 10, y + 10, "Favorites", sub_text_r, sub_text_g, sub_text_b);
         draw_string(compositor, x + 10, y + 30, " Desktop", text_r, text_g, text_b);
@@ -87,12 +87,7 @@ impl App for FileManagerApp {
         let max_scroll = (total_content_height as isize - available_height as isize).max(0);
 
         self.scroll_y = self.scroll_y.clamp(0, max_scroll);
-
-        if max_scroll > 0 {
-            content_width = content_width.saturating_sub(10); // scrollbar space
-        }
-
-        // Content area - File list
+        // Removed scrollbar space deduction to render as overlay
         let content_x = x + sidebar_width + 10;
         let mut content_y = (y + toolbar_height + 10) as isize - self.scroll_y;
         

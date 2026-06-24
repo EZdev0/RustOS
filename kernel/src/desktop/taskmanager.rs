@@ -221,7 +221,7 @@ impl App for TaskManagerApp {
             (AccordionSection::Support, "Support"),
         ];
 
-        let content_width = if max_scroll > 0 { width.saturating_sub(10) } else { width };
+        let content_width = width;
 
         let mut current_y = y as isize + 5 - self.scroll_y;
         

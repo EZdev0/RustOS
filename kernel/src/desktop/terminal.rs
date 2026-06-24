@@ -360,7 +360,7 @@ impl App for TerminalApp {
 
         let padding = 10;
         let max_lines = if height > 2 * padding { (height - 2 * padding) / 12 } else { 0 };
-        let chars_per_line = if width > 2 * padding { (width - 2 * padding - 10) / 8 } else { 1 };
+        let chars_per_line = if width > 2 * padding { (width - 2 * padding) / 8 } else { 1 };
 
         let mut visual_lines = 0;
         for (line, _) in &self.output {
@@ -385,7 +385,7 @@ impl App for TerminalApp {
 
         let start_line = self.scroll_y as usize;
         let mut current_visual_line = 0;
-        let content_width = width.saturating_sub(10); // leave space for scrollbar
+        let content_width = width; // Draw scrollbar as an overlay
 
         for (line, color) in &self.output {
             let mut cur_x = x + padding;

@@ -37,6 +37,8 @@ pub struct GraphicalCompositor {
     pub renderer: IntelligentRenderer,
     pub clip_rect: Option<Rect>,
     pub apps: Vec<crate::desktop::app::AppDescriptor>,
+    pub last_scroll_y: usize,
+    pub last_scroll_tick: usize,
 }
 
 
@@ -144,6 +146,8 @@ impl GraphicalCompositor {
             renderer,
             clip_rect: None,
             apps,
+            last_scroll_y: 0,
+            last_scroll_tick: 0,
         }
     }
 
@@ -856,17 +860,28 @@ impl GraphicalCompositor {
     pub fn draw_scrollbar(&mut self, x: usize, y: usize, height: usize, scroll_y: usize, max_scroll: usize) {
         if max_scroll == 0 { return; }
         
+        // Auto-Hide logic: if scroll_y changes, reset the timer.
+        // We use a hacky way to track it per-app by just seeing if the global drawn scroll_y changed.
+        // Since we only draw one focused app's scrollbar per frame usually, this works nicely.
+        if self.last_scroll_y != scroll_y {
+            self.last_scroll_y = scroll_y;
+            self.last_scroll_tick = self.ticks;
+        }
+
+        // Hide scrollbar after 120 ticks (approx 2 seconds) of inactivity
+        if self.ticks.saturating_sub(self.last_scroll_tick) > 120 {
+            return;
+        }
+
         let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
-        let (bg_r, bg_g, bg_b) = if is_dark { (40, 40, 45) } else { (230, 230, 230) };
         let (handle_r, handle_g, handle_b) = if is_dark { (100, 100, 110) } else { (160, 160, 160) };
 
-        self.draw_rect(x, y, 10, height, bg_r, bg_g, bg_b);
-        
         let handle_height = (height * height) / (height + max_scroll).max(1);
         let handle_height = handle_height.max(20);
         let handle_y = y + (scroll_y * (height - handle_height)) / max_scroll.max(1);
         
-        self.draw_rect(x + 2, handle_y, 6, handle_height, handle_r, handle_g, handle_b);
+        // Draw only the scroll handle as a floating overlay
+        self.draw_rect(x + 4, handle_y, 4, handle_height, handle_r, handle_g, handle_b);
     }
 
     pub fn dispatch_keyboard_event(&mut self, c: char) {

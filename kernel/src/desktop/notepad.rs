@@ -47,7 +47,7 @@ impl App for NotepadApp {
 
         let padding = 10;
         let max_lines = if height > 2 * padding { (height - 2 * padding) / 12 } else { 0 };
-        let content_width = width.saturating_sub(10);
+        let content_width = width;
         let chars_per_line = if content_width > 2 * padding { (content_width - 2 * padding) / 8 } else { 1 };
         
         let mut visual_lines = 1;
