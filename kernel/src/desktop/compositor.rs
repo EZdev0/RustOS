@@ -381,18 +381,42 @@ impl GraphicalCompositor {
         let width = self.info.width;
         let height = self.info.height;
 
-        for y in 0..height {
-            let r = 15 + (y * 20 / height) as u8;
-            let g = 20 + (y * 25 / height) as u8;
-            let b = 30 + (y * 35 / height) as u8;
-            for x in 0..width {
-                self.draw_pixel(x, y, r, g, b);
+        let rects_to_draw = if self.full_redraw {
+            alloc::vec![Rect { x: 0, y: 0, width, height }]
+        } else {
+            self.dirty_rects.clone()
+        };
+
+        for rect in &rects_to_draw {
+            let start_y = rect.y;
+            let end_y = (rect.y + rect.height).min(height);
+            let start_x = rect.x;
+            let end_x = (rect.x + rect.width).min(width);
+            
+            for y in start_y..end_y {
+                let r = 15 + (y * 20 / height) as u8;
+                let g = 20 + (y * 25 / height) as u8;
+                let b = 30 + (y * 35 / height) as u8;
+                self.draw_hline(start_x, end_x, y, r, g, b);
             }
         }
 
-        for dy in 0..28 {
-            for dx in 0..width {
-                self.blend_pixel(dx, dy, 10, 10, 15, 180);
+        let top_rects = if self.full_redraw {
+            alloc::vec![Rect { x: 0, y: 0, width, height: 28 }]
+        } else {
+            self.dirty_rects.iter().filter(|r| r.y < 28).cloned().collect::<Vec<_>>()
+        };
+
+        for rect in top_rects {
+            let start_x = rect.x;
+            let end_x = (rect.x + rect.width).min(width);
+            let start_y = rect.y;
+            let end_y = (rect.y + rect.height).min(28);
+
+            for dy in start_y..end_y {
+                for dx in start_x..end_x {
+                    self.blend_pixel(dx, dy, 10, 10, 15, 180);
+                }
             }
         }
         self.draw_char(10, 6, 'V', 0, 180, 255);
@@ -583,6 +607,18 @@ impl GraphicalCompositor {
         if diff > 0 && diff < 4 { self.dock_y_offset += 1; }
         else if diff < 0 && diff > -4 { self.dock_y_offset -= 1; }
 
+        let dock_w = 440;
+        let dock_h = 60;
+        let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
+        let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
+        let dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
+        self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
+        self.dirty_rects.push(Rect { x: 0, y: 0, width: self.info.width, height: 28 }); // Top bar clock
+
+        for w in self.windows.iter().flatten() {
+            self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
+        }
+
         self.render_desktop();
         
         let num_windows = self.windows.len();
@@ -694,11 +730,6 @@ impl GraphicalCompositor {
             let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
             let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
             let dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
-            self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
-
-            for w in self.windows.iter().flatten() {
-                self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
-            }
 
             let bpp = self.info.bytes_per_pixel;
             let stride = self.info.stride;

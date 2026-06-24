@@ -158,6 +158,23 @@ pub fn init(mut e1000: E1000) {
     });
 }
 
+struct YieldNow {
+    yielded: bool,
+}
+
+impl core::future::Future for YieldNow {
+    type Output = ();
+    fn poll(mut self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> core::task::Poll<()> {
+        if self.yielded {
+            core::task::Poll::Ready(())
+        } else {
+            self.yielded = true;
+            cx.waker().wake_by_ref();
+            core::task::Poll::Pending
+        }
+    }
+}
+
 #[allow(clippy::unused_async)]
 pub async fn network_task() {
     loop {
@@ -166,10 +183,6 @@ pub async fn network_task() {
             nm.poll(ticks as u64);
         }
         
-        let mut counter = 0;
-        while counter < 10000 {
-            core::hint::spin_loop();
-            counter += 1;
-        }
+        YieldNow { yielded: false }.await;
     }
 }
