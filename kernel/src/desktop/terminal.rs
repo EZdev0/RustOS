@@ -220,7 +220,9 @@ impl TerminalApp {
                 }
             }
             "date" => {
-                self.print(String::from("Tue Jun 23 10:58:18 UTC 2026 (Fake Time)"), cmd_color);
+                let rtc = crate::hardware::rtc::read_rtc();
+                self.print(format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", 
+                    rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second), cmd_color);
             }
             "uname" => {
                 let mut sys_name = String::from("RustOS x86_64");
