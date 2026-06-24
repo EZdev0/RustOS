@@ -14,6 +14,7 @@ pub struct FileManagerApp {
     items: Vec<(String, bool)>,
     new_file_name: String,
     is_creating_file: bool,
+    ticks: usize,
 }
 
 impl Default for FileManagerApp {
@@ -24,10 +25,11 @@ impl Default for FileManagerApp {
 
 impl FileManagerApp {
     pub fn new() -> Self {
-        Self {
+        FileManagerApp {
             items: crate::fs::RAM_FS.list_dir("").unwrap_or_default(),
             new_file_name: String::new(),
             is_creating_file: false,
+            ticks: 0,
         }
     }
 }
@@ -38,29 +40,40 @@ impl App for FileManagerApp {
     }
 
     fn update(&mut self) {
-        self.items = crate::fs::RAM_FS.list_dir("").unwrap_or_default();
+        self.ticks += 1;
+        // Optimization: Only scan the filesystem once per second to prevent 60FPS I/O stuttering
+        if self.ticks.is_multiple_of(60) {
+            self.items = crate::fs::RAM_FS.list_dir("").unwrap_or_default();
+        }
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
-        // MacOS-like background
-        compositor.draw_rect(x, y, width, height, 240, 240, 245);
+        let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
+        let (bg_r, bg_g, bg_b) = if is_dark { (30, 30, 35) } else { (240, 240, 245) };
+        let (sb_r, sb_g, sb_b) = if is_dark { (40, 40, 45) } else { (220, 220, 230) };
+        let (tb_r, tb_g, tb_b) = if is_dark { (45, 45, 50) } else { (230, 230, 240) };
+        let (text_r, text_g, text_b) = if is_dark { (220, 220, 220) } else { (50, 50, 60) };
+        let (sub_text_r, sub_text_g, sub_text_b) = if is_dark { (180, 180, 190) } else { (100, 100, 110) };
+        let (line_r, line_g, line_b) = if is_dark { (60, 60, 65) } else { (200, 200, 200) };
+
+        compositor.draw_rect(x, y, width, height, bg_r, bg_g, bg_b);
         
         // Sidebar
         let sidebar_width = 120;
         let content_width = width.saturating_sub(sidebar_width);
-        compositor.draw_rect(x, y, sidebar_width, height, 220, 220, 230);
-        draw_string(compositor, x + 10, y + 10, "Favorites", 100, 100, 110);
-        draw_string(compositor, x + 10, y + 30, " Desktop", 50, 50, 60);
-        draw_string(compositor, x + 10, y + 50, " Documents", 50, 50, 60);
+        compositor.draw_rect(x, y, sidebar_width, height, sb_r, sb_g, sb_b);
+        draw_string(compositor, x + 10, y + 10, "Favorites", sub_text_r, sub_text_g, sub_text_b);
+        draw_string(compositor, x + 10, y + 30, " Desktop", text_r, text_g, text_b);
+        draw_string(compositor, x + 10, y + 50, " Documents", text_r, text_g, text_b);
         
         // Toolbar
         let toolbar_height = 40;
-        compositor.draw_rect(x + sidebar_width, y, content_width, toolbar_height, 230, 230, 240);
-        draw_string(compositor, x + sidebar_width + 10, y + 15, "New File: Type name & press Enter", 80, 80, 90);
+        compositor.draw_rect(x + sidebar_width, y, content_width, toolbar_height, tb_r, tb_g, tb_b);
+        draw_string(compositor, x + sidebar_width + 10, y + 15, "New File: Type name & press Enter", sub_text_r, sub_text_g, sub_text_b);
         
         // Separator lines
-        compositor.draw_rect(x + sidebar_width - 1, y, 1, height, 200, 200, 200); 
-        compositor.draw_rect(x + sidebar_width, y + toolbar_height - 1, content_width, 1, 200, 200, 200);
+        compositor.draw_rect(x + sidebar_width - 1, y, 1, height, line_r, line_g, line_b); 
+        compositor.draw_rect(x + sidebar_width, y + toolbar_height - 1, content_width, 1, line_r, line_g, line_b);
         
         // Content area - File list
         let content_x = x + sidebar_width + 10;
@@ -82,15 +95,21 @@ impl App for FileManagerApp {
                 compositor.draw_rect(content_x, content_y, 10, 4, 100, 180, 255);
             }
             
-            draw_string(compositor, content_x + 30, content_y + 4, name, 30, 30, 40);
+            let max_chars = if content_width > 40 { (content_width - 40) / 8 } else { 0 };
+            let display_name = if name.chars().count() > max_chars && max_chars > 3 {
+                alloc::format!("{}...", &name[..max_chars - 3])
+            } else {
+                name.clone()
+            };
+            draw_string(compositor, content_x + 30, content_y + 4, &display_name, text_r, text_g, text_b);
             content_y += 30;
         }
 
         // Show typing indicator if creating file
         if (self.is_creating_file || !self.new_file_name.is_empty()) && content_y + 20 <= y + height {
             compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255); // Doc icon
-            draw_string(compositor, content_x + 30, content_y + 4, &self.new_file_name, 0, 0, 255);
-            draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y + 4, "_", 0, 0, 255);
+            draw_string(compositor, content_x + 30, content_y + 4, &self.new_file_name, 0, 120, 255);
+            draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y + 4, "_", 0, 120, 255);
         }
     }
 
