@@ -57,5 +57,8 @@ pub async fn timer_task(compositor: alloc::sync::Arc<spin::Mutex<crate::desktop:
     
     while ticks.next().await.is_some() {
         compositor.lock().render_all();
+        // Force yield to the executor to prevent starving the mouse/keyboard tasks 
+        // if render_all() takes longer than 16ms!
+        crate::task::yield_now::yield_now().await;
     }
 }
