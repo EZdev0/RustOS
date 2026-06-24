@@ -17,6 +17,8 @@ pub struct TaskManagerApp {
     ram_history: Vec<u8>,
     expanded_section: Option<AccordionSection>,
     scroll_y: isize,
+    last_width: usize,
+    last_height: usize,
 }
 
 impl Default for TaskManagerApp {
@@ -33,6 +35,8 @@ impl TaskManagerApp {
             ram_history: alloc::vec![0; 50],
             expanded_section: Some(AccordionSection::Performance),
             scroll_y: 0,
+            last_width: 600,
+            last_height: 400,
         }
     }
 
@@ -195,6 +199,8 @@ impl App for TaskManagerApp {
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+        self.last_width = width;
+        self.last_height = height;
         let mut total_content_height = 5isize;
         let sections = [
             AccordionSection::Performance,
@@ -286,10 +292,9 @@ impl App for TaskManagerApp {
                     }
                     total_content_height += 5; // spacing
                 }
-                let max_scroll = (total_content_height - 300).max(0); // Approximate height for max_scroll check
-
-                if max_scroll > 0 && rel_x >= 390 { // Approximate width = 400
-                    self.scroll_y = (rel_y as isize * max_scroll) / 300; // Approximate height = 300
+                let max_scroll = (total_content_height - self.last_height as isize).max(0);
+                if max_scroll > 0 && rel_x >= self.last_width.saturating_sub(10) { 
+                    self.scroll_y = (rel_y as isize * max_scroll) / self.last_height as isize;
                     return;
                 }
 
