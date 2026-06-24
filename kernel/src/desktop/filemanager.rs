@@ -15,6 +15,7 @@ pub struct FileManagerApp {
     new_file_name: String,
     is_creating_file: bool,
     ticks: usize,
+    scroll_y: isize,
 }
 
 impl Default for FileManagerApp {
@@ -30,6 +31,7 @@ impl FileManagerApp {
             new_file_name: String::new(),
             is_creating_file: false,
             ticks: 0,
+            scroll_y: 0,
         }
     }
 }
@@ -60,7 +62,7 @@ impl App for FileManagerApp {
         
         // Sidebar
         let sidebar_width = 120;
-        let content_width = width.saturating_sub(sidebar_width);
+        let mut content_width = width.saturating_sub(sidebar_width);
         compositor.draw_rect(x, y, sidebar_width, height, sb_r, sb_g, sb_b);
         draw_string(compositor, x + 10, y + 10, "Favorites", sub_text_r, sub_text_g, sub_text_b);
         draw_string(compositor, x + 10, y + 30, " Desktop", text_r, text_g, text_b);
@@ -75,42 +77,61 @@ impl App for FileManagerApp {
         compositor.draw_rect(x + sidebar_width - 1, y, 1, height, line_r, line_g, line_b); 
         compositor.draw_rect(x + sidebar_width, y + toolbar_height - 1, content_width, 1, line_r, line_g, line_b);
         
+        let mut item_count = self.items.len();
+        if self.is_creating_file || !self.new_file_name.is_empty() {
+            item_count += 1;
+        }
+
+        let total_content_height = item_count * 30 + 10;
+        let available_height = height.saturating_sub(toolbar_height);
+        let max_scroll = (total_content_height as isize - available_height as isize).max(0);
+
+        self.scroll_y = self.scroll_y.clamp(0, max_scroll);
+
+        if max_scroll > 0 {
+            content_width = content_width.saturating_sub(10); // scrollbar space
+        }
+
         // Content area - File list
         let content_x = x + sidebar_width + 10;
-        let mut content_y = y + toolbar_height + 10;
+        let mut content_y = (y + toolbar_height + 10) as isize - self.scroll_y;
         
         for (name, is_dir) in &self.items {
-            if content_y + 20 > y + height { break; } 
+            if content_y > (y + height) as isize { break; } 
             
-            if !is_dir {
-                // Document icon
-                compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255);
-                compositor.draw_rect(content_x, content_y, 16, 1, 150, 150, 150);
-                compositor.draw_rect(content_x, content_y, 1, 20, 150, 150, 150);
-                compositor.draw_rect(content_x + 15, content_y, 1, 20, 150, 150, 150);
-                compositor.draw_rect(content_x, content_y + 19, 16, 1, 150, 150, 150);
-            } else {
-                // Folder icon
-                compositor.draw_rect(content_x, content_y + 4, 20, 14, 100, 180, 255);
-                compositor.draw_rect(content_x, content_y, 10, 4, 100, 180, 255);
+            if content_y >= (y + toolbar_height) as isize {
+                if !is_dir {
+                    // Document icon
+                    compositor.draw_rect(content_x, content_y as usize, 16, 20, 255, 255, 255);
+                    compositor.draw_rect(content_x, content_y as usize, 16, 1, 150, 150, 150);
+                    compositor.draw_rect(content_x, content_y as usize, 1, 20, 150, 150, 150);
+                    compositor.draw_rect(content_x + 15, content_y as usize, 1, 20, 150, 150, 150);
+                    compositor.draw_rect(content_x, content_y as usize + 19, 16, 1, 150, 150, 150);
+                } else {
+                    // Folder icon
+                    compositor.draw_rect(content_x, content_y as usize + 4, 20, 14, 100, 180, 255);
+                    compositor.draw_rect(content_x, content_y as usize, 10, 4, 100, 180, 255);
+                }
+                
+                let max_chars = if content_width > 40 { (content_width - 40) / 8 } else { 0 };
+                let display_name = if name.chars().count() > max_chars && max_chars > 3 {
+                    alloc::format!("{}...", &name[..max_chars - 3])
+                } else {
+                    name.clone()
+                };
+                draw_string(compositor, content_x + 30, content_y as usize + 4, &display_name, text_r, text_g, text_b);
             }
-            
-            let max_chars = if content_width > 40 { (content_width - 40) / 8 } else { 0 };
-            let display_name = if name.chars().count() > max_chars && max_chars > 3 {
-                alloc::format!("{}...", &name[..max_chars - 3])
-            } else {
-                name.clone()
-            };
-            draw_string(compositor, content_x + 30, content_y + 4, &display_name, text_r, text_g, text_b);
             content_y += 30;
         }
 
         // Show typing indicator if creating file
-        if (self.is_creating_file || !self.new_file_name.is_empty()) && content_y + 20 <= y + height {
-            compositor.draw_rect(content_x, content_y, 16, 20, 255, 255, 255); // Doc icon
-            draw_string(compositor, content_x + 30, content_y + 4, &self.new_file_name, 0, 120, 255);
-            draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y + 4, "_", 0, 120, 255);
+        if (self.is_creating_file || !self.new_file_name.is_empty()) && content_y <= (y + height) as isize && content_y >= (y + toolbar_height) as isize {
+            compositor.draw_rect(content_x, content_y as usize, 16, 20, 255, 255, 255); // Doc icon
+            draw_string(compositor, content_x + 30, content_y as usize + 4, &self.new_file_name, 0, 120, 255);
+            draw_string(compositor, content_x + 30 + self.new_file_name.len() * 8, content_y as usize + 4, "_", 0, 120, 255);
         }
+
+        compositor.draw_scrollbar(x + width - 10, y + toolbar_height, available_height, self.scroll_y as usize, max_scroll as usize);
     }
 
     fn handle_event(&mut self, event: Event) {
@@ -135,16 +156,22 @@ impl App for FileManagerApp {
                 let toolbar_height = 40;
                 // Prüfe ob Klick im Bereich der Dateiliste war
                 if x > sidebar_width && y > toolbar_height + 10 {
-                    let item_y_offset = y.saturating_sub(toolbar_height + 10);
-                    let idx = item_y_offset / 30; // 30 Pixel Höhe pro Datei-Element
-                    if idx < self.items.len() {
-                        let (name, is_dir) = &self.items[idx];
-                        if !*is_dir {
-                            let _ = crate::fs::RAM_FS.delete_file(name);
-                            self.update();
+                    let item_y_offset = y.saturating_sub(toolbar_height + 10) as isize + self.scroll_y;
+                    if item_y_offset >= 0 {
+                        let idx = (item_y_offset as usize) / 30; // 30 Pixel Höhe pro Datei-Element
+                        if idx < self.items.len() {
+                            let (name, is_dir) = &self.items[idx];
+                            if !*is_dir {
+                                let _ = crate::fs::RAM_FS.delete_file(name);
+                                self.update();
+                            }
                         }
                     }
                 }
+            }
+            Event::MouseScroll { delta } => {
+                self.scroll_y += (delta as isize) * 30; // 30 is item height
+                if self.scroll_y < 0 { self.scroll_y = 0; }
             }
             _ => {}
         }

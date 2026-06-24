@@ -853,6 +853,22 @@ impl GraphicalCompositor {
         }
     }
 
+    pub fn draw_scrollbar(&mut self, x: usize, y: usize, height: usize, scroll_y: usize, max_scroll: usize) {
+        if max_scroll == 0 { return; }
+        
+        let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
+        let (bg_r, bg_g, bg_b) = if is_dark { (40, 40, 45) } else { (230, 230, 230) };
+        let (handle_r, handle_g, handle_b) = if is_dark { (100, 100, 110) } else { (160, 160, 160) };
+
+        self.draw_rect(x, y, 10, height, bg_r, bg_g, bg_b);
+        
+        let handle_height = (height * height) / (height + max_scroll).max(1);
+        let handle_height = handle_height.max(20);
+        let handle_y = y + (scroll_y * (height - handle_height)) / max_scroll.max(1);
+        
+        self.draw_rect(x + 2, handle_y, 6, handle_height, handle_r, handle_g, handle_b);
+    }
+
     pub fn dispatch_keyboard_event(&mut self, c: char) {
         if let Some(Some(window)) = self.windows.last_mut() {
             window.app.handle_event(Event::KeyPress(c));

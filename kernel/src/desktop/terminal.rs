@@ -12,6 +12,7 @@ pub struct TerminalApp {
     current_path: String,
     ping_state: Option<([u8; 4], u16)>,
     ping_delay: usize,
+    scroll_y: isize,
 }
 
 impl Default for TerminalApp {
@@ -34,6 +35,7 @@ impl TerminalApp {
             current_path: String::new(),
             ping_state: None,
             ping_delay: 0,
+            scroll_y: -1, // -1 means auto-scroll to bottom
         }
     }
 
@@ -42,6 +44,7 @@ impl TerminalApp {
         if self.output.len() > 500 {
             self.output.remove(0);
         }
+        self.scroll_y = -1; // Auto-scroll to bottom on new output
     }
 
     fn execute_command(&mut self) {
@@ -318,7 +321,7 @@ impl App for TerminalApp {
 
         let padding = 10;
         let max_lines = if height > 2 * padding { (height - 2 * padding) / 12 } else { 0 };
-        let chars_per_line = if width > 2 * padding { (width - 2 * padding) / 8 } else { 1 };
+        let chars_per_line = if width > 2 * padding { (width - 2 * padding - 10) / 8 } else { 1 };
 
         let mut visual_lines = 0;
         for (line, _) in &self.output {
@@ -329,20 +332,28 @@ impl App for TerminalApp {
         let input_len = 2 + self.input_buffer.chars().count();
         visual_lines += if input_len == 0 { 1 } else { input_len.div_ceil(chars_per_line) };
 
-        let start_line = if visual_lines > max_lines && max_lines > 0 {
+        let max_scroll = if visual_lines > max_lines && max_lines > 0 {
             visual_lines - max_lines
         } else {
             0
         };
 
+        if self.scroll_y == -1 {
+            self.scroll_y = max_scroll as isize;
+        } else {
+            self.scroll_y = self.scroll_y.clamp(0, max_scroll as isize);
+        }
+
+        let start_line = self.scroll_y as usize;
         let mut current_visual_line = 0;
+        let content_width = width.saturating_sub(10); // leave space for scrollbar
 
         for (line, color) in &self.output {
             let mut cur_x = x + padding;
             let mut line_empty = true;
             for c in line.chars() {
                 line_empty = false;
-                if cur_x + 8 > x + width - padding {
+                if cur_x + 8 > x + content_width - padding {
                     current_visual_line += 1;
                     cur_x = x + padding;
                 }
@@ -365,7 +376,7 @@ impl App for TerminalApp {
         
         let prompt = "> ";
         for c in prompt.chars() {
-            if cur_x + 8 > x + width - padding {
+            if cur_x + 8 > x + content_width - padding {
                 current_visual_line += 1;
                 cur_x = x + padding;
             }
@@ -379,7 +390,7 @@ impl App for TerminalApp {
         }
 
         for c in self.input_buffer.chars() {
-            if cur_x + 8 > x + width - padding {
+            if cur_x + 8 > x + content_width - padding {
                 current_visual_line += 1;
                 cur_x = x + padding;
             }
@@ -393,7 +404,7 @@ impl App for TerminalApp {
         }
 
         if self.cursor_visible {
-            if cur_x + 8 > x + width - padding {
+            if cur_x + 8 > x + content_width - padding {
                 current_visual_line += 1;
                 cur_x = x + padding;
             }
@@ -404,27 +415,44 @@ impl App for TerminalApp {
                 }
             }
         }
+
+        compositor.draw_scrollbar(x + width - 10, y, height, self.scroll_y as usize, max_scroll);
     }
 
     fn handle_event(&mut self, event: Event) {
-        if let Event::KeyPress(c) = event {
-            if c == '\x03' { // Ctrl+C to cancel ping
-                if self.ping_state.is_some() {
-                    self.print(String::from("Ping canceled."), (255, 255, 0));
-                    self.ping_state = None;
+        match event {
+            Event::KeyPress(c) => {
+                if c == '\x03' { // Ctrl+C to cancel ping
+                    if self.ping_state.is_some() {
+                        self.print(String::from("Ping canceled."), (255, 255, 0));
+                        self.ping_state = None;
+                    }
+                    return;
                 }
-                return;
-            }
-            if self.ping_state.is_some() {
-                return; // Ignore typing while ping is running
-            }
-            if c == '\n' || c == '\r' {
-                self.execute_command();
-            } else if c == '\x08' {
-                let _ = self.input_buffer.pop();
-            } else {
-                self.input_buffer.push(c);
-            }
+                if self.ping_state.is_some() {
+                    return; // Ignore typing while ping is running
+                }
+                if c == '\n' || c == '\r' {
+                    self.execute_command();
+                } else if c == '\x08' {
+                    let _ = self.input_buffer.pop();
+                } else {
+                    self.input_buffer.push(c);
+                }
+                self.scroll_y = -1; // Scroll down when typing
+            },
+            Event::MouseScroll { delta } => {
+                if self.scroll_y == -1 {
+                    // It will be calculated in draw() next frame, but roughly guess it
+                    // The easiest way is to let the user scroll up from bottom
+                }
+                self.scroll_y = self.scroll_y.saturating_add(delta as isize);
+                if self.scroll_y < 0 { self.scroll_y = 0; }
+            },
+            Event::MouseClick { x: _rel_x, y: _rel_y } => {
+                // Not passing width/height to event, we just approximate it, or we could handle scrollbar dragging
+            },
+            _ => {}
         }
     }
 }

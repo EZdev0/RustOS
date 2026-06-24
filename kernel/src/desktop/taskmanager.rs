@@ -221,6 +221,8 @@ impl App for TaskManagerApp {
             (AccordionSection::Support, "Support"),
         ];
 
+        let content_width = if max_scroll > 0 { width.saturating_sub(10) } else { width };
+
         let mut current_y = y as isize + 5 - self.scroll_y;
         
         for (section, title) in sections.iter() {
@@ -228,7 +230,7 @@ impl App for TaskManagerApp {
             
             // Only draw header if it's within bounds or just let clipping handle it
             let header_height = if current_y > y as isize - 25 && current_y < (y + height) as isize {
-                self.draw_header(compositor, title, x + 5, current_y as usize, width - 10, is_expanded) as isize
+                self.draw_header(compositor, title, x + 5, current_y as usize, content_width - 10, is_expanded) as isize
             } else {
                 25 // Assume fixed height for header
             };
@@ -239,22 +241,22 @@ impl App for TaskManagerApp {
                 let content_height = match section {
                     AccordionSection::Performance => {
                         if current_y > y as isize - 160 && current_y < (y + height) as isize {
-                            self.draw_performance(compositor, x + 5, current_y as usize, width - 10) as isize
+                            self.draw_performance(compositor, x + 5, current_y as usize, content_width - 10) as isize
                         } else { 160 }
                     },
                     AccordionSection::OsAnalysis => {
                         if current_y > y as isize - 70 && current_y < (y + height) as isize {
-                            self.draw_os_analysis(compositor, x + 5, current_y as usize, width - 10) as isize
+                            self.draw_os_analysis(compositor, x + 5, current_y as usize, content_width - 10) as isize
                         } else { 70 }
                     },
                     AccordionSection::DeviceInfo => {
                         if current_y > y as isize - 70 && current_y < (y + height) as isize {
-                            self.draw_device_info(compositor, x + 5, current_y as usize, width - 10) as isize
+                            self.draw_device_info(compositor, x + 5, current_y as usize, content_width - 10) as isize
                         } else { 70 }
                     },
                     AccordionSection::Support => {
                         if current_y > y as isize - 60 && current_y < (y + height) as isize {
-                            self.draw_support(compositor, x + 5, current_y as usize, width - 10) as isize
+                            self.draw_support(compositor, x + 5, current_y as usize, content_width - 10) as isize
                         } else { 60 }
                     },
                 };
@@ -263,21 +265,37 @@ impl App for TaskManagerApp {
             
             current_y += 5; // Spacing
         }
+
+        compositor.draw_scrollbar(x + width - 10, y, height, self.scroll_y as usize, max_scroll as usize);
     }
 
     fn handle_event(&mut self, event: Event) {
         match event {
-            Event::MouseClick { x: _rel_x, y: rel_y } => {
-                let adjusted_y = rel_y as isize + self.scroll_y;
-                let mut current_y = 5isize;
-                
+            Event::MouseClick { x: rel_x, y: rel_y } => {
+                let mut total_content_height = 5isize;
                 let sections = [
                     AccordionSection::Performance,
                     AccordionSection::OsAnalysis,
                     AccordionSection::DeviceInfo,
                     AccordionSection::Support,
                 ];
+                for section in sections.iter() {
+                    total_content_height += 25; // header
+                    if self.expanded_section == Some(*section) {
+                        total_content_height += Self::get_content_height(*section) as isize;
+                    }
+                    total_content_height += 5; // spacing
+                }
+                let max_scroll = (total_content_height - 300).max(0); // Approximate height for max_scroll check
 
+                if max_scroll > 0 && rel_x >= 390 { // Approximate width = 400
+                    self.scroll_y = (rel_y as isize * max_scroll) / 300; // Approximate height = 300
+                    return;
+                }
+
+                let adjusted_y = rel_y as isize + self.scroll_y;
+                let mut current_y = 5isize;
+                
                 for section in sections.iter() {
                     // Prüfen ob Klick im Header (25px Höhe) landete
                     if adjusted_y >= current_y && adjusted_y < current_y + 25 {
