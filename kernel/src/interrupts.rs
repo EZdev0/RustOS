@@ -66,42 +66,60 @@ pub fn init_mouse() {
     
     x86_64::instructions::interrupts::without_interrupts(|| {
         unsafe {
-            // Clear input buffer
+            // 1. Disable Keyboard & Mouse
+            mouse_wait(1);
+            port_64.write(0xAD); // Disable Keyboard
+            mouse_wait(1);
+            port_64.write(0xA7); // Disable Mouse
+            
+            // 2. Flush Output Buffer
             while (port_64.read() & 1) == 1 {
                 port_60.read();
             }
 
-            // Enable auxiliary mouse device
+            // 3. Configure Command Byte
+            mouse_wait(1);
+            port_64.write(0x20); // Read Compaq Status Byte
+            mouse_wait(0);
+            let mut status = port_60.read();
+            
+            status |= 0x03; // Enable IRQ1 (Keyboard) and IRQ12 (Mouse)
+            status &= !0x20; // Clear Mouse Clock Disable bit
+            
+            mouse_wait(1);
+            port_64.write(0x60); // Write Compaq Status Byte
+            mouse_wait(1);
+            port_60.write(status);
+
+            // 4. Enable Mouse Port
             mouse_wait(1);
             port_64.write(0xA8);
-            
-            // Read Compaq Status Byte
-            mouse_wait(1);
-            port_64.write(0x20);
-            mouse_wait(0);
-            let status = port_60.read();
-            
-            // Enable IRQ12 and clear disable clock bit (bit 5)
-            mouse_wait(1);
-            port_64.write(0x60);
-            mouse_wait(1);
-            port_60.write((status | 2) & !0x20);
-            
-            // Set Defaults
-            mouse_wait(1);
-            port_64.write(0xD4);
-            mouse_wait(1);
-            port_60.write(0xF6);
-            mouse_wait(0);
-            port_60.read(); // Acknowledge
 
-            // Enable Data Reporting
+            // 5. Reset Mouse
+            mouse_wait(1);
+            port_64.write(0xD4); // Write to Auxiliary Device
+            mouse_wait(1);
+            port_60.write(0xFF); // Reset Command
+            
+            // Wait for Reset responses: ACK (0xFA), Self-test Success (0xAA), Mouse ID (0x00)
+            mouse_wait(0);
+            port_60.read(); // ACK
+            mouse_wait(0);
+            port_60.read(); // 0xAA
+            mouse_wait(0);
+            port_60.read(); // 0x00
+
+            // 6. Enable Data Reporting
             mouse_wait(1);
             port_64.write(0xD4);
             mouse_wait(1);
             port_60.write(0xF4);
             mouse_wait(0);
-            port_60.read(); // Acknowledge
+            port_60.read(); // ACK
+
+            // 7. Re-enable Keyboard Port
+            mouse_wait(1);
+            port_64.write(0xAE);
         }
     });
 }
@@ -185,8 +203,12 @@ extern "x86-interrupt" fn mouse_interrupt_handler(_stack_frame: InterruptStackFr
     unsafe {
         match MOUSE_CYCLE {
             0 => {
+                // Ignore ACK from Limbo emulator or real hardware
+                if packet == 0xFA {
+                    // Do nothing
+                }
                 // Ensure alignment: PS/2 Byte 1 always has bit 3 set to 1
-                if (packet & 8) == 8 {
+                else if (packet & 8) == 8 {
                     MOUSE_PACKET[0] = packet;
                     MOUSE_CYCLE = 1;
                 }
