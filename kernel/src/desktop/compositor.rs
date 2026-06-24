@@ -725,11 +725,6 @@ impl GraphicalCompositor {
             self.full_redraw = false;
             self.dirty_rects.clear();
         } else {
-            let dock_w = 440;
-            let dock_h = 60;
-            let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
-            let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
-            let dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
 
             let bpp = self.info.bytes_per_pixel;
             let stride = self.info.stride;
