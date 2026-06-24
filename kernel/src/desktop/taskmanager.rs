@@ -193,6 +193,23 @@ impl App for TaskManagerApp {
     }
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+        let mut total_content_height = 5isize;
+        let sections = [
+            AccordionSection::Performance,
+            AccordionSection::OsAnalysis,
+            AccordionSection::DeviceInfo,
+            AccordionSection::Support,
+        ];
+        for section in sections.iter() {
+            total_content_height += 25; // header
+            if self.expanded_section == Some(*section) {
+                total_content_height += Self::get_content_height(*section) as isize;
+            }
+            total_content_height += 5; // spacing
+        }
+        let max_scroll = (total_content_height - height as isize).max(0);
+        self.scroll_y = self.scroll_y.clamp(0, max_scroll);
+        
         compositor.draw_rect(x, y, width, height, 30, 30, 35);
         
         let sections = [

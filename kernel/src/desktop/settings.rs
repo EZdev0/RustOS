@@ -6,6 +6,8 @@ pub struct SettingsApp {
     timezone_offset: i8, // UTC offset in hours
     show_prompt: bool,
     pending_theme: u8,
+    last_width: usize,
+    last_height: usize,
 }
 
 impl Default for SettingsApp {
@@ -21,6 +23,8 @@ impl SettingsApp {
             timezone_offset: 1, // Default: UTC+1 (Germany)
             show_prompt: false,
             pending_theme: 0,
+            last_width: 800,
+            last_height: 600,
         }
     }
 }
@@ -48,10 +52,10 @@ impl App for SettingsApp {
             let sidebar_width = 150;
 
             if self.show_prompt {
-                let px = 100;
-                let py = 100;
                 let pw = 300;
                 let ph = 120;
+                let px = (self.last_width.saturating_sub(pw)) / 2;
+                let py = (self.last_height.saturating_sub(ph)) / 2;
                 if x >= px && x <= px + pw && y >= py && y <= py + ph {
                     // OK
                     if x >= px + 30 && x <= px + 130 && y >= py + 70 && y <= py + 100 {
@@ -110,6 +114,9 @@ impl App for SettingsApp {
     #[allow(clippy::many_single_char_names)]
     #[allow(clippy::cast_possible_truncation)]
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+        self.last_width = width;
+        self.last_height = height;
+        
         let sidebar_width = 150;
         let content_x = x + sidebar_width;
         let content_width = width.saturating_sub(sidebar_width);
@@ -265,10 +272,10 @@ impl App for SettingsApp {
 
         // PROMPT DRAWING
         if self.show_prompt {
-            let px = x + 100;
-            let py = y + 100;
             let pw = 300;
             let ph = 120;
+            let px = x + (width.saturating_sub(pw)) / 2;
+            let py = y + (height.saturating_sub(ph)) / 2;
             
             compositor.draw_rect(px, py, pw, ph, bg_r, bg_g, bg_b);
             compositor.draw_rect(px, py, pw, 1, line_r, line_g, line_b);
