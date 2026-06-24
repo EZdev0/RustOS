@@ -13,7 +13,7 @@ pub struct BrowserApp {
 enum HtmlElement {
     Text(String),
     Heading(String),
-    Link(String, String), // Text, URL
+    Link(String), // Text
 }
 
 impl Default for BrowserApp {
@@ -45,7 +45,7 @@ impl BrowserApp {
                 if !current_text.trim().is_empty() {
                     match active_style {
                         "h1" => self.html_elements.push(HtmlElement::Heading(current_text.clone())),
-                        "a" => self.html_elements.push(HtmlElement::Link(current_text.clone(), String::from("#"))),
+                        "a" => self.html_elements.push(HtmlElement::Link(current_text.clone())),
                         _ => self.html_elements.push(HtmlElement::Text(current_text.clone())),
                     }
                 }
@@ -129,7 +129,7 @@ impl App for BrowserApp {
                         }
                         draw_y += 20;
                     },
-                    HtmlElement::Link(text, _) => {
+                    HtmlElement::Link(text) => {
                         let mut px = x + 20;
                         for c in text.chars() {
                             compositor.draw_char(px, draw_y as usize, c, 0, 0, 255);
