@@ -63,7 +63,11 @@ impl<'a> Device for RustOsNetDevice<'a> {
     }
 
     fn transmit(&mut self, _timestamp: Instant) -> Option<Self::TxToken<'_>> {
-        Some(RustOsTxToken { e1000: self.e1000 })
+        if self.e1000.can_transmit() {
+            Some(RustOsTxToken { e1000: self.e1000 })
+        } else {
+            None
+        }
     }
 
     fn capabilities(&self) -> DeviceCapabilities {

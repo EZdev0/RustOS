@@ -122,6 +122,18 @@ impl GraphicalCompositor {
                 comp.draw_rect(x + 15, y + 15, 10, 10, 50, 50, 60);
             },
         });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "Browser",
+            default_width: 800,
+            default_height: 600,
+            spawn: || alloc::boxed::Box::new(crate::desktop::browser::BrowserApp::new()),
+            draw_icon: |comp, x, y| {
+                // Draw a simple globe icon for browser
+                comp.draw_rect(x + 5, y + 5, 30, 30, 0, 100, 200);
+                comp.draw_rect(x + 15, y + 5, 10, 30, 200, 200, 200);
+                comp.draw_rect(x + 5, y + 15, 30, 10, 200, 200, 200);
+            },
+        });
 
         Self { 
             info, 
@@ -519,6 +531,38 @@ impl GraphicalCompositor {
         for c in time_str.chars() {
             self.draw_char(text_x, 6, c, 255, 255, 255);
             text_x += 8;
+        }
+
+        // Draw Desktop Icons
+        let start_y = 60;
+        let start_x = 20;
+        let x_spacing = 80;
+        let y_spacing = 100;
+        let mut cx = start_x;
+        let mut cy = start_y;
+
+        for i in 0..self.apps.len() {
+            let is_hovered = self.mouse_x >= cx && self.mouse_x <= cx + 40 && self.mouse_y >= cy && self.mouse_y <= cy + 40;
+            
+            // Draw hover glow
+            if is_hovered {
+                self.draw_shadow_and_glow(cx, cy, 40, 40, 4, true);
+            }
+
+            (self.apps[i].draw_icon)(self, cx, cy);
+
+            let app_name = self.apps[i].id;
+            let text_w = app_name.len() * 8;
+            let text_px = (cx + 20).saturating_sub(text_w / 2);
+            for (idx, c) in app_name.chars().enumerate() {
+                self.draw_char(text_px + idx * 8, cy + 50, c, 255, 255, 255);
+            }
+
+            cy += y_spacing;
+            if cy + y_spacing > height.saturating_sub(100) {
+                cy = start_y;
+                cx += x_spacing;
+            }
         }
     }
 
@@ -1023,8 +1067,42 @@ impl GraphicalCompositor {
                             }
                     }
                 } else {
-                    self.desktop_click_active = true;
-                    self.long_press_ticks = 0;
+                    // Check if clicked on a Desktop icon
+                    let mut clicked_desktop_icon = false;
+                    let start_y = 60;
+                    let start_x = 20;
+                    let x_spacing = 80;
+                    let y_spacing = 100;
+                    let mut cx = start_x;
+                    let mut cy = start_y;
+
+                    for i in 0..self.apps.len() {
+                        if mx >= cx && mx <= cx + 40 && my >= cy && my <= cy + 40 {
+                            if self.windows.len() < 12 {
+                                let offset = (self.windows.len() * 20) % 100;
+                                let desc = &self.apps[i];
+                                let app = (desc.spawn)();
+                                let win_width = if width > 600 { desc.default_width.min((width as usize).saturating_sub(100)) } else { desc.default_width.min((width as usize).saturating_sub(40).max(100)) };
+                                let win_height = if height > 400 { desc.default_height.min((height as usize).saturating_sub(150)) } else { desc.default_height.min((height as usize).saturating_sub(80).max(100)) };
+                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
+                                let new_win = crate::desktop::window::Window::new(app, win_x, win_y, win_width, win_height);
+                                self.add_window(new_win);
+                                clicked_desktop_icon = true;
+                            }
+                            break;
+                        }
+                        cy += y_spacing;
+                        if cy + y_spacing > height as usize - 100 {
+                            cy = start_y;
+                            cx += x_spacing;
+                        }
+                    }
+
+                    if !clicked_desktop_icon {
+                        self.desktop_click_active = true;
+                        self.long_press_ticks = 0;
+                    }
                 }
             }
         }

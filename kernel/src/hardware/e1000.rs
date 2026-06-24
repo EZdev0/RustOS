@@ -152,8 +152,14 @@ impl E1000 {
         }
     }
 
+    pub fn can_transmit(&self) -> bool {
+        let idx = self.tx_index;
+        // Check if Descriptor Done (DD) bit is set or if status is 0 (unused)
+        unsafe { core::ptr::read_volatile(&self.tx_ring[idx].status) & 1 == 1 || self.tx_ring[idx].status == 0 }
+    }
+
     pub fn transmit(&mut self, data: &[u8]) {
-        if data.len() > BUFFER_SIZE {
+        if data.len() > BUFFER_SIZE || !self.can_transmit() {
             return;
         }
 
