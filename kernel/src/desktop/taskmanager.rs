@@ -109,11 +109,12 @@ impl TaskManagerApp {
         let content_height = Self::get_content_height(AccordionSection::OsAnalysis);
         compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
 
+        let uptime = self.ticks / 60;
         let lines = [
-            "Kernel: RustOS v0.2",
-            "System Status: Nominal",
-            "AI Background: Active",
-            "Analysis: 0 errors found",
+            alloc::string::String::from("Kernel: RustOS v0.2"),
+            alloc::string::String::from("System Status: Nominal"),
+            format!("Uptime: {}s", uptime),
+            alloc::string::String::from("Analysis: 0 errors found"),
         ];
 
         for (i, line) in lines.iter().enumerate() {
@@ -131,11 +132,12 @@ impl TaskManagerApp {
         let content_height = Self::get_content_height(AccordionSection::DeviceInfo);
         compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
 
+        let network_speed = 10 + (self.ticks % 27);
         let lines = [
-            "Architecture: x86_64",
-            "CPU: Virtual x64 Processor",
-            "RAM: 128 MB Installed",
-            "Disk: Virtual FS",
+            alloc::string::String::from("Architecture: x86_64"),
+            format!("CPU Ticks: {}", self.ticks),
+            format!("Network: {} kbps", network_speed),
+            alloc::string::String::from("RAM: 128 MB Installed"),
         ];
 
         for (i, line) in lines.iter().enumerate() {
@@ -178,15 +180,15 @@ impl App for TaskManagerApp {
 
     fn update(&mut self) {
         self.ticks += 1;
-        if self.ticks.is_multiple_of(100) {
-            let mut cpu_usage = (self.ticks % 100) as u8; 
+        if self.ticks.is_multiple_of(20) {
+            let mut cpu_usage = (self.ticks % 83) as u8; 
             if cpu_usage > 50 { cpu_usage = 100 - cpu_usage; }
-            cpu_usage = cpu_usage.saturating_add(10);
+            cpu_usage = cpu_usage.saturating_add(15);
             
             self.cpu_history.remove(0);
             self.cpu_history.push(cpu_usage);
             
-            let ram_usage = 35 + (self.ticks % 15) as u8;
+            let ram_usage = 30 + ((self.ticks / 2) % 20) as u8;
             self.ram_history.remove(0);
             self.ram_history.push(ram_usage);
         }
