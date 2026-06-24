@@ -29,7 +29,9 @@ impl Executor {
         if self.tasks.insert(task.id, task).is_some() {
             panic!("Task with same ID already in tasks");
         }
-        self.task_queue.push(task_id).expect("queue full");
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            self.task_queue.push(task_id).expect("queue full");
+        });
     }
 
     fn run_ready_tasks(&mut self) {
@@ -39,7 +41,7 @@ impl Executor {
             waker_cache,
         } = self;
 
-        while let Some(task_id) = task_queue.pop() {
+        while let Some(task_id) = x86_64::instructions::interrupts::without_interrupts(|| task_queue.pop()) {
             let task = match tasks.get_mut(&task_id) {
                 Some(task) => task,
                 None => continue,
@@ -93,7 +95,9 @@ impl TaskWaker {
     }
 
     fn wake_task(&self) {
-        self.task_queue.push(self.task_id).expect("task_queue full");
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            self.task_queue.push(self.task_id).expect("task_queue full");
+        });
     }
 }
 

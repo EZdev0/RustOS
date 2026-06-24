@@ -9,7 +9,7 @@ static WAKER: AtomicWaker = AtomicWaker::new();
 
 pub(crate) fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        if queue.push(scancode).is_err() {
+        if x86_64::instructions::interrupts::without_interrupts(|| queue.push(scancode)).is_err() {
             // Queue full
         } else {
             WAKER.wake();
@@ -41,13 +41,13 @@ impl Stream for ScancodeStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<u8>> {
         let queue = SCANCODE_QUEUE.try_get().expect("not initialized");
         
-        if let Some(scancode) = queue.pop() {
+        if let Some(scancode) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             return Poll::Ready(Some(scancode));
         }
 
         WAKER.register(cx.waker());
         
-        match queue.pop() {
+        match x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             Some(scancode) => {
                 WAKER.take();
                 Poll::Ready(Some(scancode))

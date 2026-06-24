@@ -8,7 +8,7 @@ static WAKER: AtomicWaker = AtomicWaker::new();
 
 pub(crate) fn add_mouse_event(dx: i32, dy: i32, left: bool, right: bool) {
     if let Ok(queue) = MOUSE_QUEUE.try_get() {
-        if queue.push((dx, dy, left, right)).is_err() {
+        if x86_64::instructions::interrupts::without_interrupts(|| queue.push((dx, dy, left, right))).is_err() {
             // Queue full
         } else {
             WAKER.wake();
@@ -40,13 +40,13 @@ impl Stream for MouseStream {
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let queue = MOUSE_QUEUE.try_get().expect("not initialized");
         
-        if let Some(event) = queue.pop() {
+        if let Some(event) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             return Poll::Ready(Some(event));
         }
 
         WAKER.register(cx.waker());
         
-        match queue.pop() {
+        match x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             Some(event) => {
                 WAKER.take();
                 Poll::Ready(Some(event))
@@ -62,7 +62,7 @@ pub async fn mouse_task(compositor: alloc::sync::Arc<spin::Mutex<crate::desktop:
     
     while let Some((mut dx, mut dy, mut left, mut right)) = stream.next().await {
         if let Ok(queue) = MOUSE_QUEUE.try_get() {
-            while let Some((ndx, ndy, nleft, nright)) = queue.pop() {
+            while let Some((ndx, ndy, nleft, nright)) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
                 dx += ndx;
                 dy += ndy;
                 left = nleft;

@@ -35,11 +35,17 @@ struct Selectors {
 
 pub fn init() {
     use x86_64::instructions::tables::load_tss;
-    use x86_64::instructions::segmentation::{CS, Segment};
+    use x86_64::instructions::segmentation::{CS, Segment, SS, DS, ES};
+    use x86_64::PrivilegeLevel;
 
     GDT.0.load();
     unsafe {
         CS::set_reg(GDT.1.code_selector);
         load_tss(GDT.1.tss_selector);
+        
+        let null_selector = SegmentSelector::new(0, PrivilegeLevel::Ring0);
+        SS::set_reg(null_selector);
+        DS::set_reg(null_selector);
+        ES::set_reg(null_selector);
     }
 }
