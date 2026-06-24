@@ -159,7 +159,8 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
         // 3. Spawn UI and Network Tasks
         executor.spawn(task::Task::new(task::keyboard::keyboard_task(shared_compositor.clone())));
-        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor)));
+        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
+        executor.spawn(task::Task::new(task::timer::timer_task(shared_compositor)));
         executor.spawn(task::Task::new(crate::network::network_task()));
 
         // 4. Start Scheduler Loop (never returns)

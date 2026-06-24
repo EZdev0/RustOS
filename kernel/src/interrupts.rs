@@ -168,8 +168,7 @@ pub fn init_pit(frequency: u32) {
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     TIMER_TICKS.fetch_add(1, Ordering::Relaxed);
     
-    // Future expansion: Wake up tasks here if needed
-    // crate::task::executor::wake_timer_tasks();
+    crate::task::timer::wake_timer_tasks();
 
     unsafe {
         PICS.lock().notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
