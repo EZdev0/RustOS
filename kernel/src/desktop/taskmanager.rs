@@ -15,7 +15,7 @@ pub struct TaskManagerApp {
     ticks: usize,
     cpu_history: Vec<u8>,
     ram_history: Vec<u8>,
-    expanded_section: AccordionSection,
+    expanded_section: Option<AccordionSection>,
 }
 
 impl Default for TaskManagerApp {
@@ -30,7 +30,7 @@ impl TaskManagerApp {
             ticks: 0,
             cpu_history: alloc::vec![0; 50],
             ram_history: alloc::vec![0; 50],
-            expanded_section: AccordionSection::Performance,
+            expanded_section: Some(AccordionSection::Performance),
         }
     }
 
@@ -77,6 +77,7 @@ impl TaskManagerApp {
         let cpu_txt = format!("CPU Usage: {}%", self.cpu_history.last().unwrap_or(&0));
         let mut cx2 = x + 5;
         for c in cpu_txt.chars() {
+            if cx2 + 8 > x + width { break; }
             compositor.draw_char(cx2, y + 55, c, 0, 200, 255);
             cx2 += 8;
         }
@@ -94,6 +95,7 @@ impl TaskManagerApp {
         let ram_txt = format!("RAM Usage: {}MB / 128MB", self.ram_history.last().unwrap_or(&0));
         let mut cx3 = x + 5;
         for c in ram_txt.chars() {
+            if cx3 + 8 > x + width { break; }
             compositor.draw_char(cx3, y + 125, c, 255, 100, 0);
             cx3 += 8;
         }
@@ -106,7 +108,7 @@ impl TaskManagerApp {
         compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
 
         let lines = [
-            "Kernel: VibeOS v0.1",
+            "Kernel: RustOS v0.2",
             "System Status: Nominal",
             "AI Background: Active",
             "Analysis: 0 errors found",
@@ -150,8 +152,8 @@ impl TaskManagerApp {
         compositor.draw_rect(x, y, width, content_height, 35, 35, 40);
 
         let lines = [
-            "Need help with VibeOS?",
-            "Contact: support@vibeos",
+            "Need help with RustOS?",
+            "Contact: support@rustos",
             "Docs: /docs/system.txt",
         ];
 
@@ -174,7 +176,7 @@ impl App for TaskManagerApp {
 
     fn update(&mut self) {
         self.ticks += 1;
-        if self.ticks.is_multiple_of(5) {
+        if self.ticks.is_multiple_of(100) {
             let mut cpu_usage = (self.ticks % 100) as u8; 
             if cpu_usage > 50 { cpu_usage = 100 - cpu_usage; }
             cpu_usage = cpu_usage.saturating_add(10);
@@ -201,7 +203,7 @@ impl App for TaskManagerApp {
         let mut current_y = y + 5;
         
         for (section, title) in sections.iter() {
-            let is_expanded = self.expanded_section == *section;
+            let is_expanded = self.expanded_section == Some(*section);
             let header_height = self.draw_header(compositor, title, x + 5, current_y, width - 10, is_expanded);
             current_y += header_height;
 
@@ -233,13 +235,17 @@ impl App for TaskManagerApp {
             for section in sections.iter() {
                 // Prüfen ob Klick im Header (25px Höhe) landete
                 if rel_y >= current_y && rel_y < current_y + 25 {
-                    self.expanded_section = *section;
+                    if self.expanded_section == Some(*section) {
+                        self.expanded_section = None;
+                    } else {
+                        self.expanded_section = Some(*section);
+                    }
                     break;
                 }
                 current_y += 25;
                 
                 // Content Height aufaddieren, falls Sektion gerade ausgeklappt ist
-                if self.expanded_section == *section {
+                if self.expanded_section == Some(*section) {
                     current_y += Self::get_content_height(*section);
                 }
                 current_y += 5; // Spacing

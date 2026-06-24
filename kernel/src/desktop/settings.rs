@@ -125,9 +125,9 @@ impl App for SettingsApp {
                 let color_val = 150 + (i as u32 * 100 / 60) as u8;
                 compositor.draw_rect(content_x + 30, y + 70 + i, 60, 1, 50, color_val, 255);
             }
-            draw_string(compositor, content_x + 38, y + 95, "VibeOS", 255, 255, 255);
+            draw_string(compositor, content_x + 38, y + 95, "RustOS", 255, 255, 255);
 
-            draw_string(compositor, content_x + 110, y + 75, "OS Name:      RustOS / VibeOS v0.2", 60, 60, 70);
+            draw_string(compositor, content_x + 110, y + 75, "OS Name:      RustOS v0.2", 60, 60, 70);
             draw_string(compositor, content_x + 110, y + 95, "Architecture: x86_64 Bare-Metal", 60, 60, 70);
             draw_string(compositor, content_x + 110, y + 115,"Compiler:     Rust 1.96 Nightly", 60, 60, 70);
 
