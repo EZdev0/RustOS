@@ -317,46 +317,89 @@ impl App for TerminalApp {
         compositor.draw_rect(x, y, width, height, 0, 0, 0);
 
         let padding = 10;
-        let mut cur_y = y + padding;
         let max_lines = if height > 2 * padding { (height - 2 * padding) / 12 } else { 0 };
+        let chars_per_line = if width > 2 * padding { (width - 2 * padding) / 8 } else { 1 };
 
-        let total_lines = self.output.len() + 1; // output lines + input line
+        let mut visual_lines = 0;
+        for (line, _) in &self.output {
+            let len = line.chars().count();
+            visual_lines += if len == 0 { 1 } else { len.div_ceil(chars_per_line) };
+        }
         
-        let start_line = if total_lines > max_lines && max_lines > 0 {
-            total_lines - max_lines
+        let input_len = 2 + self.input_buffer.chars().count();
+        visual_lines += if input_len == 0 { 1 } else { input_len.div_ceil(chars_per_line) };
+
+        let start_line = if visual_lines > max_lines && max_lines > 0 {
+            visual_lines - max_lines
         } else {
             0
         };
 
-        for (i, (line, color)) in self.output.iter().enumerate() {
-            if i >= start_line {
-                let mut cur_x = x + padding;
-                for c in line.chars() {
-                    if cur_x + 8 > x + width - padding {
-                        break; // Truncate text that exceeds the window bounds
-                    }
-                    compositor.draw_char(cur_x, cur_y, c, color.0, color.1, color.2);
-                    cur_x += 8;
+        let mut current_visual_line = 0;
+
+        for (line, color) in &self.output {
+            let mut cur_x = x + padding;
+            let mut line_empty = true;
+            for c in line.chars() {
+                line_empty = false;
+                if cur_x + 8 > x + width - padding {
+                    current_visual_line += 1;
+                    cur_x = x + padding;
                 }
-                cur_y += 12;
+                if current_visual_line >= start_line {
+                    let cur_y = y + padding + (current_visual_line - start_line) * 12;
+                    if cur_y + 12 <= y + height - padding {
+                        compositor.draw_char(cur_x, cur_y, c, color.0, color.1, color.2);
+                    }
+                }
+                cur_x += 8;
             }
+            if line_empty && current_visual_line >= start_line {
+                // Empty line still takes space vertically
+            }
+            current_visual_line += 1;
         }
 
-        if total_lines >= start_line && start_line <= self.output.len() {
-            let mut cur_x = x + padding;
-            if cur_x + 16 <= x + width - padding {
-                compositor.draw_char(cur_x, cur_y, '>', 0, 255, 0);
-                cur_x += 16;
-
-                for c in self.input_buffer.chars() {
-                    if cur_x + 8 > x + width - padding {
-                        break;
-                    }
-                    compositor.draw_char(cur_x, cur_y, c, 255, 255, 255);
-                    cur_x += 8;
+        // Draw input
+        let mut cur_x = x + padding;
+        
+        let prompt = "> ";
+        for c in prompt.chars() {
+            if cur_x + 8 > x + width - padding {
+                current_visual_line += 1;
+                cur_x = x + padding;
+            }
+            if current_visual_line >= start_line {
+                let cur_y = y + padding + (current_visual_line - start_line) * 12;
+                if cur_y + 12 <= y + height - padding {
+                    compositor.draw_char(cur_x, cur_y, c, 0, 255, 0);
                 }
+            }
+            cur_x += 8;
+        }
 
-                if self.cursor_visible && cur_x + 8 <= x + width - padding {
+        for c in self.input_buffer.chars() {
+            if cur_x + 8 > x + width - padding {
+                current_visual_line += 1;
+                cur_x = x + padding;
+            }
+            if current_visual_line >= start_line {
+                let cur_y = y + padding + (current_visual_line - start_line) * 12;
+                if cur_y + 12 <= y + height - padding {
+                    compositor.draw_char(cur_x, cur_y, c, 255, 255, 255);
+                }
+            }
+            cur_x += 8;
+        }
+
+        if self.cursor_visible {
+            if cur_x + 8 > x + width - padding {
+                current_visual_line += 1;
+                cur_x = x + padding;
+            }
+            if current_visual_line >= start_line {
+                let cur_y = y + padding + (current_visual_line - start_line) * 12;
+                if cur_y + 12 <= y + height - padding {
                     compositor.draw_rect(cur_x, cur_y, 8, 10, 0, 255, 0);
                 }
             }
