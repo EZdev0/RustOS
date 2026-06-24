@@ -400,6 +400,7 @@ impl GraphicalCompositor {
     pub fn render_desktop(&mut self) {
         let width = self.info.width;
         let height = self.info.height;
+        let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
 
         let rects_to_draw = if self.full_redraw {
             alloc::vec![Rect { x: 0, y: 0, width, height }]
@@ -414,9 +415,15 @@ impl GraphicalCompositor {
             let end_x = (rect.x + rect.width).min(width);
             
             for y in start_y..end_y {
-                let r = 15 + (y * 20 / height) as u8;
-                let g = 20 + (y * 25 / height) as u8;
-                let b = 30 + (y * 35 / height) as u8;
+                let (r, g, b) = if is_dark {
+                    let c = 5 + (y * 10 / height) as u8;
+                    (c, c, c)
+                } else {
+                    let r = 15 + (y * 20 / height) as u8;
+                    let g = 20 + (y * 25 / height) as u8;
+                    let b = 30 + (y * 35 / height) as u8;
+                    (r, g, b)
+                };
                 self.draw_hline(start_x, end_x, y, r, g, b);
             }
         }
@@ -601,6 +608,22 @@ impl GraphicalCompositor {
     }
 
     pub fn render_all(&mut self) {
+        let req = crate::desktop::THEME_CHANGE_REQUESTED.load(core::sync::atomic::Ordering::Relaxed);
+        if req != 0 {
+            // Close all windows
+            self.windows.clear();
+            
+            // Set theme
+            if req == 1 {
+                crate::desktop::THEME.store(0, core::sync::atomic::Ordering::Relaxed); // Light Mode
+            } else if req == 2 {
+                crate::desktop::THEME.store(1, core::sync::atomic::Ordering::Relaxed); // Dark Mode
+            }
+            
+            crate::desktop::THEME_CHANGE_REQUESTED.store(0, core::sync::atomic::Ordering::Relaxed);
+            self.full_redraw = true;
+        }
+
         self.ticks = self.ticks.wrapping_add(1);
 
         let mut any_maximized = false;
@@ -681,7 +704,9 @@ impl GraphicalCompositor {
                 }
 
                 // 3. Draw standard solid rectangular window contents
-                self.draw_rect(win_x, win_y, win_w, 20, 60, 60, 60); // Title Bar
+                let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
+                let (tr, tg, tb) = if is_dark { (40, 40, 45) } else { (60, 60, 60) };
+                self.draw_rect(win_x, win_y, win_w, 20, tr, tg, tb); // Title Bar
                 
                 window.app.update();
                 self.clip_rect = Some(Rect { x: win_x, y: win_y + 20, width: win_w, height: window.height });
@@ -895,7 +920,7 @@ impl GraphicalCompositor {
                             w.x = 0;
                             w.y = 28;
                             w.width = width as usize;
-                            w.height = (height as usize).saturating_sub(123);
+                            w.height = (height as usize).saturating_sub(48);
                         }
                     }
                 }
