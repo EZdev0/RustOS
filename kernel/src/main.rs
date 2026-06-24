@@ -270,3 +270,4 @@ fn panic(info: &PanicInfo) -> ! {
         x86_64::instructions::hlt();
     }
 }
+pub mod serial;
