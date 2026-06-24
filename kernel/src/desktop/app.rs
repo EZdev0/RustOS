@@ -14,3 +14,11 @@ pub trait App {
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize);
     fn handle_event(&mut self, event: Event);
 }
+
+pub struct AppDescriptor {
+    pub id: &'static str,
+    pub spawn: fn() -> alloc::boxed::Box<dyn App>,
+    pub draw_icon: fn(&mut GraphicalCompositor, usize, usize),
+    pub default_width: usize,
+    pub default_height: usize,
+}

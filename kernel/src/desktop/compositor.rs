@@ -36,7 +36,9 @@ pub struct GraphicalCompositor {
     pub full_redraw: bool,
     pub renderer: IntelligentRenderer,
     pub clip_rect: Option<Rect>,
+    pub apps: Vec<crate::desktop::app::AppDescriptor>,
 }
+
 
 // Fast Integer Square Root for software rendering algorithms
 fn fast_isqrt(n: usize) -> usize {
@@ -64,6 +66,61 @@ impl GraphicalCompositor {
         let mouse_x = info.width / 2;
         let mouse_y = info.height / 2;
 
+        let mut apps = Vec::new();
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "Notepad",
+            default_width: 600,
+            default_height: 400,
+            spawn: || alloc::boxed::Box::new(crate::desktop::notepad::NotepadApp::new()),
+            draw_icon: |comp, x, y| {
+                comp.draw_rect(x, y, 40, 40, 255, 255, 255);
+                for line in 1..4 {
+                    comp.draw_rect(x + 5, y + line * 10, 30, 2, 100, 150, 255);
+                }
+            },
+        });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "Terminal",
+            default_width: 500,
+            default_height: 350,
+            spawn: || alloc::boxed::Box::new(crate::desktop::terminal::TerminalApp::new()),
+            draw_icon: |comp, x, y| {
+                comp.draw_rect(x, y, 40, 40, 30, 30, 30);
+                comp.draw_char(x + 10, y + 15, '>', 0, 255, 0);
+            },
+        });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "TaskManager",
+            default_width: 400,
+            default_height: 250,
+            spawn: || alloc::boxed::Box::new(crate::desktop::taskmanager::TaskManagerApp::new()),
+            draw_icon: |comp, x, y| {
+                comp.draw_rect(x, y, 40, 40, 20, 20, 20);
+                comp.draw_rect(x + 5, y + 10, 30, 20, 0, 150, 255);
+            },
+        });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "FileManager",
+            default_width: 600,
+            default_height: 400,
+            spawn: || alloc::boxed::Box::new(crate::desktop::filemanager::FileManagerApp::new()),
+            draw_icon: |comp, x, y| {
+                comp.draw_rect(x + 5, y + 15, 30, 20, 100, 180, 255);
+                comp.draw_rect(x + 5, y + 10, 15, 5, 100, 180, 255);
+            },
+        });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "Settings",
+            default_width: 500,
+            default_height: 350,
+            spawn: || alloc::boxed::Box::new(crate::desktop::settings::SettingsApp::new()),
+            draw_icon: |comp, x, y| {
+                comp.draw_rect(x + 5, y + 5, 30, 30, 100, 100, 110);
+                comp.draw_rect(x + 10, y + 10, 20, 20, 150, 150, 160);
+                comp.draw_rect(x + 15, y + 15, 10, 10, 50, 50, 60);
+            },
+        });
+
         Self { 
             info, 
             framebuffer: buffer, 
@@ -86,6 +143,7 @@ impl GraphicalCompositor {
             full_redraw: true,
             renderer,
             clip_rect: None,
+            apps,
         }
     }
 
@@ -571,7 +629,7 @@ impl GraphicalCompositor {
         }
 
         // Icons
-        for i in 0..5 {
+        for i in 0..self.apps.len() {
             let icon_base_x = dock_x + 25 + i * 85;
             let mut icon_y = dock_y + 10;
             let is_hovered = hovered_icon == Some(i);
@@ -582,28 +640,8 @@ impl GraphicalCompositor {
 
             self.draw_shadow_and_glow(icon_base_x, icon_y, 40, 40, 4, is_hovered);
 
-            if i == 0 {
-                self.draw_rect(icon_base_x, icon_y, 40, 40, 255, 255, 255);
-                for line in 1..4 {
-                    self.draw_rect(icon_base_x + 5, icon_y + line * 10, 30, 2, 100, 150, 255);
-                }
-            } else if i == 1 {
-                self.draw_rect(icon_base_x, icon_y, 40, 40, 30, 30, 30);
-                self.draw_char(icon_base_x + 10, icon_y + 15, '>', 0, 255, 0);
-            } else if i == 2 {
-                self.draw_rect(icon_base_x, icon_y, 40, 40, 20, 20, 20);
-                self.draw_rect(icon_base_x + 5, icon_y + 10, 30, 20, 0, 150, 255);
-            } else if i == 3 {
-                self.draw_rect(icon_base_x + 5, icon_y + 15, 30, 20, 100, 180, 255);
-                self.draw_rect(icon_base_x + 5, icon_y + 10, 15, 5, 100, 180, 255);
-            } else if i == 4 {
-                // Settings Icon (Zahnrad Mockup)
-                self.draw_rect(icon_base_x + 5, icon_y + 5, 30, 30, 100, 100, 110);
-                self.draw_rect(icon_base_x + 10, icon_y + 10, 20, 20, 150, 150, 160);
-                self.draw_rect(icon_base_x + 15, icon_y + 15, 10, 10, 50, 50, 60);
-            } else {
-                self.draw_rect(icon_base_x, icon_y, 40, 40, 60 + (i as u8 * 30), 110 + (i as u8 * 20), 200);
-            }
+            // Draw app icon using the registry
+            (self.apps[i].draw_icon)(self, icon_base_x, icon_y);
         }
     }
 
@@ -940,50 +978,18 @@ impl GraphicalCompositor {
                         let rel_x = mx - (dock_x + 25);
                         let icon_idx = rel_x / 85;
                         let offset_in_icon = rel_x % 85;
-                        if offset_in_icon <= 40 && my >= dock_y + 6 && my <= dock_y + 50 && self.windows.len() < 12 {
-                            let offset = (self.windows.len() * 20) % 100;
-                            if icon_idx == 0 {
-                                let notepad_app = crate::desktop::notepad::NotepadApp::new();
-                                let win_width = if width > 600 { (width as usize).saturating_sub(200) } else { (width as usize).saturating_sub(40).max(100) };
-                                let win_height = if height > 400 { (height as usize).saturating_sub(150) } else { (height as usize).saturating_sub(80).max(100) };
+                        if offset_in_icon <= 40 && my >= dock_y + 6 && my <= dock_y + 50 && self.windows.len() < 12
+                            && icon_idx < self.apps.len() {
+                                let offset = (self.windows.len() * 20) % 100;
+                                let desc = &self.apps[icon_idx];
+                                let app = (desc.spawn)();
+                                let win_width = if width > 600 { desc.default_width.min((width as usize).saturating_sub(100)) } else { desc.default_width.min((width as usize).saturating_sub(40).max(100)) };
+                                let win_height = if height > 400 { desc.default_height.min((height as usize).saturating_sub(150)) } else { desc.default_height.min((height as usize).saturating_sub(80).max(100)) };
                                 let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
                                 let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(notepad_app), win_x, win_y, win_width, win_height);
-                                self.add_window(new_win);
-                            } else if icon_idx == 1 {
-                                let terminal_app = crate::desktop::terminal::TerminalApp::new();
-                                let win_width = 500;
-                                let win_height = 350;
-                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(terminal_app), win_x, win_y, win_width, win_height);
-                                self.add_window(new_win);
-                            } else if icon_idx == 2 {
-                                let tm_app = crate::desktop::taskmanager::TaskManagerApp::new();
-                                let win_width = 400;
-                                let win_height = 250;
-                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize - win_height) / 2 - 20 + offset;
-                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(tm_app), win_x, win_y, win_width, win_height);
-                                self.add_window(new_win);
-                            } else if icon_idx == 3 {
-                                let fm_app = crate::desktop::filemanager::FileManagerApp::new();
-                                let win_width = 600;
-                                let win_height = 400;
-                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(fm_app), win_x, win_y, win_width, win_height);
-                                self.add_window(new_win);
-                            } else if icon_idx == 4 {
-                                let settings_app = crate::desktop::settings::SettingsApp::new();
-                                let win_width = 500;
-                                let win_height = 350;
-                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(alloc::boxed::Box::new(settings_app), win_x, win_y, win_width, win_height);
+                                let new_win = crate::desktop::window::Window::new(app, win_x, win_y, win_width, win_height);
                                 self.add_window(new_win);
                             }
-                        }
                     }
                 } else {
                     self.desktop_click_active = true;
