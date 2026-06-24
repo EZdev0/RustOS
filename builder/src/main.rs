@@ -10,7 +10,7 @@ fn main() {
     println!("[1/3] Rufe Cross-Compiler für x86_64 Kernel auf...");
     let status = Command::new("cargo")
         .env("RUSTC_BOOTSTRAP", "1")
-        .args(&[
+        .args([
             "build",
             "-Z",
             "build-std=core,alloc,compiler_builtins",
@@ -61,7 +61,7 @@ fn main() {
     // 4. Automatische Ausführung im Emulator
     println!("[3/3] Starte QEMU Emulator mit angehängter virtueller Festplatte...");
     let qemu_result = Command::new("qemu-system-x86_64")
-        .args(&[
+        .args([
             "-drive",
             &format!("format=raw,file={}", output_disk.display()),
             "-serial",
