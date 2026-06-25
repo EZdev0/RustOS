@@ -3,11 +3,21 @@ use smoltcp::phy::{Device, DeviceCapabilities, Medium};
 use smoltcp::time::Instant;
 use smoltcp::iface::{Interface, Config, SocketSet, SocketHandle};
 use smoltcp::wire::{EthernetAddress, HardwareAddress, IpAddress, IpCidr, Icmpv4Packet, Icmpv4Repr};
-use smoltcp::socket::icmp;
+use smoltcp::socket::{icmp, tcp};
 use alloc::vec::Vec;
+use alloc::string::String;
 use spin::Mutex;
 use alloc::vec;
 use lazy_static::lazy_static;
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum HttpState {
+    Init,
+    Connecting,
+    SendingRequest,
+    ReceivingResponse,
+    Done,
+}
 
 pub struct RustOsNetDevice<'a> {
     e1000: &'a mut E1000,
@@ -84,10 +94,25 @@ pub struct NetworkManager {
     iface: Interface,
     sockets: SocketSet<'static>,
     icmp_handle: SocketHandle,
+    tcp_handle: SocketHandle,
     pub ping_reply: Option<([u8; 4], u16)>, // IP, Seq
+    
+    pub http_state: HttpState,
+    pub http_response: String,
+    pub http_request_ip: Option<[u8; 4]>,
 }
 
 impl NetworkManager {
+    pub fn request_http(&mut self, ip: [u8; 4]) {
+        self.http_state = HttpState::Init;
+        self.http_response.clear();
+        self.http_request_ip = Some(ip);
+        
+        // Abort old connection if active
+        let socket = self.sockets.get_mut::<tcp::Socket>(self.tcp_handle);
+        socket.abort();
+    }
+
     pub fn poll(&mut self, timestamp: u64) {
         let instant = Instant::from_millis(timestamp as i64);
         let mut device = RustOsNetDevice::new(&mut self.e1000);
@@ -100,6 +125,52 @@ impl NetworkManager {
                     // Reply received
                     self.ping_reply = Some(([0,0,0,0], seq_no));
                 }
+            }
+        }
+        
+        if let Some(ip) = self.http_request_ip {
+            let cx = self.iface.context();
+            let socket = self.sockets.get_mut::<tcp::Socket>(self.tcp_handle);
+            match self.http_state {
+                HttpState::Init => {
+                    let remote_addr = IpAddress::v4(ip[0], ip[1], ip[2], ip[3]);
+                    let local_port = 49152 + (timestamp % 10000) as u16;
+                    if socket.connect(cx, (remote_addr, 80), local_port).is_ok() {
+                        self.http_state = HttpState::Connecting;
+                    }
+                }
+                HttpState::Connecting => {
+                    if socket.is_active() {
+                        self.http_state = HttpState::SendingRequest;
+                    } else if !socket.is_open() {
+                        self.http_state = HttpState::Done;
+                    }
+                }
+                HttpState::SendingRequest => {
+                    if socket.can_send() {
+                        let request = b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n";
+                        if socket.send_slice(request).is_ok() {
+                            self.http_state = HttpState::ReceivingResponse;
+                        }
+                    }
+                }
+                HttpState::ReceivingResponse => {
+                    if socket.can_recv() {
+                        if let Ok(_data) = socket.recv(|data| {
+                            let len = data.len();
+                            if let Ok(s) = core::str::from_utf8(data) {
+                                self.http_response.push_str(s);
+                            }
+                            (len, data)
+                        }) {
+                        }
+                    } else if !socket.may_recv() {
+                        self.http_state = HttpState::Done;
+                        self.http_request_ip = None;
+                        socket.abort();
+                    }
+                }
+                HttpState::Done => {}
             }
         }
     }
@@ -132,6 +203,27 @@ lazy_static! {
     pub static ref NETWORK_MANAGER: Mutex<Option<NetworkManager>> = Mutex::new(None);
 }
 
+pub fn get_network_status() -> bool {
+    NETWORK_MANAGER.lock().is_some()
+}
+
+pub fn start_http_request(ip: [u8; 4]) {
+    if let Some(ref mut nm) = *NETWORK_MANAGER.lock() {
+        nm.request_http(ip);
+    }
+}
+
+pub fn get_http_response() -> Option<String> {
+    if let Some(ref mut nm) = *NETWORK_MANAGER.lock() {
+        if nm.http_state == HttpState::Done && !nm.http_response.is_empty() {
+            let res = nm.http_response.clone();
+            nm.http_response.clear();
+            return Some(res);
+        }
+    }
+    None
+}
+
 pub fn init(mut e1000: E1000) {
     let mac = e1000.mac_address();
     let hw_addr = HardwareAddress::Ethernet(EthernetAddress([mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]]));
@@ -153,12 +245,21 @@ pub fn init(mut e1000: E1000) {
     let mut sockets = SocketSet::new(alloc::vec![]);
     let icmp_handle = sockets.add(icmp_socket);
 
+    let tcp_rx_buf = tcp::SocketBuffer::new(alloc::vec![0; 4096]);
+    let tcp_tx_buf = tcp::SocketBuffer::new(alloc::vec![0; 4096]);
+    let tcp_socket = tcp::Socket::new(tcp_rx_buf, tcp_tx_buf);
+    let tcp_handle = sockets.add(tcp_socket);
+
     *NETWORK_MANAGER.lock() = Some(NetworkManager {
         e1000,
         iface,
         sockets,
         icmp_handle,
+        tcp_handle,
         ping_reply: None,
+        http_state: HttpState::Init,
+        http_response: alloc::string::String::new(),
+        http_request_ip: None,
     });
 }
 

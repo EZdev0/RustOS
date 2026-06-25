@@ -79,7 +79,20 @@ impl App for BrowserApp {
     }
 
     fn update(&mut self) {
-        if self.html_elements.is_empty() && !self.content.is_empty() {
+        if self.html_elements.is_empty() && self.content == "<h1>Welcome to RustOS Browser</h1><p>Loading...</p>" {
+            // Trigger HTTP request to example.com (93.184.216.34)
+            crate::network::start_http_request([93, 184, 216, 34]);
+            self.content = String::from("<h1>Loading...</h1><p>Fetching example.com...</p>");
+            self.parse_dummy_html();
+        }
+
+        if let Some(res) = crate::network::get_http_response() {
+            // Parse HTTP body simply by stripping headers (double CRLF)
+            if let Some(body_idx) = res.find("\r\n\r\n") {
+                self.content = String::from(&res[body_idx + 4..]);
+            } else {
+                self.content = res;
+            }
             self.parse_dummy_html();
         }
     }

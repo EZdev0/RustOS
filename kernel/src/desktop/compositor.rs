@@ -533,6 +533,25 @@ impl GraphicalCompositor {
             text_x += 8;
         }
 
+        // Draw Internet Status Indicator
+        let is_connected = crate::network::get_network_status();
+        let net_x = width.saturating_sub(150);
+        if is_connected {
+            // Draw a green [NET] text indicator or similar
+            self.draw_char(net_x, 6, '[', 100, 255, 100);
+            self.draw_char(net_x+8, 6, 'I', 100, 255, 100);
+            self.draw_char(net_x+16, 6, 'N', 100, 255, 100);
+            self.draw_char(net_x+24, 6, 'E', 100, 255, 100);
+            self.draw_char(net_x+32, 6, 'T', 100, 255, 100);
+            self.draw_char(net_x+40, 6, ']', 100, 255, 100);
+        } else {
+            self.draw_char(net_x, 6, '[', 255, 100, 100);
+            self.draw_char(net_x+8, 6, 'O', 255, 100, 100);
+            self.draw_char(net_x+16, 6, 'F', 255, 100, 100);
+            self.draw_char(net_x+24, 6, 'F', 255, 100, 100);
+            self.draw_char(net_x+32, 6, ']', 255, 100, 100);
+        }
+
         // Draw Desktop Icons
         let start_y = 60;
         let start_x = 20;
