@@ -594,6 +594,10 @@ impl GraphicalCompositor {
         
         let dock_w = apps_to_draw * 85 + 15;
         let dock_h = 60;
+        let required_len = dock_w * dock_h * 3;
+        if self.dock_buffer.len() < required_len {
+            self.dock_buffer.resize(required_len, 0);
+        }
         let dock_y_base = height.saturating_sub(dock_h + 15) as isize;
         let dock_y_calc = dock_y_base + self.dock_y_offset;
         
