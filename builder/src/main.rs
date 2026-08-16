@@ -1,9 +1,10 @@
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 fn main() {
     println!("================================================================");
-    println!("   🦀 RUST OS WORKSPACE BUILDER (BOOTLOADER v0.11 PROTOKOL)  ");
+    println!("   🦀 VIBECORE OS BUILDER (BIOS PROTOKOL)  ");
     println!("================================================================");
 
     // 1. Kernel im no_std Bare-Metal Target kompilieren
@@ -12,60 +13,54 @@ fn main() {
         .env("RUSTC_BOOTSTRAP", "1")
         .args([
             "build",
-            "-Z",
-            "build-std=core,alloc,compiler_builtins",
-            "-Z",
-            "build-std-features=compiler-builtins-mem",
-            "--manifest-path",
-            "kernel/Cargo.toml",
-            "--target",
-            "x86_64-unknown-none",
+            "-Z", "build-std=core,alloc,compiler_builtins",
+            "-Z", "build-std-features=compiler-builtins-mem",
+            "--manifest-path", "kernel/Cargo.toml",
+            "--target", "x86_64-unknown-none",
             "--release"
         ])
         .status()
-        .expect("Fehler: Cargo-Build-Prozess konnte nicht gestartet werden.");
+        .expect("FATAL: Cargo-Build-Prozess konnte nicht gestartet werden.");
 
     if !status.success() {
-        eprintln!("❌ Fehler: Die Kernel-Kompilierung ist fehlgeschlagen.");
+        eprintln!("❌ FATAL ERROR: Die Kernel-Kompilierung ist fehlgeschlagen.");
         std::process::exit(1);
     }
 
-    // 2. Pfade definieren
+    // 2. Pfade definieren & absichern
     let kernel_elf = Path::new("target/x86_64-unknown-none/release/kernel");
-    
-    // Stelle sicher, dass der Build-Ordner im Root existiert
     let build_dir = Path::new("../RustOS_Build_Output");
+    
     if !build_dir.exists() {
-        std::fs::create_dir_all(build_dir).expect("Konnte Build Ordner nicht erstellen");
+        fs::create_dir_all(build_dir).expect("FATAL: Konnte Build-Ordner nicht erstellen");
     }
     
-    let output_disk = build_dir.join("my_rust_os_desktop.img");
+    let output_disk = build_dir.join("vibecore_desktop.img");
     let output_elf = build_dir.join("kernel.elf");
 
-    // 3. Verwende das offizielle Bootloader-Crate, um ein startbares BIOS-Image zu verknüpfen
+    // 3. Bootloader verknüpfen
     println!("[2/3] Konvertiere Kernel-ELF in ein bootfähiges MBR-Festplattenimage...");
     let bios_boot = bootloader::BiosBoot::new(kernel_elf);
     bios_boot.create_disk_image(&output_disk)
-        .expect("Fehler: Das Erstellen des bootfähigen Festplattenimages ist fehlgeschlagen.");
+        .expect("FATAL: Das Erstellen des bootfähigen Festplattenimages ist fehlgeschlagen.");
         
-    // Kopiere auch die pure ELF Datei für eventuelles Debugging
-    std::fs::copy(kernel_elf, output_elf).expect("Fehler: Konnte kernel.elf nicht kopieren");
+    fs::copy(kernel_elf, &output_elf).expect("FATAL: Konnte kernel.elf nicht kopieren");
 
     println!("✅ Image erfolgreich generiert: {}", output_disk.display());
 
     if std::env::var("CI").is_ok() || std::env::var("GITHUB_ACTIONS").is_ok() {
-        println!("✅ CI Environment detected. Skipping local QEMU execution.");
+        println!("✅ CI Environment erkannt. Lokale QEMU Ausführung wird übersprungen.");
         return;
     }
 
-    // 4. Automatische Ausführung im Emulator
+    // 4. QEMU sicher starten
     println!("[3/3] Starte QEMU Emulator mit angehängter virtueller Festplatte...");
     let qemu_result = Command::new("qemu-system-x86_64")
         .args([
-            "-drive",
-            &format!("format=raw,file={}", output_disk.display()),
-            "-serial",
-            "stdio",
+            "-drive", &format!("format=raw,file={}", output_disk.display()),
+            "-serial", "stdio",
+            "-m", "256M", // Absicherung: Genug RAM für das OS erzwingen
+            "-vga", "std" // Absicherung: Standard VGA für sauberes UI Rendering erzwingen
         ])
         .status();
 
