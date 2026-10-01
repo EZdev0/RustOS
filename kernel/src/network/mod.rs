@@ -192,9 +192,9 @@ impl NetworkManager {
         let mut packet = Icmpv4Packet::new_unchecked(&mut packet_buffer);
         repr.emit(&mut packet, &smoltcp::phy::ChecksumCapabilities::default());
         
-        socket.send_slice(&packet_buffer, IpAddress::v4(ip[0], ip[1], ip[2], ip[3])).unwrap();
+        socket.send_slice(&packet_buffer, IpAddress::v4(ip[0], ip[1], ip[2], ip[3])).map_err(|_| "Failed to send packet")?;
         
-        socket.bind(icmp::Endpoint::Ident(0x1234)).unwrap();
+        socket.bind(icmp::Endpoint::Ident(0x1234)).map_err(|_| "Failed to bind socket")?;
         Ok(())
     }
 }
