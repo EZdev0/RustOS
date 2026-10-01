@@ -87,11 +87,8 @@ impl RamFs {
         for part in parts {
             match current {
                 FsNode::Directory { children } => {
-                    if let Some(child) = children.get(part) {
-                        current = child;
-                    } else {
-                        return None;
-                    }
+                    let child = children.get(part)?;
+                    current = child;
                 }
                 FsNode::File { .. } => return None,
             }
