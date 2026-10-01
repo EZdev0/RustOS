@@ -1,10 +1,10 @@
-use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 use crate::desktop::window::Window;
+use bootloader_api::info::{FrameBuffer, FrameBufferInfo, PixelFormat};
 
 use crate::desktop::app::Event;
+use crate::desktop::renderer::IntelligentRenderer;
 use alloc::vec::Vec;
 use font8x8::UnicodeFonts;
-use crate::desktop::renderer::IntelligentRenderer;
 
 #[derive(Clone, Copy)]
 pub struct Rect {
@@ -39,12 +39,14 @@ pub struct GraphicalCompositor {
     pub apps: Vec<crate::desktop::app::AppDescriptor>,
     pub last_scroll_y: usize,
     pub last_scroll_tick: usize,
+    pub top_rects_buffer: Vec<Rect>,
 }
-
 
 // Fast Integer Square Root for software rendering algorithms
 fn fast_isqrt(n: usize) -> usize {
-    if n <= 1 { return n; }
+    if n <= 1 {
+        return n;
+    }
     let mut x0 = n / 2;
     let mut x1 = (x0 + n / x0) / 2;
     while x1 < x0 {
@@ -59,14 +61,15 @@ impl GraphicalCompositor {
         let info = framebuffer.info();
         let buffer = framebuffer.buffer_mut();
         let size = buffer.len();
-        
+
         let backbuffer = alloc::vec![0; size];
-        
+
         let dock_buffer = alloc::vec![0; 440 * 60 * 3];
-        
+
         let renderer = IntelligentRenderer::init(buffer.as_mut_ptr());
         let mouse_x = info.width / 2;
         let mouse_y = info.height / 2;
+        let top_rects_buffer = alloc::vec::Vec::with_capacity(32);
 
         let mut apps = Vec::new();
         apps.push(crate::desktop::app::AppDescriptor {
@@ -135,13 +138,13 @@ impl GraphicalCompositor {
             },
         });
 
-        Self { 
-            info, 
-            framebuffer: buffer, 
-            backbuffer, 
+        Self {
+            info,
+            framebuffer: buffer,
+            backbuffer,
             dock_buffer,
-            windows: Vec::new(), 
-            mouse_x, 
+            windows: Vec::new(),
+            mouse_x,
             mouse_y,
             mouse_left_down: false,
             dragging_window: None,
@@ -158,6 +161,7 @@ impl GraphicalCompositor {
             renderer,
             clip_rect: None,
             apps,
+            top_rects_buffer,
             last_scroll_y: 0,
             last_scroll_tick: 0,
         }
@@ -179,12 +183,16 @@ impl GraphicalCompositor {
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
         if pixel_offset + 2 < self.backbuffer.len() {
             match self.info.pixel_format {
-                PixelFormat::Rgb => {
-                    (self.backbuffer[pixel_offset], self.backbuffer[pixel_offset + 1], self.backbuffer[pixel_offset + 2])
-                }
-                PixelFormat::Bgr => {
-                    (self.backbuffer[pixel_offset + 2], self.backbuffer[pixel_offset + 1], self.backbuffer[pixel_offset])
-                }
+                PixelFormat::Rgb => (
+                    self.backbuffer[pixel_offset],
+                    self.backbuffer[pixel_offset + 1],
+                    self.backbuffer[pixel_offset + 2],
+                ),
+                PixelFormat::Bgr => (
+                    self.backbuffer[pixel_offset + 2],
+                    self.backbuffer[pixel_offset + 1],
+                    self.backbuffer[pixel_offset],
+                ),
                 _ => (0, 0, 0),
             }
         } else {
@@ -225,29 +233,63 @@ impl GraphicalCompositor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_rect_skew(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8, skew: isize) {
+    pub fn draw_rect_skew(
+        &mut self,
+        start_x: usize,
+        start_y: usize,
+        width: usize,
+        height: usize,
+        r: u8,
+        g: u8,
+        b: u8,
+        skew: isize,
+    ) {
         if skew == 0 {
             return self.draw_rect(start_x, start_y, width, height, r, g, b);
         }
         for y in 0..height {
             let shift = skew * (height as isize - y as isize) / height as isize;
             for x in 0..width {
-                self.draw_pixel((start_x as isize + x as isize + shift).max(0) as usize, start_y + y, r, g, b);
+                self.draw_pixel(
+                    (start_x as isize + x as isize + shift).max(0) as usize,
+                    start_y + y,
+                    r,
+                    g,
+                    b,
+                );
             }
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_char_skew(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8, skew: isize) {
+    pub fn draw_char_skew(
+        &mut self,
+        x: usize,
+        y: usize,
+        c: char,
+        r: u8,
+        g: u8,
+        b: u8,
+        skew: isize,
+    ) {
         if skew == 0 {
             return self.draw_char(x, y, c, r, g, b);
         }
-        if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::LATIN_FONTS.get(c)) {
+        if let Some(bitmap) = font8x8::BASIC_FONTS
+            .get(c)
+            .or_else(|| font8x8::LATIN_FONTS.get(c))
+        {
             for (row, byte) in bitmap.iter().enumerate() {
                 let shift = skew * (8 - row as isize) / 8;
                 for col in 0..8 {
                     if (*byte & (1 << col)) != 0 {
-                        self.draw_pixel((x as isize + col as isize + shift).max(0) as usize, y + row, r, g, b);
+                        self.draw_pixel(
+                            (x as isize + col as isize + shift).max(0) as usize,
+                            y + row,
+                            r,
+                            g,
+                            b,
+                        );
                     }
                 }
             }
@@ -266,14 +308,18 @@ impl GraphicalCompositor {
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
         if pixel_offset + 2 < self.backbuffer.len() {
             let inv_alpha = 256 - alpha_256;
-            
+
             let (bg_r, bg_g, bg_b) = match self.info.pixel_format {
-                PixelFormat::Rgb => {
-                    (self.backbuffer[pixel_offset], self.backbuffer[pixel_offset + 1], self.backbuffer[pixel_offset + 2])
-                }
-                PixelFormat::Bgr => {
-                    (self.backbuffer[pixel_offset + 2], self.backbuffer[pixel_offset + 1], self.backbuffer[pixel_offset])
-                }
+                PixelFormat::Rgb => (
+                    self.backbuffer[pixel_offset],
+                    self.backbuffer[pixel_offset + 1],
+                    self.backbuffer[pixel_offset + 2],
+                ),
+                PixelFormat::Bgr => (
+                    self.backbuffer[pixel_offset + 2],
+                    self.backbuffer[pixel_offset + 1],
+                    self.backbuffer[pixel_offset],
+                ),
                 _ => (0, 0, 0),
             };
 
@@ -300,21 +346,27 @@ impl GraphicalCompositor {
     }
 
     pub fn draw_hline(&mut self, start_x: usize, end_x: usize, y: usize, r: u8, g: u8, b: u8) {
-        if y >= self.info.height || start_x >= self.info.width { return; }
+        if y >= self.info.height || start_x >= self.info.width {
+            return;
+        }
         let mut start_x = start_x;
         let mut end_x = end_x.min(self.info.width);
-        
+
         if let Some(clip) = self.clip_rect {
-            if y < clip.y || y >= clip.y + clip.height { return; }
+            if y < clip.y || y >= clip.y + clip.height {
+                return;
+            }
             start_x = start_x.max(clip.x);
             end_x = end_x.min(clip.x + clip.width);
         }
-        
-        if start_x >= end_x { return; }
+
+        if start_x >= end_x {
+            return;
+        }
 
         let bpp = self.info.bytes_per_pixel;
         let mut offset = (y * self.info.stride + start_x) * bpp;
-        
+
         match self.info.pixel_format {
             PixelFormat::Rgb => {
                 for _ in start_x..end_x {
@@ -342,7 +394,16 @@ impl GraphicalCompositor {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_rect(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, r: u8, g: u8, b: u8) {
+    pub fn draw_rect(
+        &mut self,
+        start_x: usize,
+        start_y: usize,
+        width: usize,
+        height: usize,
+        r: u8,
+        g: u8,
+        b: u8,
+    ) {
         let end_y = (start_y + height).min(self.info.height);
         let end_x = start_x + width;
         for y in start_y..end_y {
@@ -350,25 +411,45 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn draw_gradient_rect_vertical(&mut self, start_x: usize, start_y: usize, width: usize, height: usize, start_color: (u8, u8, u8), end_color: (u8, u8, u8)) {
+    pub fn draw_gradient_rect_vertical(
+        &mut self,
+        start_x: usize,
+        start_y: usize,
+        width: usize,
+        height: usize,
+        start_color: (u8, u8, u8),
+        end_color: (u8, u8, u8),
+    ) {
         let end_y = (start_y + height).min(self.info.height);
         let end_x = start_x + width;
-        if height == 0 { return; }
-        
+        if height == 0 {
+            return;
+        }
+
         for y in start_y..end_y {
             let ratio = (y - start_y) as u32 * 255 / height as u32;
             let inv_ratio = 255 - ratio;
-            
+
             let r = ((start_color.0 as u32 * inv_ratio + end_color.0 as u32 * ratio) / 255) as u8;
             let g = ((start_color.1 as u32 * inv_ratio + end_color.1 as u32 * ratio) / 255) as u8;
             let b = ((start_color.2 as u32 * inv_ratio + end_color.2 as u32 * ratio) / 255) as u8;
-            
+
             self.draw_hline(start_x, end_x, y, r, g, b);
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn draw_glowing_ring(&mut self, cx: usize, cy: usize, radius: usize, thickness: usize, core_alpha: u16, r: u8, g: u8, b: u8) {
+    pub fn draw_glowing_ring(
+        &mut self,
+        cx: usize,
+        cy: usize,
+        radius: usize,
+        thickness: usize,
+        core_alpha: u16,
+        r: u8,
+        g: u8,
+        b: u8,
+    ) {
         let ext = radius + thickness;
         let start_x = cx.saturating_sub(ext);
         let start_y = cy.saturating_sub(ext);
@@ -380,7 +461,7 @@ impl GraphicalCompositor {
                 let dx = x.abs_diff(cx);
                 let dy = y.abs_diff(cy);
                 let dist = fast_isqrt(dx * dx + dy * dy);
-                
+
                 if dist >= radius.saturating_sub(thickness) && dist <= radius + thickness {
                     let diff = dist.abs_diff(radius);
                     if diff == 0 {
@@ -397,14 +478,22 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn draw_shadow_and_glow(&mut self, x: usize, y: usize, w: usize, h: usize, corner_r: usize, is_active: bool) {
+    pub fn draw_shadow_and_glow(
+        &mut self,
+        x: usize,
+        y: usize,
+        w: usize,
+        h: usize,
+        corner_r: usize,
+        is_active: bool,
+    ) {
         let shadow_size = if is_active { 16isize } else { 10isize };
-        
+
         let ext_x = (x as isize - shadow_size).max(0) as usize;
         let ext_y = (y as isize - shadow_size).max(0) as usize;
         let ext_w = w + (shadow_size as usize) * 2;
         let ext_h = h + (shadow_size as usize) * 2;
-        
+
         let (sr, sg, sb) = if is_active {
             (0, 150, 255) // Glow Color (Cyan/Blue)
         } else {
@@ -415,22 +504,26 @@ impl GraphicalCompositor {
         let intensity_mod = if pulse < 50 { pulse } else { 100 - pulse };
 
         for py in ext_y..(ext_y + ext_h) {
-            if py >= self.info.height { break; }
-            
+            if py >= self.info.height {
+                break;
+            }
+
             // OPTIMIZATION: Skip the inner window pixels!
             // If we are between the top and bottom corners, we only need to render the left and right shadows.
             let is_middle_row = py >= y + corner_r && py < y + h - corner_r;
-            
+
             let mut px = ext_x;
             while px < ext_x + ext_w {
-                if px >= self.info.width { break; }
-                
+                if px >= self.info.width {
+                    break;
+                }
+
                 if is_middle_row && px >= x && px < x + w {
                     // Jump straight to the right shadow!
                     px = x + w;
                     continue;
                 }
-                
+
                 let dx = if px < x + corner_r {
                     (x + corner_r) - px
                 } else if px >= x + w - corner_r {
@@ -449,17 +542,17 @@ impl GraphicalCompositor {
 
                 let dist_sq = dx * dx + dy * dy;
                 let r_sq = corner_r * corner_r;
-                
+
                 if dist_sq > r_sq {
                     let dist = fast_isqrt(dist_sq) as isize - corner_r as isize;
                     if dist >= 0 && dist < shadow_size {
                         let alpha = 256 - (dist * 256 / shadow_size);
-                        let alpha = alpha * alpha / 256; 
-                        let intensity = if is_active { 
+                        let alpha = alpha * alpha / 256;
+                        let intensity = if is_active {
                             let base = (alpha * 180 / 256) as usize;
                             let breathe = intensity_mod * 80 / 50;
                             base + breathe
-                        } else { 
+                        } else {
                             (alpha * 180 / 256) as usize
                         };
                         let intensity = intensity.min(255) as u16;
@@ -477,7 +570,12 @@ impl GraphicalCompositor {
         let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
 
         let rects_to_draw = if self.full_redraw {
-            alloc::vec![Rect { x: 0, y: 0, width, height }]
+            alloc::vec![Rect {
+                x: 0,
+                y: 0,
+                width,
+                height
+            }]
         } else {
             self.dirty_rects.clone()
         };
@@ -487,7 +585,7 @@ impl GraphicalCompositor {
             let end_y = (rect.y + rect.height).min(height);
             let start_x = rect.x;
             let end_x = (rect.x + rect.width).min(width);
-            
+
             for y in start_y..end_y {
                 let (r, g, b) = if is_dark {
                     let c = 5 + (y * 10 / height) as u8;
@@ -502,13 +600,24 @@ impl GraphicalCompositor {
             }
         }
 
-        let top_rects = if self.full_redraw {
-            alloc::vec![Rect { x: 0, y: 0, width, height: 28 }]
+        self.top_rects_buffer.clear();
+        if self.full_redraw {
+            self.top_rects_buffer.push(Rect {
+                x: 0,
+                y: 0,
+                width,
+                height: 28,
+            });
         } else {
-            self.dirty_rects.iter().filter(|r| r.y < 28).cloned().collect::<Vec<_>>()
-        };
+            for r in &self.dirty_rects {
+                if r.y < 28 {
+                    self.top_rects_buffer.push(r.clone());
+                }
+            }
+        }
 
-        for rect in top_rects {
+        for i in 0..self.top_rects_buffer.len() {
+            let rect = &self.top_rects_buffer[i];
             let start_x = rect.x;
             let end_x = (rect.x + rect.width).min(width);
             let start_y = rect.y;
@@ -539,17 +648,17 @@ impl GraphicalCompositor {
         if is_connected {
             // Draw a green [NET] text indicator or similar
             self.draw_char(net_x, 6, '[', 100, 255, 100);
-            self.draw_char(net_x+8, 6, 'I', 100, 255, 100);
-            self.draw_char(net_x+16, 6, 'N', 100, 255, 100);
-            self.draw_char(net_x+24, 6, 'E', 100, 255, 100);
-            self.draw_char(net_x+32, 6, 'T', 100, 255, 100);
-            self.draw_char(net_x+40, 6, ']', 100, 255, 100);
+            self.draw_char(net_x + 8, 6, 'I', 100, 255, 100);
+            self.draw_char(net_x + 16, 6, 'N', 100, 255, 100);
+            self.draw_char(net_x + 24, 6, 'E', 100, 255, 100);
+            self.draw_char(net_x + 32, 6, 'T', 100, 255, 100);
+            self.draw_char(net_x + 40, 6, ']', 100, 255, 100);
         } else {
             self.draw_char(net_x, 6, '[', 255, 100, 100);
-            self.draw_char(net_x+8, 6, 'O', 255, 100, 100);
-            self.draw_char(net_x+16, 6, 'F', 255, 100, 100);
-            self.draw_char(net_x+24, 6, 'F', 255, 100, 100);
-            self.draw_char(net_x+32, 6, ']', 255, 100, 100);
+            self.draw_char(net_x + 8, 6, 'O', 255, 100, 100);
+            self.draw_char(net_x + 16, 6, 'F', 255, 100, 100);
+            self.draw_char(net_x + 24, 6, 'F', 255, 100, 100);
+            self.draw_char(net_x + 32, 6, ']', 255, 100, 100);
         }
 
         // Draw Desktop Icons
@@ -561,8 +670,11 @@ impl GraphicalCompositor {
         let mut cy = start_y;
 
         for i in 0..self.apps.len() {
-            let is_hovered = self.mouse_x >= cx && self.mouse_x <= cx + 40 && self.mouse_y >= cy && self.mouse_y <= cy + 40;
-            
+            let is_hovered = self.mouse_x >= cx
+                && self.mouse_x <= cx + 40
+                && self.mouse_y >= cy
+                && self.mouse_y <= cy + 40;
+
             // Draw hover glow
             if is_hovered {
                 self.draw_shadow_and_glow(cx, cy, 40, 40, 4, true);
@@ -591,7 +703,7 @@ impl GraphicalCompositor {
 
         let max_apps_possible = width.saturating_sub(40) / 85;
         let apps_to_draw = self.apps.len().min(max_apps_possible);
-        
+
         let dock_w = apps_to_draw * 85 + 15;
         let dock_h = 60;
         let required_len = dock_w * dock_h * 3;
@@ -600,19 +712,21 @@ impl GraphicalCompositor {
         }
         let dock_y_base = height.saturating_sub(dock_h + 15) as isize;
         let dock_y_calc = dock_y_base + self.dock_y_offset;
-        
+
         if dock_y_calc >= height as isize {
             return;
         }
         let dock_y = (dock_y_base + self.dock_y_offset) as usize;
         let dock_x = width.saturating_sub(dock_w) / 2;
-        let corner_r = 16usize; 
-        
-        let glass_alpha = 110u16; 
+        let corner_r = 16usize;
 
-        let is_dock_hovered = self.mouse_x >= dock_x && self.mouse_x <= dock_x + dock_w 
-                           && self.mouse_y >= dock_y && self.mouse_y <= dock_y + dock_h;
-        
+        let glass_alpha = 110u16;
+
+        let is_dock_hovered = self.mouse_x >= dock_x
+            && self.mouse_x <= dock_x + dock_w
+            && self.mouse_y >= dock_y
+            && self.mouse_y <= dock_y + dock_h;
+
         let perimeter = (dock_w + dock_h) * 2;
         let glow_pos = (self.ticks * 8) % perimeter;
 
@@ -620,16 +734,22 @@ impl GraphicalCompositor {
 
         for dy in 0..dock_h {
             for dx in 0..dock_w {
-                let c_dx = if dx < corner_r { corner_r - dx - 1 } 
-                           else { dx.saturating_sub(dock_w - corner_r) };
-                let c_dy = if dy < corner_r { corner_r - dy - 1 } 
-                           else { dy.saturating_sub(dock_h - corner_r) };
-                
+                let c_dx = if dx < corner_r {
+                    corner_r - dx - 1
+                } else {
+                    dx.saturating_sub(dock_w - corner_r)
+                };
+                let c_dy = if dy < corner_r {
+                    corner_r - dy - 1
+                } else {
+                    dy.saturating_sub(dock_h - corner_r)
+                };
+
                 let dist_sq = c_dx * c_dx + c_dy * c_dy;
                 let r_sq = corner_r * corner_r;
-                
+
                 if dist_sq >= r_sq {
-                    continue; 
+                    continue;
                 }
 
                 let px = dock_x + dx;
@@ -644,18 +764,27 @@ impl GraphicalCompositor {
                 let mut out_b = ((255u16 * glass_alpha + final_b as u16 * inv_alpha) >> 8) as u8;
 
                 // Subtle inner border highlight
-                let is_edge = dist_sq >= (corner_r - 2) * (corner_r - 2) || dx <= 1 || dy <= 1 || dx >= dock_w - 2 || dy >= dock_h - 2;
+                let is_edge = dist_sq >= (corner_r - 2) * (corner_r - 2)
+                    || dx <= 1
+                    || dy <= 1
+                    || dx >= dock_w - 2
+                    || dy >= dock_h - 2;
                 if is_edge {
                     out_r = out_r.saturating_add(40);
                     out_g = out_g.saturating_add(40);
                     out_b = out_b.saturating_add(50);
-                    
+
                     if is_dock_hovered {
-                        let p_coord = if dy <= 2 { dx }
-                                      else if dx >= dock_w - 3 { dock_w + dy }
-                                      else if dy >= dock_h - 3 { dock_w + dock_h + dock_w.saturating_sub(dx) }
-                                      else { dock_w * 2 + dock_h + dock_h.saturating_sub(dy) };
-                        
+                        let p_coord = if dy <= 2 {
+                            dx
+                        } else if dx >= dock_w - 3 {
+                            dock_w + dy
+                        } else if dy >= dock_h - 3 {
+                            dock_w + dock_h + dock_w.saturating_sub(dx)
+                        } else {
+                            dock_w * 2 + dock_h + dock_h.saturating_sub(dy)
+                        };
+
                         let mut dist = (p_coord as isize - glow_pos as isize).unsigned_abs();
                         dist = dist.min(perimeter.saturating_sub(dist));
 
@@ -670,25 +799,37 @@ impl GraphicalCompositor {
 
                 let idx = (dy * dock_w + dx) * 3;
                 self.dock_buffer[idx] = out_r;
-                self.dock_buffer[idx+1] = out_g;
-                self.dock_buffer[idx+2] = out_b;
+                self.dock_buffer[idx + 1] = out_g;
+                self.dock_buffer[idx + 2] = out_b;
             }
         }
 
         // Draw processed glass pixels back
         for dy in 0..dock_h {
             for dx in 0..dock_w {
-                let c_dx = if dx < corner_r { corner_r - dx - 1 } 
-                           else { dx.saturating_sub(dock_w - corner_r) };
-                let c_dy = if dy < corner_r { corner_r - dy - 1 } 
-                           else { dy.saturating_sub(dock_h - corner_r) };
-                
+                let c_dx = if dx < corner_r {
+                    corner_r - dx - 1
+                } else {
+                    dx.saturating_sub(dock_w - corner_r)
+                };
+                let c_dy = if dy < corner_r {
+                    corner_r - dy - 1
+                } else {
+                    dy.saturating_sub(dock_h - corner_r)
+                };
+
                 if c_dx * c_dx + c_dy * c_dy >= corner_r * corner_r {
-                    continue; 
+                    continue;
                 }
 
                 let idx = (dy * dock_w + dx) * 3;
-                self.draw_pixel(dock_x + dx, dock_y + dy, self.dock_buffer[idx], self.dock_buffer[idx+1], self.dock_buffer[idx+2]);
+                self.draw_pixel(
+                    dock_x + dx,
+                    dock_y + dy,
+                    self.dock_buffer[idx],
+                    self.dock_buffer[idx + 1],
+                    self.dock_buffer[idx + 2],
+                );
             }
         }
 
@@ -710,7 +851,7 @@ impl GraphicalCompositor {
             let icon_base_x = dock_x + 25 + i * 85;
             let mut icon_y = dock_y + 10;
             let is_hovered = hovered_icon == Some(i);
-            
+
             if is_hovered {
                 icon_y = icon_y.saturating_sub(4);
             }
@@ -723,18 +864,21 @@ impl GraphicalCompositor {
     }
 
     pub fn render_all(&mut self) {
-        let req = crate::desktop::THEME_CHANGE_REQUESTED.load(core::sync::atomic::Ordering::Relaxed);
+        let req =
+            crate::desktop::THEME_CHANGE_REQUESTED.load(core::sync::atomic::Ordering::Relaxed);
         if req != 0 {
             // Close all windows
             self.windows.clear();
-            
+
             // Set theme
             if req == 1 {
-                crate::desktop::THEME.store(0, core::sync::atomic::Ordering::Relaxed); // Light Mode
+                crate::desktop::THEME.store(0, core::sync::atomic::Ordering::Relaxed);
+            // Light Mode
             } else if req == 2 {
-                crate::desktop::THEME.store(1, core::sync::atomic::Ordering::Relaxed); // Dark Mode
+                crate::desktop::THEME.store(1, core::sync::atomic::Ordering::Relaxed);
+                // Dark Mode
             }
-            
+
             crate::desktop::THEME_CHANGE_REQUESTED.store(0, core::sync::atomic::Ordering::Relaxed);
             self.full_redraw = true;
         }
@@ -748,7 +892,7 @@ impl GraphicalCompositor {
                 break;
             }
         }
-        
+
         self.dock_target_offset = if any_maximized { 100 } else { 0 };
         let diff = self.dock_target_offset - self.dock_y_offset;
 
@@ -758,76 +902,123 @@ impl GraphicalCompositor {
             let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
             let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
             let old_dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
-            self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: old_dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
+            self.dirty_rects.push(Rect {
+                x: dock_x.saturating_sub(20),
+                y: old_dock_y.saturating_sub(20),
+                width: dock_w + 40,
+                height: dock_h + 40,
+            });
         }
 
         self.dock_y_offset += diff / 4;
-        if diff > 0 && diff < 4 { self.dock_y_offset += 1; }
-        else if diff < 0 && diff > -4 { self.dock_y_offset -= 1; }
+        if diff > 0 && diff < 4 {
+            self.dock_y_offset += 1;
+        } else if diff < 0 && diff > -4 {
+            self.dock_y_offset -= 1;
+        }
 
         let dock_w = 440;
         let dock_h = 60;
         let dock_x = (self.info.width.saturating_sub(dock_w)) / 2;
         let dock_y_base = (self.info.height as isize).saturating_sub(dock_h as isize + 15);
         let dock_y = (dock_y_base + self.dock_y_offset).max(0) as usize;
-        self.dirty_rects.push(Rect { x: dock_x.saturating_sub(20), y: dock_y.saturating_sub(20), width: dock_w + 40, height: dock_h + 40 });
-        self.dirty_rects.push(Rect { x: 0, y: 0, width: self.info.width, height: 28 }); // Top bar clock
+        self.dirty_rects.push(Rect {
+            x: dock_x.saturating_sub(20),
+            y: dock_y.saturating_sub(20),
+            width: dock_w + 40,
+            height: dock_h + 40,
+        });
+        self.dirty_rects.push(Rect {
+            x: 0,
+            y: 0,
+            width: self.info.width,
+            height: 28,
+        }); // Top bar clock
 
         for w in self.windows.iter().flatten() {
-            self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 40, height: w.height + 40 });
+            self.dirty_rects.push(Rect {
+                x: w.x.saturating_sub(20),
+                y: w.y.saturating_sub(20),
+                width: w.width + 40,
+                height: w.height + 40,
+            });
         }
 
         self.render_desktop();
-        
+
         let num_windows = self.windows.len();
-        
+
         for i in 0..num_windows {
             if let Some(mut window) = self.windows[i].take() {
                 let is_active = i == num_windows - 1;
-                
+
                 let win_x = window.x;
                 let win_y = window.y;
                 let win_w = window.width;
                 let win_h = window.height + 20;
 
-                let was_opening = matches!(window.anim_state, crate::desktop::window::WindowAnimState::Opening(_));
+                let was_opening = matches!(
+                    window.anim_state,
+                    crate::desktop::window::WindowAnimState::Opening(_)
+                );
                 window.tick_animation();
-                
+
                 if let crate::desktop::window::WindowAnimState::Opening(tick) = window.anim_state {
                     self.draw_animated_window_border(win_x, win_y, win_w, win_h, tick);
-                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 60, height: win_h + 60 });
+                    self.dirty_rects.push(Rect {
+                        x: win_x.saturating_sub(20),
+                        y: win_y.saturating_sub(20),
+                        width: win_w + 60,
+                        height: win_h + 60,
+                    });
                     self.windows[i] = Some(window);
                     continue; // Skip normal drawing
                 } else if was_opening {
-                    self.dirty_rects.push(Rect { x: win_x.saturating_sub(20), y: win_y.saturating_sub(20), width: win_w + 60, height: win_h + 60 });
+                    self.dirty_rects.push(Rect {
+                        x: win_x.saturating_sub(20),
+                        y: win_y.saturating_sub(20),
+                        width: win_w + 60,
+                        height: win_h + 60,
+                    });
                 }
 
                 // 1. Draw Drop-Shadow or Glow first
                 self.draw_shadow_and_glow(win_x, win_y, win_w, win_h, 8, is_active);
-                
-                // 2. Backup corners 
+
+                // 2. Backup corners
                 let r = 8;
                 let mut corners_backup = [(0u8, 0u8, 0u8); 8 * 8 * 4];
 
                 for cy in 0..r {
                     for cx in 0..r {
                         corners_backup[cy * r + cx] = self.read_pixel(win_x + cx, win_y + cy);
-                        corners_backup[64 + cy * r + cx] = self.read_pixel(win_x + win_w - r + cx, win_y + cy);
-                        corners_backup[128 + cy * r + cx] = self.read_pixel(win_x + cx, win_y + win_h - r + cy);
-                        corners_backup[192 + cy * r + cx] = self.read_pixel(win_x + win_w - r + cx, win_y + win_h - r + cy);
+                        corners_backup[64 + cy * r + cx] =
+                            self.read_pixel(win_x + win_w - r + cx, win_y + cy);
+                        corners_backup[128 + cy * r + cx] =
+                            self.read_pixel(win_x + cx, win_y + win_h - r + cy);
+                        corners_backup[192 + cy * r + cx] =
+                            self.read_pixel(win_x + win_w - r + cx, win_y + win_h - r + cy);
                     }
                 }
 
                 // 3. Draw standard solid rectangular window contents
-                let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
+                let is_dark =
+                    crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
                 let (tr, tg, tb) = if is_dark { (40, 40, 45) } else { (60, 60, 60) };
                 self.draw_rect(win_x, win_y, win_w, 20, tr, tg, tb); // Title Bar
-                
+
                 window.app.update();
-                self.clip_rect = Some(Rect { x: win_x, y: win_y + 20, width: win_w, height: window.height });
-                window.app.draw(self, win_x, win_y + 20, win_w, window.height); // App content
+                self.clip_rect = Some(Rect {
+                    x: win_x,
+                    y: win_y + 20,
+                    width: win_w,
+                    height: window.height,
+                });
+                window
+                    .app
+                    .draw(self, win_x, win_y + 20, win_w, window.height); // App content
                 self.clip_rect = None;
-                
+
                 // 4. Restore Corners
                 let r_sq = r * r;
 
@@ -852,20 +1043,25 @@ impl GraphicalCompositor {
                         }
                         if dx_right * dx_right + dy_bot * dy_bot > r_sq {
                             let (pr, pg, pb) = corners_backup[192 + cy * r + cx];
-                            self.draw_pixel(win_x + win_w - r + cx, win_y + win_h - r + cy, pr, pg, pb);
+                            self.draw_pixel(
+                                win_x + win_w - r + cx,
+                                win_y + win_h - r + cy,
+                                pr,
+                                pg,
+                                pb,
+                            );
                         }
                     }
                 }
-                
+
                 // 5. Draw Buttons (After corner restore so they are not clipped)
                 // Close Button
-                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50); 
+                self.draw_rect(win_x + win_w - 20, win_y, 20, 20, 220, 50, 50);
                 self.draw_char(win_x + win_w - 14, win_y + 6, 'X', 255, 255, 255);
-                
-                // Maximize Button
-                self.draw_rect(win_x + win_w - 40, win_y, 20, 20, 50, 150, 50); 
-                self.draw_char(win_x + win_w - 34, win_y + 6, '^', 255, 255, 255);
 
+                // Maximize Button
+                self.draw_rect(win_x + win_w - 40, win_y, 20, 20, 50, 150, 50);
+                self.draw_char(win_x + win_w - 34, win_y + 6, '^', 255, 255, 255);
 
                 self.windows[i] = Some(window);
             }
@@ -880,14 +1076,22 @@ impl GraphicalCompositor {
             self.draw_pixel(self.mouse_x + i, self.mouse_y + i, 5, 5, 10);
         }
 
-        self.dirty_rects.push(Rect { x: self.mouse_x, y: self.mouse_y, width: 16, height: 16 });
+        self.dirty_rects.push(Rect {
+            x: self.mouse_x,
+            y: self.mouse_y,
+            width: 16,
+            height: 16,
+        });
 
         if self.full_redraw {
-            self.renderer.draw_dirty_rect(self.backbuffer.as_ptr(), self.framebuffer.as_mut_ptr(), self.backbuffer.len());
+            self.renderer.draw_dirty_rect(
+                self.backbuffer.as_ptr(),
+                self.framebuffer.as_mut_ptr(),
+                self.backbuffer.len(),
+            );
             self.full_redraw = false;
             self.dirty_rects.clear();
         } else {
-
             let bpp = self.info.bytes_per_pixel;
             let stride = self.info.stride;
 
@@ -897,12 +1101,14 @@ impl GraphicalCompositor {
                 let start_x = rect.x;
                 let end_x = core::cmp::min(rect.x + rect.width, self.info.width);
 
-                if start_x >= end_x || start_y >= end_y { continue; }
+                if start_x >= end_x || start_y >= end_y {
+                    continue;
+                }
 
                 for y in start_y..end_y {
                     let offset = y * stride * bpp + start_x * bpp;
                     let len = (end_x - start_x) * bpp;
-                    
+
                     unsafe {
                         let src_ptr = self.backbuffer.as_ptr().add(offset);
                         let dst_ptr = self.framebuffer.as_mut_ptr().add(offset);
@@ -915,11 +1121,18 @@ impl GraphicalCompositor {
     }
 
     pub fn swap_buffers(&mut self) {
-        self.renderer.draw_dirty_rect(self.backbuffer.as_ptr(), self.framebuffer.as_mut_ptr(), self.backbuffer.len());
+        self.renderer.draw_dirty_rect(
+            self.backbuffer.as_ptr(),
+            self.framebuffer.as_mut_ptr(),
+            self.backbuffer.len(),
+        );
     }
 
     pub fn draw_char(&mut self, x: usize, y: usize, c: char, r: u8, g: u8, b: u8) {
-        if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::LATIN_FONTS.get(c)) {
+        if let Some(bitmap) = font8x8::BASIC_FONTS
+            .get(c)
+            .or_else(|| font8x8::LATIN_FONTS.get(c))
+        {
             for (row, byte) in bitmap.iter().enumerate() {
                 for col in 0..8 {
                     if (*byte & (1 << col)) != 0 {
@@ -930,9 +1143,18 @@ impl GraphicalCompositor {
         }
     }
 
-    pub fn draw_scrollbar(&mut self, x: usize, y: usize, height: usize, scroll_y: usize, max_scroll: usize) {
-        if max_scroll == 0 { return; }
-        
+    pub fn draw_scrollbar(
+        &mut self,
+        x: usize,
+        y: usize,
+        height: usize,
+        scroll_y: usize,
+        max_scroll: usize,
+    ) {
+        if max_scroll == 0 {
+            return;
+        }
+
         // Auto-Hide logic: if scroll_y changes, reset the timer.
         // We use a hacky way to track it per-app by just seeing if the global drawn scroll_y changed.
         // Since we only draw one focused app's scrollbar per frame usually, this works nicely.
@@ -947,14 +1169,26 @@ impl GraphicalCompositor {
         }
 
         let is_dark = crate::desktop::THEME.load(core::sync::atomic::Ordering::Relaxed) == 1;
-        let (handle_r, handle_g, handle_b) = if is_dark { (100, 100, 110) } else { (160, 160, 160) };
+        let (handle_r, handle_g, handle_b) = if is_dark {
+            (100, 100, 110)
+        } else {
+            (160, 160, 160)
+        };
 
         let handle_height = (height * height) / (height + max_scroll).max(1);
         let handle_height = handle_height.max(20);
         let handle_y = y + (scroll_y * (height - handle_height)) / max_scroll.max(1);
-        
+
         // Draw only the scroll handle as a floating overlay
-        self.draw_rect(x + 4, handle_y, 4, handle_height, handle_r, handle_g, handle_b);
+        self.draw_rect(
+            x + 4,
+            handle_y,
+            4,
+            handle_height,
+            handle_r,
+            handle_g,
+            handle_b,
+        );
     }
 
     pub fn dispatch_keyboard_event(&mut self, c: char) {
@@ -965,9 +1199,11 @@ impl GraphicalCompositor {
 
     pub fn dispatch_keycode_event(&mut self, code: u8) {
         if let Some(Some(window)) = self.windows.last_mut() {
-            if code == 0x48 { // Up Arrow
+            if code == 0x48 {
+                // Up Arrow
                 window.app.handle_event(Event::MouseScroll { delta: -1 });
-            } else if code == 0x50 { // Down Arrow
+            } else if code == 0x50 {
+                // Down Arrow
                 window.app.handle_event(Event::MouseScroll { delta: 1 });
             }
             window.app.handle_event(Event::KeyCode(code));
@@ -975,19 +1211,32 @@ impl GraphicalCompositor {
     }
 
     pub fn handle_mouse_event(&mut self, dx: i32, dy: i32, left_down: bool, _right_down: bool) {
-        self.dirty_rects.push(Rect { x: self.mouse_x, y: self.mouse_y, width: 16, height: 16 });
+        self.dirty_rects.push(Rect {
+            x: self.mouse_x,
+            y: self.mouse_y,
+            width: 16,
+            height: 16,
+        });
 
         let mut new_x = self.mouse_x as i32 + dx;
         let mut new_y = self.mouse_y as i32 + dy;
-        
+
         let width = self.info.width as i32;
         let height = self.info.height as i32;
-        
-        if new_x < 0 { new_x = 0; }
-        if new_y < 0 { new_y = 0; }
-        if new_x >= width { new_x = width - 1; }
-        if new_y >= height { new_y = height - 1; }
-        
+
+        if new_x < 0 {
+            new_x = 0;
+        }
+        if new_y < 0 {
+            new_y = 0;
+        }
+        if new_x >= width {
+            new_x = width - 1;
+        }
+        if new_y >= height {
+            new_y = height - 1;
+        }
+
         self.mouse_x = new_x as usize;
         self.mouse_y = new_y as usize;
 
@@ -1015,12 +1264,12 @@ impl GraphicalCompositor {
             if let Some(i) = clicked_idx {
                 let win = self.windows.remove(i);
                 self.windows.push(win);
-                
+
                 let new_i = self.windows.len() - 1;
-                
+
                 let mut close_win = false;
                 let mut toggle_max = false;
-                
+
                 if let Some(w) = &self.windows[new_i] {
                     if my <= w.y + 20 && my >= w.y {
                         if mx >= w.x + w.width - 20 {
@@ -1041,7 +1290,7 @@ impl GraphicalCompositor {
                         self.long_press_ticks = 0;
                     }
                 }
-                
+
                 if close_win {
                     self.windows.remove(new_i);
                 } else if toggle_max {
@@ -1058,7 +1307,7 @@ impl GraphicalCompositor {
                             w.orig_y = w.y;
                             w.orig_w = w.width;
                             w.orig_h = w.height;
-                            
+
                             w.x = 0;
                             w.y = 28;
                             w.width = width as usize;
@@ -1076,7 +1325,8 @@ impl GraphicalCompositor {
             let dock_x = (width as usize).saturating_sub(dock_w) / 2;
             let dock_y_base = (height as isize).saturating_sub(dock_h as isize + 15);
             let dock_y = (dock_y_base + self.dock_y_offset) as usize;
-            let in_dock = mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
+            let in_dock =
+                mx >= dock_x && mx <= dock_x + dock_w && my >= dock_y && my <= dock_y + dock_h;
 
             if !found {
                 if in_dock {
@@ -1084,18 +1334,35 @@ impl GraphicalCompositor {
                         let rel_x = mx - (dock_x + 25);
                         let icon_idx = rel_x / 85;
                         let offset_in_icon = rel_x % 85;
-                        if offset_in_icon <= 40 && my >= dock_y + 6 && my <= dock_y + 50 && self.windows.len() < 12
-                            && icon_idx < apps_to_draw {
-                                let offset = (self.windows.len() * 20) % 100;
-                                let desc = &self.apps[icon_idx];
-                                let app = (desc.spawn)();
-                                let win_width = if width > 600 { desc.default_width.min((width as usize).saturating_sub(100)) } else { desc.default_width.min((width as usize).saturating_sub(40).max(100)) };
-                                let win_height = if height > 400 { desc.default_height.min((height as usize).saturating_sub(150)) } else { desc.default_height.min((height as usize).saturating_sub(80).max(100)) };
-                                let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(app, win_x, win_y, win_width, win_height);
-                                self.add_window(new_win);
-                            }
+                        if offset_in_icon <= 40
+                            && my >= dock_y + 6
+                            && my <= dock_y + 50
+                            && self.windows.len() < 12
+                            && icon_idx < apps_to_draw
+                        {
+                            let offset = (self.windows.len() * 20) % 100;
+                            let desc = &self.apps[icon_idx];
+                            let app = (desc.spawn)();
+                            let win_width = if width > 600 {
+                                desc.default_width.min((width as usize).saturating_sub(100))
+                            } else {
+                                desc.default_width
+                                    .min((width as usize).saturating_sub(40).max(100))
+                            };
+                            let win_height = if height > 400 {
+                                desc.default_height
+                                    .min((height as usize).saturating_sub(150))
+                            } else {
+                                desc.default_height
+                                    .min((height as usize).saturating_sub(80).max(100))
+                            };
+                            let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
+                            let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
+                            let new_win = crate::desktop::window::Window::new(
+                                app, win_x, win_y, win_width, win_height,
+                            );
+                            self.add_window(new_win);
+                        }
                     }
                 } else {
                     // Check if clicked on a Desktop icon
@@ -1113,11 +1380,25 @@ impl GraphicalCompositor {
                                 let offset = (self.windows.len() * 20) % 100;
                                 let desc = &self.apps[i];
                                 let app = (desc.spawn)();
-                                let win_width = if width > 600 { desc.default_width.min((width as usize).saturating_sub(100)) } else { desc.default_width.min((width as usize).saturating_sub(40).max(100)) };
-                                let win_height = if height > 400 { desc.default_height.min((height as usize).saturating_sub(150)) } else { desc.default_height.min((height as usize).saturating_sub(80).max(100)) };
+                                let win_width = if width > 600 {
+                                    desc.default_width.min((width as usize).saturating_sub(100))
+                                } else {
+                                    desc.default_width
+                                        .min((width as usize).saturating_sub(40).max(100))
+                                };
+                                let win_height = if height > 400 {
+                                    desc.default_height
+                                        .min((height as usize).saturating_sub(150))
+                                } else {
+                                    desc.default_height
+                                        .min((height as usize).saturating_sub(80).max(100))
+                                };
                                 let win_x = (width as usize).saturating_sub(win_width) / 2 + offset;
-                                let win_y = (height as usize).saturating_sub(win_height) / 2 + offset;
-                                let new_win = crate::desktop::window::Window::new(app, win_x, win_y, win_width, win_height);
+                                let win_y =
+                                    (height as usize).saturating_sub(win_height) / 2 + offset;
+                                let new_win = crate::desktop::window::Window::new(
+                                    app, win_x, win_y, win_width, win_height,
+                                );
                                 self.add_window(new_win);
                                 clicked_desktop_icon = true;
                             }
@@ -1141,7 +1422,7 @@ impl GraphicalCompositor {
         if released_this_frame {
             self.dragging_window = None;
             self.desktop_click_active = false;
-            
+
             if let Some((idx, rel_x, rel_y)) = self.active_app_click {
                 if self.long_press_ticks < 60 && idx < self.windows.len() {
                     if let Some(w) = &mut self.windows[idx] {
@@ -1157,8 +1438,13 @@ impl GraphicalCompositor {
             if let Some(idx) = self.dragging_window {
                 if idx < self.windows.len() {
                     if let Some(w) = &mut self.windows[idx] {
-                        self.dirty_rects.push(Rect { x: w.x.saturating_sub(20), y: w.y.saturating_sub(20), width: w.width + 60, height: w.height + 60 });
-                        
+                        self.dirty_rects.push(Rect {
+                            x: w.x.saturating_sub(20),
+                            y: w.y.saturating_sub(20),
+                            width: w.width + 60,
+                            height: w.height + 60,
+                        });
+
                         let target_x = (self.mouse_x as isize - self.drag_offset_x).max(0) as usize;
                         let target_y = (self.mouse_y as isize - self.drag_offset_y).max(0) as usize;
                         w.x = target_x;
@@ -1168,13 +1454,14 @@ impl GraphicalCompositor {
             } else if let Some((idx, rel_x, rel_y)) = self.active_app_click {
                 let mut should_cancel = false;
                 let mut trigger_event = false;
-                
+
                 if let Some(w) = &self.windows[idx] {
-                    if mx < w.x || mx > w.x + w.width || my <= w.y + 20 || my > w.y + w.height + 20 {
+                    if mx < w.x || mx > w.x + w.width || my <= w.y + 20 || my > w.y + w.height + 20
+                    {
                         should_cancel = true;
                     }
                 }
-                
+
                 if should_cancel {
                     self.active_app_click = None;
                     self.long_press_ticks = 0;
@@ -1184,10 +1471,11 @@ impl GraphicalCompositor {
                         trigger_event = true;
                     }
                 }
-                
+
                 if trigger_event {
                     if let Some(w) = &mut self.windows[idx] {
-                        w.app.handle_event(Event::MouseLongPress { x: rel_x, y: rel_y });
+                        w.app
+                            .handle_event(Event::MouseLongPress { x: rel_x, y: rel_y });
                     }
                 }
             } else if self.desktop_click_active {
@@ -1196,7 +1484,7 @@ impl GraphicalCompositor {
                 if self.long_press_ticks == 60 {
                     let file_name = alloc::format!("Desktop_Datei_{}.txt", self.ticks);
                     let _ = crate::fs::RAM_FS.write_file(&file_name, b"");
-                    
+
                     self.desktop_click_active = false;
                     self.long_press_ticks = 0;
                 }
@@ -1205,7 +1493,9 @@ impl GraphicalCompositor {
     }
 
     fn get_perimeter_pixel(x: usize, y: usize, w: usize, h: usize, i: usize) -> (usize, usize) {
-        if w < 2 || h < 2 { return (x, y); }
+        if w < 2 || h < 2 {
+            return (x, y);
+        }
         let p1 = w;
         let p2 = w + h - 1;
         let p3 = 2 * w + h - 2;
@@ -1217,13 +1507,23 @@ impl GraphicalCompositor {
         } else if i < p2 {
             (x + w.saturating_sub(1), y + (i - p1 + 1))
         } else if i < p3 {
-            (x + w.saturating_sub(1).saturating_sub(i - p2 + 1), y + h.saturating_sub(1))
+            (
+                x + w.saturating_sub(1).saturating_sub(i - p2 + 1),
+                y + h.saturating_sub(1),
+            )
         } else {
             (x, y + h.saturating_sub(1).saturating_sub(i - p3 + 1))
         }
     }
 
-    pub fn draw_animated_window_border(&mut self, x: usize, y: usize, w: usize, h: usize, tick: usize) {
+    pub fn draw_animated_window_border(
+        &mut self,
+        x: usize,
+        y: usize,
+        w: usize,
+        h: usize,
+        tick: usize,
+    ) {
         let perimeter = if w < 2 || h < 2 { 0 } else { 2 * w + 2 * h - 4 };
         let t_trace = 60;
         let t_pulse_out = 15;
@@ -1244,7 +1544,7 @@ impl GraphicalCompositor {
                 };
                 self.draw_pixel(px, py, r, g, b);
             }
-        } 
+        }
         // PHASE 2 & 3: Glow-Pulse (Ausstrahlen und Einziehen)
         else if tick < t_trace + t_pulse_out + t_pulse_in {
             // Outline
@@ -1252,7 +1552,7 @@ impl GraphicalCompositor {
             self.draw_rect(x, y + h - 1, w, 1, 200, 200, 255);
             self.draw_rect(x, y, 1, h, 200, 200, 255);
             self.draw_rect(x + w - 1, y, 1, h, 200, 200, 255);
-            
+
             let pulse_tick = tick - t_trace;
             let current_glow_radius = if pulse_tick < t_pulse_out {
                 (glow_max_radius * pulse_tick) / t_pulse_out
@@ -1264,19 +1564,19 @@ impl GraphicalCompositor {
             for r_offset in 1..=current_glow_radius {
                 let alpha = 128_usize.saturating_sub((128 * r_offset) / glow_max_radius);
                 let (cr, cg, cb) = (100, 150, 255);
-                
+
                 let rx = x.saturating_sub(r_offset);
                 let ry = y.saturating_sub(r_offset);
                 let rw = w + 2 * r_offset;
                 let rh = h + 2 * r_offset;
-                
-                for px in rx..rx+rw {
+
+                for px in rx..rx + rw {
                     self.blend_pixel(px, ry, cr, cg, cb, alpha as u16);
-                    self.blend_pixel(px, ry+rh-1, cr, cg, cb, alpha as u16);
+                    self.blend_pixel(px, ry + rh - 1, cr, cg, cb, alpha as u16);
                 }
-                for py in ry..ry+rh {
+                for py in ry..ry + rh {
                     self.blend_pixel(rx, py, cr, cg, cb, alpha as u16);
-                    self.blend_pixel(rx+rw-1, py, cr, cg, cb, alpha as u16);
+                    self.blend_pixel(rx + rw - 1, py, cr, cg, cb, alpha as u16);
                 }
             }
         }
