@@ -36,7 +36,7 @@ jobs:
           targets: x86_64-unknown-none
 
       - name: 📦 Cache Cargo Registry & Build
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry

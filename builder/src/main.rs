@@ -29,13 +29,13 @@ fn main() {
 
     // 2. Pfade definieren & absichern
     let kernel_elf = Path::new("target/x86_64-unknown-none/release/kernel");
-    let build_dir = Path::new("../RustOS_Build_Output");
+    let build_dir = Path::new("target");
     
     if !build_dir.exists() {
         fs::create_dir_all(build_dir).expect("FATAL: Konnte Build-Ordner nicht erstellen");
     }
     
-    let output_disk = build_dir.join("vibecore_desktop.img");
+    let output_disk = build_dir.join("my_rust_os_desktop.img");
     let output_elf = build_dir.join("kernel.elf");
 
     // 3. Bootloader verknüpfen
