@@ -253,4 +253,39 @@ mod tests {
         assert_eq!(fs.write_file("file.txt", b"data"), Ok(()));
         assert_eq!(fs.delete_file("file.txt"), Ok(()));
     }
+
+    #[test]
+    fn test_write_file_success() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.write_file("file.txt", b"hello world"), Ok(()));
+        assert_eq!(fs.read_file("file.txt"), Ok(b"hello world".to_vec()));
+    }
+
+    #[test]
+    fn test_write_file_overwrite() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.write_file("file.txt", b"initial data"), Ok(()));
+        assert_eq!(fs.write_file("file.txt", b"new data"), Ok(()));
+        assert_eq!(fs.read_file("file.txt"), Ok(b"new data".to_vec()));
+    }
+
+    #[test]
+    fn test_write_file_in_directory() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.write_file("dir/file.txt", b"data in dir"), Ok(()));
+        assert_eq!(fs.read_file("dir/file.txt"), Ok(b"data in dir".to_vec()));
+    }
+
+    #[test]
+    fn test_write_file_empty_path() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.write_file("", b"data"), Err(FsError::NotADirectory));
+    }
+
+    #[test]
+    fn test_write_file_is_directory() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.mkdir("dir"), Ok(()));
+        assert_eq!(fs.write_file("dir", b"data"), Err(FsError::IsDirectory));
+    }
 }
