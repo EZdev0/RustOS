@@ -103,10 +103,16 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
+
+    pub fn update_http_request_state(http_state: &mut HttpState, http_response: &mut String, http_request_ip: &mut Option<[u8; 4]>, ip: [u8; 4]) {
+        *http_state = HttpState::Init;
+        http_response.clear();
+        *http_request_ip = Some(ip);
+    }
+
     pub fn request_http(&mut self, ip: [u8; 4]) {
-        self.http_state = HttpState::Init;
-        self.http_response.clear();
-        self.http_request_ip = Some(ip);
+        Self::update_http_request_state(&mut self.http_state, &mut self.http_response, &mut self.http_request_ip, ip);
+
         
         // Abort old connection if active
         let socket = self.sockets.get_mut::<tcp::Socket>(self.tcp_handle);
@@ -289,5 +295,25 @@ pub async fn network_task() {
         }
         
         YieldNow { yielded: false }.await;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use alloc::string::String;
+
+    #[test]
+    fn test_update_http_request_state() {
+        let mut state = HttpState::Done;
+        let mut response = String::from("old response");
+        let mut request_ip = None;
+        let target_ip = [192, 168, 1, 100];
+
+        NetworkManager::update_http_request_state(&mut state, &mut response, &mut request_ip, target_ip);
+
+        assert_eq!(state, HttpState::Init);
+        assert!(response.is_empty());
+        assert_eq!(request_ip, Some(target_ip));
     }
 }
