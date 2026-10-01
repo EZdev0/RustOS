@@ -227,3 +227,30 @@ impl RamFs {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_delete_non_empty_dir() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.mkdir("testdir"), Ok(()));
+        assert_eq!(fs.write_file("testdir/file.txt", b"data"), Ok(()));
+        assert_eq!(fs.delete_file("testdir"), Err(FsError::NotEmpty));
+    }
+
+    #[test]
+    fn test_delete_empty_dir() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.mkdir("emptydir"), Ok(()));
+        assert_eq!(fs.delete_file("emptydir"), Ok(()));
+    }
+
+    #[test]
+    fn test_delete_file_success() {
+        let mut fs = RamFs::new();
+        assert_eq!(fs.write_file("file.txt", b"data"), Ok(()));
+        assert_eq!(fs.delete_file("file.txt"), Ok(()));
+    }
+}
