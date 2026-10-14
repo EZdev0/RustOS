@@ -7,3 +7,4 @@ edition = "2021"
 # FIX: UEFI-Zwang deaktiviert (default-features = false). 
 # Wir zwingen den Bootloader, exakt NUR das BIOS-Image zu bauen!
 bootloader = { version = "0.11.7", default-features = false, features = ["bios"] }
+raw-cpuid = "11.6.0"

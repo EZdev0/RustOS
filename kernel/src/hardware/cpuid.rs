@@ -1,4 +1,4 @@
-use raw_cpuid::CpuId;
+use raw_cpuid::{CpuId, CpuIdReader};
 use alloc::string::String;
 use x86_64::registers::control::{Cr4, Cr4Flags};
 use x86_64::registers::xcontrol::{XCr0, XCr0Flags};
@@ -39,7 +39,16 @@ pub fn detect_and_init() -> String {
 
 #[allow(dead_code)]
 pub fn has_avx2() -> bool {
-    let cpuid = CpuId::new();
+    has_avx2_with_cpuid(CpuId::new())
+}
+
+#[allow(dead_code)]
+pub fn has_avx512f() -> bool {
+    has_avx512f_with_cpuid(CpuId::new())
+}
+
+#[allow(dead_code)]
+pub fn has_avx2_with_cpuid<R: CpuIdReader>(cpuid: CpuId<R>) -> bool {
     if let Some(ext) = cpuid.get_extended_feature_info() {
         ext.has_avx2()
     } else {
@@ -48,8 +57,7 @@ pub fn has_avx2() -> bool {
 }
 
 #[allow(dead_code)]
-pub fn has_avx512f() -> bool {
-    let cpuid = CpuId::new();
+pub fn has_avx512f_with_cpuid<R: CpuIdReader>(cpuid: CpuId<R>) -> bool {
     if let Some(ext) = cpuid.get_extended_feature_info() {
         ext.has_avx512f()
     } else {
