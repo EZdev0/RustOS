@@ -1,25 +1,25 @@
-name: RustOS Intelligent ChatOps, Issue Assignment & PR Suggestions
+name: RustOS 100% Local-LLM ChatOps, Issue Assignment & PR Suggestions
 
 on:
-  # 1. Trigger when calling @rustos-ci in any Issue or Pull Request comment
+  # 1. Call your local AI directly in any Issue or PR comment via @rustos-ci
   issue_comment:
     types: [created]
 
-  # 2. Trigger when an Issue is assigned or labeled (e.g., 'ci:assign', 'agent:fix')
+  # 2. Trigger automatically when an Issue is assigned or labeled
   issues:
     types: [assigned, labeled]
 
-  # 3. Trigger on Pull Requests for automatic inline GitHub Code Suggestions & SARIF
+  # 3. Trigger on Pull Requests for 1-click GitHub Suggestions & Clippy SARIF
   pull_request:
     branches: [main]
 
   # 4. Manual trigger from Actions tab
   workflow_dispatch:
     inputs:
-      command:
-        description: "Manual command to execute (check, fix-fmt, build)"
+      prompt:
+        description: "Prompt for the local RustOS LLM assistant"
         required: false
-        default: "check"
+        default: "Analyze workspace health and suggest next OS kernel improvements."
 
 # 2026 Security Standard: Least privilege at top level
 permissions:
@@ -29,21 +29,25 @@ env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
   CI: 1
+  # 100% Local Open-Weight Model running inside the runner (Zero API keys!)
+  LOCAL_MODEL: "qwen2.5-coder:1.5b"
+  OLLAMA_HOST: "127.0.0.1:11434"
 
 jobs:
   # ============================================================================
-  # JOB 1: @rustos-ci Mention & Issue Assignment Controller (ChatOps)
+  # JOB 1: 100% Local LLM (@rustos-ci) & Issue Assignment Handler
   # ============================================================================
-  chatops-and-assignment:
-    name: "@rustos-ci Command & Issue Assignment Handler"
+  local-llm-chatops:
+    name: "Local-LLM (@rustos-ci) & Issue Assignment Agent"
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # Security Guard: Prevent infinite bot loops and unauthorized fork execution
+    timeout-minutes: 25
+    # Security Guard: Prevent infinite bot loops and unauthorized external triggers
     if: >
       github.actor != 'github-actions[bot]' &&
       !endsWith(github.actor, '[bot]') &&
       (
         github.event_name == 'issues' ||
+        github.event_name == 'workflow_dispatch' ||
         (
           github.event_name == 'issue_comment' &&
           contains(github.event.comment.body, '@rustos-ci') &&
@@ -55,7 +59,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - name: Acknowledge "@rustos-ci" invocation with rocket reaction
+      - name: Add rocket reaction to acknowledge "@rustos-ci" call
         if: github.event_name == 'issue_comment'
         uses: actions/github-script@v7
         with:
@@ -67,7 +71,7 @@ jobs:
               content: 'rocket'
             });
 
-      - name: Checkout repository (PR branch or default branch)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -81,53 +85,69 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Auto-Branch & Triage on Issue Assignment or "@rustos-ci assign"
+      - name: Cache Local LLM GGUF weights (~/.ollama) across CI runs
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: rustos-local-llm-${{ env.LOCAL_MODEL }}-v1
+
+      - name: Install and start 100% Local Ollama Engine (No API Keys)
+        run: |
+          curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s "http://${OLLAMA_HOST}/api/tags" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          ollama pull "${LOCAL_MODEL}"
+
+      - name: Auto-Provision Feature Branch on Issue Assignment or "@rustos-ci assign"
         env:
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           if [ "$EVENT_NAME" = "issues" ] || echo "$COMMENT_BODY" | grep -qi "@rustos-ci assign"; then
-            BRANCH_NAME="feat/issue-${ISSUE_NUMBER}"
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            if [ -n "$ISSUE_NUMBER" ]; then
+              BRANCH_NAME="feat/issue-${ISSUE_NUMBER}"
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-            if ! git show-ref --verify --quiet "refs/remotes/origin/${BRANCH_NAME}"; then
-              git checkout -b "${BRANCH_NAME}"
-              git push -u origin "${BRANCH_NAME}"
-              echo "CREATED_BRANCH=${BRANCH_NAME}" >> "$GITHUB_ENV"
-            else
-              echo "CREATED_BRANCH=${BRANCH_NAME} (already exists)" >> "$GITHUB_ENV"
+              if ! git show-ref --verify --quiet "refs/remotes/origin/${BRANCH_NAME}"; then
+                git checkout -b "${BRANCH_NAME}"
+                git push -u origin "${BRANCH_NAME}"
+                echo "CREATED_BRANCH=${BRANCH_NAME}" >> "$GITHUB_ENV"
+              else
+                echo "CREATED_BRANCH=${BRANCH_NAME} (existing)" >> "$GITHUB_ENV"
+              fi
             fi
           fi
 
-      - name: Run Workspace Quality Diagnostics on "@rustos-ci check" or Assignment
-        id: diagnostics
-        env:
-          COMMENT_BODY: ${{ github.event.comment.body }}
+      - name: Run Compiler Feedback Loop (rustfmt, Clippy, Host Tests)
         run: |
           FMT_STATUS="✅ Passed"
           CLIPPY_STATUS="✅ Passed"
           TEST_STATUS="✅ Passed"
 
-          if ! cargo fmt --all -- --check; then
-            FMT_STATUS="❌ Formatting diff detected (run \`@rustos-ci fix-fmt\`)"
+          if ! cargo fmt --all -- --check > fmt_out.txt 2>&1; then
+            FMT_STATUS="❌ Formatting diff detected"
           fi
 
-          if ! cargo clippy --workspace -- -D warnings; then
+          if ! cargo clippy --workspace -- -D warnings > clippy_out.txt 2>&1; then
             CLIPPY_STATUS="❌ Clippy warnings detected"
           fi
 
-          if ! cargo test -p builder --release; then
-            TEST_STATUS="❌ Host unit tests failed"
+          if ! cargo test -p builder --release > test_out.txt 2>&1; then
+            TEST_STATUS="❌ Builder unit tests failed"
           fi
 
           echo "FMT_STATUS=${FMT_STATUS}" >> "$GITHUB_ENV"
           echo "CLIPPY_STATUS=${CLIPPY_STATUS}" >> "$GITHUB_ENV"
           echo "TEST_STATUS=${TEST_STATUS}" >> "$GITHUB_ENV"
 
-      - name: Auto-Format and Push on "@rustos-ci fix-fmt"
+      - name: Auto-Format and Push Branch on "@rustos-ci fix-fmt"
         if: github.event_name == 'issue_comment' && contains(github.event.comment.body, '@rustos-ci fix-fmt')
         env:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
@@ -138,38 +158,81 @@ jobs:
           if ! git diff --quiet; then
             TARGET_BRANCH="style/auto-fmt-issue-${ISSUE_NUMBER}"
             git checkout -B "${TARGET_BRANCH}"
-            git commit -am "style(workspace): apply rustfmt via @rustos-ci command"
+            git commit -am "style(workspace): apply rustfmt via local @rustos-ci agent"
             git push -u origin "${TARGET_BRANCH}" --force
             echo "AUTO_FIX_BRANCH=${TARGET_BRANCH}" >> "$GITHUB_ENV"
           fi
 
-      - name: Post intelligent status report back to Issue / Pull Request
+      - name: Run Local LLM Analysis (Compiler Feedback + Issue Context)
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          MANUAL_PROMPT: ${{ github.event.inputs.prompt }}
+        run: |
+          COMPILER_CONTEXT=$(tail -n 35 clippy_out.txt 2>/dev/null || true)
+          AGENTS_RULES=""
+          if [ -f ".agents/AGENTS.md" ]; then
+            AGENTS_RULES=$(head -n 40 .agents/AGENTS.md)
+          fi
+
+          FULL_PROMPT="You are the local RustOS Kernel AI Assistant running 100% locally inside GitHub Actions without cloud APIs.
+          Repository rules: #![no_std] kernel in kernel/, builder in builder/.
+          ${AGENTS_RULES}
+          Issue Title: ${ISSUE_TITLE}
+          Issue Body: ${ISSUE_BODY}
+          User Command: ${COMMENT_BODY:-$MANUAL_PROMPT}
+          Compiler / Clippy Feedback:
+          ${COMPILER_CONTEXT}
+
+          Provide a concise, technical English action plan or Rust code suggestion (max 250 words)."
+
+          PAYLOAD=$(jq -n \
+            --arg model "$LOCAL_MODEL" \
+            --arg prompt "$FULL_PROMPT" \
+            '{model: $model, prompt: $prompt, stream: false, options: {temperature: 0.2, num_predict: 450}}')
+
+          curl -s "http://${OLLAMA_HOST}/api/generate" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" | jq -r '.response // "Local model finished diagnostics."' > local_llm_reply.md
+
+      - name: Post Local-LLM Analysis & Diagnostics Report to Issue / PR
+        if: github.event_name == 'issue_comment' || github.event_name == 'issues'
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('fs');
             const issueNumber = context.payload.issue.number;
-            const branchInfo = process.env.CREATED_BRANCH
-              ? `\n- **Assigned Working Branch**: \`${process.env.CREATED_BRANCH}\` (ready for checkout: \`git fetch && git checkout feat/issue-${issueNumber}\`)`
+            const llmReply = fs.existsSync('local_llm_reply.md')
+              ? fs.readFileSync('local_llm_reply.md', 'utf8').trim()
+              : 'No additional notes.';
+
+            const branchLine = process.env.CREATED_BRANCH
+              ? `\n- **Assigned Branch**: \`${process.env.CREATED_BRANCH}\` (\`git fetch && git checkout feat/issue-${issueNumber}\`)`
               : '';
-            const autoFixInfo = process.env.AUTO_FIX_BRANCH
-              ? `\n- **Auto-Formatted Branch Pushed**: \`${process.env.AUTO_FIX_BRANCH}\``
+            const fixLine = process.env.AUTO_FIX_BRANCH
+              ? `\n- **Auto-Formatted Branch**: \`${process.env.AUTO_FIX_BRANCH}\``
               : '';
 
             const body = [
-              `### 🤖 RustOS CI Assistant Report (\`@rustos-ci\`)`,
-              `Triggered by @${context.actor} via \`${context.eventName}\`.${branchInfo}${autoFixInfo}`,
+              `### 🧠 RustOS 100% Local-LLM Assistant (\`${process.env.LOCAL_MODEL}\`)`,
+              `Triggered by @${context.actor} via \`${context.eventName}\` (Zero Cloud APIs).${branchLine}${fixLine}`,
               ``,
-              `| Check Gate | Status |`,
+              `| Workspace Gate | Result |`,
               `| :--- | :--- |`,
-              `| **Rustfmt Style Check** | ${process.env.FMT_STATUS || '⏭️ Skipped'} |`,
+              `| **Rustfmt Check** | ${process.env.FMT_STATUS || '⏭️ Skipped'} |`,
               `| **Clippy Zero-Warnings** | ${process.env.CLIPPY_STATUS || '⏭️ Skipped'} |`,
-              `| **Builder Host Tests** | ${process.env.TEST_STATUS || '⏭️ Skipped'} |`,
+              `| **Builder Unit Tests** | ${process.env.TEST_STATUS || '⏭️ Skipped'} |`,
               ``,
-              `<details><summary>💡 Available <code>@rustos-ci</code> Commands</summary>`,
+              `#### 🔍 Local Model Analysis & Code Guidance`,
+              llmReply,
               ``,
-              `- \`@rustos-ci check\` — Run rustfmt, clippy, and host unit tests`,
-              `- \`@rustos-ci assign\` — Create dedicated \`feat/issue-${issueNumber}\` branch for this issue`,
-              `- \`@rustos-ci fix-fmt\` — Run \`cargo fmt --all\` and push an auto-formatted branch`,
+              `<details><summary>💡 Available Local <code>@rustos-ci</code> Commands</summary>`,
+              ``,
+              `- \`@rustos-ci ask <question>\` — Ask the local \`${process.env.LOCAL_MODEL}\` model about this issue or kernel module`,
+              `- \`@rustos-ci check\` — Run rustfmt, clippy, and host unit tests with local LLM compiler analysis`,
+              `- \`@rustos-ci assign\` — Create branch \`feat/issue-${issueNumber}\` and generate an implementation plan`,
+              `- \`@rustos-ci fix-fmt\` — Auto-format workspace with \`cargo fmt\` and push branch`,
               `</details>`
             ].join('\n');
 
@@ -184,7 +247,7 @@ jobs:
   # JOB 2: 1-Click GitHub PR Code Suggestions & Inline SARIF Annotations
   # ============================================================================
   pr-suggestions-and-sarif:
-    name: PR Inline Code Suggestions & Clippy SARIF
+    name: PR 1-Click Suggestions & Clippy SARIF
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -205,7 +268,7 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo fmt to generate diff for GitHub Suggestions
+      - name: Run cargo fmt to prepare 1-click GitHub Suggestions
         run: cargo fmt --all
 
       - name: Post 1-Click Commit Suggestions to Pull Request
@@ -222,14 +285,14 @@ jobs:
       - name: Install clippy-sarif and sarif-fmt
         run: cargo install clippy-sarif sarif-fmt --locked
 
-      - name: Run Clippy and generate SARIF inline report
+      - name: Run Clippy and generate SARIF inline annotations
         run: |
           cargo clippy --workspace --message-format=json \
             | clippy-sarif \
             | tee rustos-clippy.sarif \
             | sarif-fmt
 
-      - name: Upload Clippy SARIF annotations to GitHub Code Scanning
+      - name: Upload Clippy SARIF report to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: rustos-clippy.sarif
