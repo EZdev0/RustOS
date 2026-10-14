@@ -19,6 +19,8 @@ pub struct Window {
     pub orig_w: usize,
     pub orig_h: usize,
     pub anim_state: WindowAnimState,
+    pub last_scroll_y: usize,
+    pub last_scroll_tick: usize,
 }
 
 impl Window {
@@ -35,6 +37,8 @@ impl Window {
             orig_w: width,
             orig_h: height,
             anim_state: WindowAnimState::Opening(0),
+            last_scroll_y: 0,
+            last_scroll_tick: 0,
         }
     }
 

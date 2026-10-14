@@ -1014,9 +1014,19 @@ impl GraphicalCompositor {
                     width: win_w,
                     height: window.height,
                 });
+
+                // Temporarily store window scroll state in compositor
+                self.last_scroll_y = window.last_scroll_y;
+                self.last_scroll_tick = window.last_scroll_tick;
+
                 window
                     .app
                     .draw(self, win_x, win_y + 20, win_w, window.height); // App content
+
+                // Restore updated scroll state back to window
+                window.last_scroll_y = self.last_scroll_y;
+                window.last_scroll_tick = self.last_scroll_tick;
+
                 self.clip_rect = None;
 
                 // 4. Restore Corners
@@ -1156,8 +1166,6 @@ impl GraphicalCompositor {
         }
 
         // Auto-Hide logic: if scroll_y changes, reset the timer.
-        // We use a hacky way to track it per-app by just seeing if the global drawn scroll_y changed.
-        // Since we only draw one focused app's scrollbar per frame usually, this works nicely.
         if self.last_scroll_y != scroll_y {
             self.last_scroll_y = scroll_y;
             self.last_scroll_tick = self.ticks;
