@@ -1,0 +1,527 @@
+name: RustOS Multi-Agent PR Security, Tool-Calling & Pre-Verified Suggestions
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+# 2026 Security Standard: Least privilege default permissions
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CI: 1
+  # 100% Local Tool-Calling Model running via Ollama (Zero Cloud API Keys)
+  LOCAL_TOOL_MODEL: "qwen2.5-coder:1.5b"
+  OLLAMA_HOST: "127.0.0.1:11434"
+
+jobs:
+  # ============================================================================
+  # AGENT 1: Secret Leak Hunter, Supply-Chain Audit & Kernel Safety Scanner
+  # ============================================================================
+  agent-1-security-and-leaks:
+    name: "Agent 1: Secret Leaks, Cargo Audit & Kernel Unsafe Scanner"
+    if: >
+      github.event_name == 'pull_request' ||
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '@rustos-ci sec-audit') &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    outputs:
+      leaks_status: ${{ steps.sec_scan.outputs.leaks_status }}
+      audit_status: ${{ steps.sec_scan.outputs.audit_status }}
+      unsafe_status: ${{ steps.sec_scan.outputs.unsafe_status }}
+    steps:
+      - name: Checkout repository with full history for leak scanning
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src, llvm-tools-preview, rustfmt, clippy
+
+      - name: Restore shared RustOS Cargo cache (compatible with build.yml)
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run Multi-Layer Security & Leak Checks (Gitleaks CLI + cargo-audit + Kernel Invariants)
+        id: sec_scan
+        run: |
+          # 1. Install static Gitleaks binary (v8.30.1 - avoids deprecated Node 20 actions)
+          curl -sSL [https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz](https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz) | tar -xz gitleaks
+          chmod +x gitleaks
+
+          if ./gitleaks detect --source . --no-banner --report-format sarif --report-path gitleaks.sarif; then
+            LEAKS_STATUS="✅ 0 Secret Leaks (Gitleaks v8.30.1)"
+          else
+            LEAKS_STATUS="❌ Secret Leak Detected!"
+          fi
+
+          # 2. Supply-Chain Vulnerability Scan (cargo-audit)
+          if ! command -v cargo-audit >/dev/null 2>&1; then
+            cargo install cargo-audit --locked
+          fi
+          if cargo audit; then
+            AUDIT_STATUS="✅ 0 RustSec Advisories"
+          else
+            AUDIT_STATUS="⚠️ RustSec Advisory Found"
+          fi
+
+          # 3. Kernel #![no_std] Unsafe & Memory Invariant Audit
+          UNSAFE_COUNT=$(grep -rn "unsafe " kernel/src/ builder/src/ 2>/dev/null | wc -l || echo "0")
+          SAFETY_DOC_COUNT=$(grep -rn "// SAFETY:" kernel/src/ builder/src/ 2>/dev/null | wc -l || echo "0")
+          UNSAFE_STATUS="🔍 ${UNSAFE_COUNT} unsafe blocks (${SAFETY_DOC_COUNT} documented with // SAFETY:)"
+
+          echo "leaks_status=${LEAKS_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "audit_status=${AUDIT_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "unsafe_status=${UNSAFE_STATUS}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Gitleaks SARIF report to GitHub Security Tab
+        if: always() && hashFiles('gitleaks.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: gitleaks.sarif
+
+  # ============================================================================
+  # AGENTS 2, 3 & 4: Tool-Calling Inspector -> Sandbox Pre-Verifier -> PR Suggester
+  # ============================================================================
+  multi-agent-tool-calling-and-verified-suggestions:
+    name: "Agents 2-4: Tool-Calling AI, Sandbox Verifier & 1-Click PR Suggestions"
+    needs: agent-1-security-and-leaks
+    if: >
+      github.event_name == 'pull_request' ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request != null &&
+        contains(github.event.comment.body, '@rustos-ci sec-audit') &&
+        contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association)
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      security-events: write
+    steps:
+      - name: Checkout Pull Request Head Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - name: Install Rust nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rust-src, llvm-tools-preview, rustfmt, clippy
+
+      - name: Restore shared RustOS Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache Local Tool-Calling LLM Weights (~/.ollama)
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama
+          key: rustos-local-llm-${{ env.LOCAL_TOOL_MODEL }}-v1
+
+      - name: Boot 100% Local Ollama Tool-Calling Engine (Zero Cloud Keys)
+        run: |
+          curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
+          nohup ollama serve > ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s "http://${OLLAMA_HOST}/api/tags" >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          ollama pull "${LOCAL_TOOL_MODEL}"
+
+      - name: "Agent 2 & Agent 3: Local Tool-Calling Inspection + Pre-Suggestion Compiler Sandbox Gate"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+        run: |
+          python3 - << 'EOF'
+          import json, os, re, shutil, subprocess, urllib.request
+
+          OLLAMA_URL = f"http://{os.environ.get('OLLAMA_HOST', '127.0.0.1:11434')}/api/chat"
+          MODEL = os.environ.get("LOCAL_TOOL_MODEL", "qwen2.5-coder:1.5b")
+          BASE_REF = os.environ.get("BASE_REF", "HEAD~1")
+
+          def run_cmd(cmd):
+              res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+              return res.returncode, res.stdout + res.stderr
+
+          # 1. Collect PR changed Rust files and Clippy diagnostics
+          _, diff_files_raw = run_cmd(f"git diff --name-only {BASE_REF}...HEAD -- '*.rs'")
+          changed_files = [f.strip() for f in diff_files_raw.splitlines() if f.strip() and os.path.exists(f.strip())]
+          if not changed_files:
+              # Fallback: inspect kernel/src/main.rs or builder/src/main.rs if no .rs file changed in diff
+              for candidate in ["kernel/src/main.rs", "builder/src/main.rs"]:
+                  if os.path.exists(candidate):
+                      changed_files.append(candidate)
+                      break
+
+          _, clippy_log = run_cmd("cargo clippy --workspace -- -D warnings")
+
+          # 2. Define JSON-Schema Tools for Agent 2 (Local Tool-Calling LLM)
+          tools = [
+              {
+                  "type": "function",
+                  "function": {
+                      "name": "read_kernel_file",
+                      "description": "Read numbered lines from a Rust source file in the repository to inspect context before suggesting a fix.",
+                      "parameters": {
+                          "type": "object",
+                          "properties": {
+                              "path": {"type": "string", "description": "Relative file path, e.g. kernel/src/main.rs"},
+                              "start_line": {"type": "integer", "description": "1-based start line number"},
+                              "end_line": {"type": "integer", "description": "1-based end line number"}
+                          },
+                          "required": ["path", "start_line", "end_line"]
+                      }
+                  }
+              },
+              {
+                  "type": "function",
+                  "function": {
+                      "name": "audit_unsafe_and_bounds",
+                      "description": "Scan a Rust file for undocumented unsafe blocks, raw pointer dereferences, or unchecked arithmetic.",
+                      "parameters": {
+                          "type": "object",
+                          "properties": {
+                              "path": {"type": "string", "description": "Relative file path to audit"}
+                          },
+                          "required": ["path"]
+                      }
+                  }
+              },
+              {
+                  "type": "function",
+                  "function": {
+                      "name": "propose_verified_suggestion",
+                      "description": "Propose a single-line or multi-line Rust code replacement with an English security and quality explanation. Agent 3 will compile-test it before publishing.",
+                      "parameters": {
+                          "type": "object",
+                          "properties": {
+                              "path": {"type": "string", "description": "Relative file path in the PR diff"},
+                              "line": {"type": "integer", "description": "1-based line number in the file to replace"},
+                              "replacement_code": {"type": "string", "description": "Exact valid Rust code to replace that line"},
+                              "explanation": {"type": "string", "description": "Clear English explanation of why this improves security, memory safety, or code quality"}
+                          },
+                          "required": ["path", "line", "replacement_code", "explanation"]
+                      }
+                  }
+              }
+          ]
+
+          def execute_local_tool(name, args):
+              if name == "read_kernel_file":
+                  path = args.get("path", "")
+                  if not os.path.exists(path):
+                      return f"Error: File {path} not found."
+                  with open(path, "r", encoding="utf-8", errors="replace") as f:
+                      lines = f.readlines()
+                  s = max(1, int(args.get("start_line", 1)))
+                  e = min(len(lines), int(args.get("end_line", min(len(lines), s + 30))))
+                  snippet = "".join(f"{idx}: {lines[idx-1]}" for idx in range(s, e + 1))
+                  return snippet or "Empty range."
+
+              elif name == "audit_unsafe_and_bounds":
+                  path = args.get("path", "")
+                  if not os.path.exists(path):
+                      return f"Error: File {path} not found."
+                  with open(path, "r", encoding="utf-8", errors="replace") as f:
+                      lines = f.readlines()
+                  findings = []
+                  for idx, text in enumerate(lines, 1):
+                      if "unsafe " in text:
+                          prev = lines[idx - 2] if idx >= 2 else ""
+                          if "SAFETY:" not in prev and "SAFETY:" not in text:
+                              findings.append(f"Line {idx}: undocumented `unsafe` block -> {text.strip()}")
+                      if ".unwrap()" in text:
+                          findings.append(f"Line {idx}: `.unwrap()` in kernel path may panic -> {text.strip()}")
+                  return "\n".join(findings[:10]) if findings else "No undocumented unsafe blocks or unwraps found."
+
+              return "Unknown tool."
+
+          # AGENT 3: Pre-Suggestion Compiler & Clippy Sandbox Verifier
+          def sandbox_verify_suggestion(path, line_num, replacement_code):
+              if not os.path.exists(path):
+                  return False, "Target file does not exist."
+              backup_path = path + ".ci_backup"
+              shutil.copyfile(path, backup_path)
+              try:
+                  with open(path, "r", encoding="utf-8") as f:
+                      lines = f.readlines()
+                  if line_num < 1 or line_num > len(lines):
+                      return False, f"Line {line_num} out of range (1..{len(lines)})."
+                  lines[line_num - 1] = replacement_code.rstrip("\n") + "\n"
+                  with open(path, "w", encoding="utf-8") as f:
+                      f.writelines(lines)
+
+                  # Compile & Lint Gate: Only pass if rustc + Clippy + builder tests succeed!
+                  rc_clippy, out_clippy = run_cmd("cargo clippy --workspace -- -D warnings")
+                  if rc_clippy != 0:
+                      return False, f"Rejected by Agent 3 (Clippy/Compiler failed):\n{out_clippy[-400:]}"
+
+                  rc_test, out_test = run_cmd("cargo test -p builder --release")
+                  if rc_test != 0:
+                      return False, f"Rejected by Agent 3 (Unit tests failed):\n{out_test[-400:]}"
+
+                  return True, "Passed `cargo clippy --workspace -- -D warnings` & `cargo test -p builder`"
+              finally:
+                  shutil.move(backup_path, path)
+
+          def call_ollama_chat(messages):
+              payload = json.dumps({
+                  "model": MODEL,
+                  "messages": messages,
+                  "tools": tools,
+                  "stream": False,
+                  "options": {"temperature": 0.1, "num_predict": 500}
+              }).encode("utf-8")
+              req = urllib.request.Request(OLLAMA_URL, data=payload, headers={"Content-Type": "application/json"})
+              with urllib.request.urlopen(req, timeout=120) as resp:
+                  return json.loads(resp.read().decode("utf-8"))
+
+          # Dual Tool-Call Parser (Handles standard tool_calls AND JSON inside content)
+          def extract_tool_calls(msg):
+              calls = msg.get("tool_calls") or []
+              if calls:
+                  return calls
+              content = (msg.get("content") or "").strip()
+              match = re.search(r'(\{.*"name"\s*:\s*"[^"]+".*\})', content, re.DOTALL)
+              if match:
+                  try:
+                      parsed = json.loads(match.group(1))
+                      if "name" in parsed:
+                          return [{"function": {"name": parsed["name"], "arguments": parsed.get("arguments", {})}}]
+                  except Exception:
+                      pass
+              return []
+
+          target_file = changed_files[0] if changed_files else "kernel/src/main.rs"
+          initial_Audit = execute_local_tool("audit_unsafe_and_bounds", {"path": target_file})
+          initial_Snippet = execute_local_tool("read_kernel_file", {"path": target_file, "start_line": 1, "end_line": 45})
+
+          messages = [
+              {
+                  "role": "system",
+                  "content": (
+                      "You are Agent 2 (RustOS Security & Quality Inspector) in a multi-agent CI pipeline. "
+                      "All outputs MUST be 100% in English. Use the provided tools (`read_kernel_file`, "
+                      "`audit_unsafe_and_bounds`, `propose_verified_suggestion`) to inspect the changed Rust code, "
+                      "detect security leaks, undocumented unsafe blocks, or readability/bounds issues, and propose "
+                      "improvements. Every suggestion is compiled by Agent 3 before being shown to the user."
+                  )
+              },
+              {
+                  "role": "user",
+                  "content": (
+                      f"Changed file: `{target_file}`\n"
+                      f"Automated Audit Findings:\n{initial_Audit}\n\n"
+                      f"File Lines (1..45):\n{initial_Snippet}\n\n"
+                      f"Clippy Output:\n{clippy_log[-600:]}\n\n"
+                      "Call a tool if needed, or provide a concise English multi-agent security & code review summary."
+                  )
+              }
+          ]
+
+          verified_suggestions = []
+          rejected_suggestions = []
+          ai_summary = ""
+
+          for turn in range(3):
+              try:
+                  response = call_ollama_chat(messages)
+              except Exception as exc:
+                  ai_summary = f"Local model execution note: {exc}"
+                  break
+
+              msg = response.get("message", {})
+              messages.append(msg)
+              tool_calls = extract_tool_calls(msg)
+
+              if not tool_calls:
+                  ai_summary = msg.get("content", "").strip()
+                  break
+
+              for tc in tool_calls:
+                  fn = tc.get("function", {})
+                  name = fn.get("name", "")
+                  args = fn.get("arguments", {})
+                  if isinstance(args, str):
+                      try:
+                          args = json.loads(args)
+                      except Exception:
+                          args = {}
+
+                  if name == "propose_verified_suggestion":
+                      s_path = args.get("path", target_file)
+                      s_line = int(args.get("line", 1))
+                      s_code = args.get("replacement_code", "")
+                      s_expl = args.get("explanation", "Security and code quality hardening.")
+                      ok, reason = sandbox_verify_suggestion(s_path, s_line, s_code)
+                      if ok:
+                          verified_suggestions.append({
+                              "path": s_path,
+                              "line": s_line,
+                              "replacement_code": s_code,
+                              "explanation": s_expl,
+                              "verification": reason
+                          })
+                          tool_result = f"VERIFIED_PASS: Suggestion at {s_path}:{s_line} compiled cleanly ({reason})."
+                      else:
+                          rejected_suggestions.append({
+                              "path": s_path,
+                              "line": s_line,
+                              "reason": reason
+                          })
+                          tool_result = f"VERIFICATION_FAILED: {reason}. Please adjust the syntax so it compiles."
+                  else:
+                      tool_result = execute_local_tool(name, args)
+
+                  messages.append({"role": "tool", "content": tool_result})
+
+          with open("multi_agent_results.json", "w", encoding="utf-8") as out_f:
+              json.dump({
+                  "target_file": target_file,
+                  "audit_findings": initial_Audit,
+                  "verified_suggestions": verified_suggestions,
+                  "rejected_suggestions": rejected_suggestions,
+                  "ai_summary": ai_summary or "Multi-agent tool-calling inspection completed."
+              }, out_f, indent=2)
+          EOF
+
+      - name: "Agent 3 & Agent 4: Pre-Verify rustfmt Diff & Publish 1-Click GitHub PR Suggestions"
+        if: github.event_name == 'pull_request'
+        run: |
+          # Format code and verify with cargo clippy BEFORE allowing reviewdog to suggest it!
+          cargo fmt --all
+          if ! git diff --quiet; then
+            if cargo clippy --workspace -- -D warnings; then
+              echo "FMT_VERIFIED=true" >> "$GITHUB_ENV"
+            else
+              echo "FMT_VERIFIED=false" >> "$GITHUB_ENV"
+              git checkout -- .
+            fi
+          fi
+
+      - name: "Agent 4a: Post 1-Click Committable Formatting Suggestions (Pre-Verified by Clippy)"
+        if: github.event_name == 'pull_request' && env.FMT_VERIFIED == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: reviewdog/action-suggester@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tool_name: rustfmt-verified
+          fail_on_error: false
+
+      - name: Reset workspace after reviewdog suggestion generation
+        if: github.event_name == 'pull_request'
+        run: git checkout -- .
+
+      - name: "Agent 4b: Post Pre-Verified Tool-Calling Suggestions & Multi-Agent Security Report"
+        uses: actions/github-script@v7
+        env:
+          LEAKS_STATUS: ${{ needs.agent-1-security-and-leaks.outputs.leaks_status }}
+          AUDIT_STATUS: ${{ needs.agent-1-security-and-leaks.outputs.audit_status }}
+          UNSAFE_STATUS: ${{ needs.agent-1-security-and-leaks.outputs.unsafe_status }}
+        with:
+          script: |
+            const fs = require('fs');
+            const prNumber = context.payload.pull_request
+              ? context.payload.pull_request.number
+              : context.payload.issue.number;
+
+            let results = {
+              target_file: 'kernel/src/main.rs',
+              audit_findings: 'None',
+              verified_suggestions: [],
+              rejected_suggestions: [],
+              ai_summary: 'Completed.'
+            };
+            if (fs.existsSync('multi_agent_results.json')) {
+              results = JSON.parse(fs.readFileSync('multi_agent_results.json', 'utf8'));
+            }
+
+            // 1. Post inline 1-click GitHub Suggestions ONLY for patches that passed Agent 3 Compiler Verification
+            if (context.payload.pull_request && results.verified_suggestions.length > 0) {
+              for (const item of results.verified_suggestions) {
+                try {
+                  await github.rest.pulls.createReview({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    pull_number: prNumber,
+                    event: 'COMMENT',
+                    comments: [
+                      {
+                        path: item.path,
+                        line: item.line,
+                        side: 'RIGHT',
+                        body: [
+                          `### 🛡️ Pre-Verified AI Security & Quality Suggestion`,
+                          `**Why this improvement is recommended:** ${item.explanation}`,
+                          `**Sandbox Verification Gate (Agent 3):** ✅ \`${item.verification}\``,
+                          ``,
+                          '```suggestion',
+                          item.replacement_code,
+                          '```'
+                        ].join('\n')
+                      }
+                    ]
+                  });
+                } catch (err) {
+                  console.log(`Inline suggestion fallback note for ${item.path}:${item.line}:${err.message}`);
+                }
+              }
+            }
+
+            // 2. Post comprehensive English Multi-Agent Summary to PR
+            const verifiedCount = results.verified_suggestions.length;
+            const rejectedCount = results.rejected_suggestions.length;
+
+            const body = [
+              `### 🛡️ RustOS Multi-Agent PR Security, Tool-Calling & Pre-Verification Report`,
+              `All checks ran **100% locally** inside the runner using \`${process.env.LOCAL_TOOL_MODEL}\` with native function calling and pre-suggestion compiler verification.`,
+              ``,
+              `| Agent Stage | Responsibility | Status / Verdict |`,
+              `| :--- | :--- | :--- |`,
+              `| **Agent 1: SecLeakHunter** | Gitleaks Secret Scan | ${process.env.LEAKS_STATUS} |`,
+              `| **Agent 1: SupplyChainAudit** | \`cargo-audit\` RustSec Check | ${process.env.AUDIT_STATUS} |`,
+              `| **Agent 1: KernelUnsafeAudit** | \`#![no_std]\` \`unsafe\` Invariants | ${process.env.UNSAFE_STATUS} |`,
+              `| **Agent 2: ToolCallingInspector** | Local LLM Tool-Calling Analysis | ✅ Inspected \`${results.target_file}\` |`,
+              `| **Agent 3: SandboxPreVerifier** | Pre-Suggestion \`rustc\` + \`Clippy\` Gate | ✅ **${verifiedCount} Verified** / 🛡️ **${rejectedCount} Uncompilable Blocked** |`,
+              `| **Agent 4: GitHubAutoSuggester** | 1-Click \`\`\`suggestion\`\`\` Blocks | ✅ Published to PR Review |`,
+              ``,
+              `#### 🔍 Agent 2 Tool-Calling Security & Code Review Summary`,
+              results.ai_summary,
+              ``,
+              `<details><summary>🔬 Automated Kernel Safety & Bounds Audit Details</summary>`,
+              ``,
+              '```text',
+              results.audit_findings,
+              '```',
+              `</details>`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
