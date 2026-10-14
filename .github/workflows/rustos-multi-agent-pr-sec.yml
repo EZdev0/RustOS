@@ -51,11 +51,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Setup Rust nightly toolchain via rustup
+      - name: Setup Rust nightly toolchain, components and bare-metal target
         shell: bash
         run: |
-          rustup toolchain install nightly --profile minimal --component rust-src llvm-tools-preview rustfmt clippy
+          rustup toolchain install nightly --profile minimal
           rustup default nightly
+          rustup component add rust-src llvm-tools-preview rustfmt clippy
+          rustup target add x86_64-unknown-none
 
       - name: Cache Cargo registry and build artifacts on Node 24
         uses: actions/cache@v5
@@ -155,11 +157,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Setup Rust nightly toolchain via rustup
+      - name: Setup Rust nightly toolchain, components and bare-metal target
         shell: bash
         run: |
-          rustup toolchain install nightly --profile minimal --component rust-src llvm-tools-preview rustfmt clippy
+          rustup toolchain install nightly --profile minimal
           rustup default nightly
+          rustup component add rust-src llvm-tools-preview rustfmt clippy
+          rustup target add x86_64-unknown-none
 
       - name: Restore Cargo cache on Node 24
         uses: actions/cache@v5
@@ -249,7 +253,6 @@ jobs:
               with open("pr_context.json", "r", encoding="utf-8") as f:
                   pr_ctx = json.load(f)
 
-          # Parse valid right-side diff line numbers per file from PR patch hunks
           valid_diff_lines = {}
           changed_rs_files = []
           for fobj in pr_ctx.get("files", []):
@@ -309,7 +312,6 @@ jobs:
               finally:
                   shutil.move(backup_path, path)
 
-          # Check if rustfmt produces any formatting improvements on changed .rs files
           verified_suggestions = []
           rejected_suggestions = []
 
@@ -319,7 +321,6 @@ jobs:
               run_cmd(f"rustfmt --edition 2021 {rs_file}")
               with open(rs_file, "r", encoding="utf-8") as f:
                   fmt_lines = f.readlines()
-              # Restore original file immediately
               with open(rs_file, "w", encoding="utf-8") as f:
                   f.writelines(orig_lines)
 
@@ -338,7 +339,6 @@ jobs:
                               })
                               break
 
-          # Define JSON-Schema Tools for Agent 2 (Local Tool-Calling LLM)
           tools = [
               {
                   "type": "function",
@@ -569,7 +569,6 @@ jobs:
               results = JSON.parse(fs.readFileSync('multi_agent_results.json', 'utf8'));
             }
 
-            // 1. Post inline 1-click GitHub Suggestions for verified fixes inside the PR diff
             const inlineComments = [];
             for (const item of results.verified_suggestions) {
               if (item.in_diff) {
@@ -604,7 +603,6 @@ jobs:
               }
             }
 
-            // 2. Also format any verified suggestions into the main PR comment for 1-click copy
             let suggestionsBlock = '';
             if (results.verified_suggestions.length > 0) {
               const itemsMd = results.verified_suggestions.map(s => [
