@@ -189,7 +189,11 @@ pub async fn updater_task() {
     loop {
         let (downloading, ip, request_started) = {
             let state = UPDATER_STATE.lock();
-            (state.downloading, state.ip, state.progress > 0 || state.expected_size > 0)
+            (
+                state.downloading,
+                state.ip,
+                state.progress > 0 || state.expected_size > 0,
+            )
         };
 
         if downloading {
