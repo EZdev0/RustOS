@@ -292,8 +292,7 @@ impl App for UpdateCenter {
         "Update Center"
     }
 
-    fn update(&mut self) {
-    }
+    fn update(&mut self) {}
 
     fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
         compositor.draw_rect(x, y, width, height, 40, 40, 40);
