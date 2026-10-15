@@ -111,10 +111,10 @@ jobs:
           fi
           cargo test -p builder --release > pr_logs/builder_tests.log 2>&1 || true
 
-          echo "leaks_status=${LEAKS_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "audit_status=${AUDIT_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "unsafe_status=${UNSAFE_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "clippy_status=${CLIPPY_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "leaks_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${LEAKS_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "audit_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${AUDIT_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "unsafe_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${UNSAFE_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "clippy_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${CLIPPY_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Upload Gitleaks SARIF report on Node 24
         if: always() && hashFiles('gitleaks.sarif') != ''
