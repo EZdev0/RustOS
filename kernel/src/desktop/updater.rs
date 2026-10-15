@@ -1,6 +1,5 @@
 use crate::desktop::app::{App, Event};
 use crate::desktop::compositor::GraphicalCompositor;
-use crate::network;
 use crate::fs::RAM_FS;
 use crate::network;
 use alloc::string::String;
