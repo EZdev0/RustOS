@@ -215,8 +215,11 @@ pub async fn updater_task() {
                             // First chunk: try to find manifest boundaries \r\n\r\n
                             let mut body_start = 0;
                             for i in 0..chunk.len().saturating_sub(3) {
-                                if chunk[i] == b'\r' && chunk[i+1] == b'\n' &&
-                                   chunk[i+2] == b'\r' && chunk[i+3] == b'\n' {
+                                if chunk[i] == b'\r'
+                                    && chunk[i + 1] == b'\n'
+                                    && chunk[i + 2] == b'\r'
+                                    && chunk[i + 3] == b'\n'
+                                {
                                     body_start = i + 4;
                                     break;
                                 }
