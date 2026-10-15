@@ -7,7 +7,9 @@ pub mod filemanager;
 pub mod taskmanager;
 pub mod settings;
 pub mod renderer;
-pub mod browser;
+pub mod settings;
+pub mod taskmanager;
+pub mod terminal;
 pub mod updater;
 
 use core::sync::atomic::AtomicU8;
