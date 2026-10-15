@@ -20,6 +20,7 @@ pub enum UpdateError {
 
 use spin::Mutex;
 use alloc::sync::Arc;
+use spin::Mutex;
 
 pub static UPDATER_STATE: spin::Lazy<Arc<Mutex<UpdaterState>>> = spin::Lazy::new(|| Arc::new(Mutex::new(UpdaterState::new())));
 
