@@ -12,9 +12,9 @@ on:
         required: true
         type: string
       prompt:
-        description: "Instruction for Google Jules in English"
+        description: "Instruction or reply for Google Jules"
         required: true
-        default: "Analyze this issue, verify kernel safety invariants, and reply with a concrete technical plan."
+        default: "Analyze this issue, ask me if anything is ambiguous, or propose a concrete execution plan."
 
 permissions:
   contents: read
@@ -27,11 +27,10 @@ env:
 
 jobs:
   jules-single-session-agent:
-    name: "Google Jules Single-Session Agent (Organization Owner Only)"
+    name: "Google Jules Single-Session Agent (Slash Command /jules)"
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # ORGANIZATION-SAFE OWNER LOCK: Allows Organization Owners (author_association == 'OWNER')
-    # and blocks bots or external users from triggering JULES_API_KEY.
+    # ORGANIZATION-SAFE OWNER LOCK + SLASH COMMAND TRIGGER (/jules, !jules, or fallback @jules)
     if: >
       github.actor != 'github-actions[bot]' &&
       !endsWith(github.actor, '[bot]') &&
@@ -42,13 +41,19 @@ jobs:
           contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association) &&
           (
             (github.event.action == 'labeled' && github.event.label.name == 'jules') ||
+            contains(github.event.issue.body, '/jules') ||
+            contains(github.event.issue.body, '!jules') ||
             contains(github.event.issue.body, '@jules')
           )
         ) ||
         (
           github.event_name == 'issue_comment' &&
           contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
-          contains(github.event.comment.body, '@jules')
+          (
+            contains(github.event.comment.body, '/jules') ||
+            contains(github.event.comment.body, '!jules') ||
+            contains(github.event.comment.body, '@jules')
+          )
         )
       )
     concurrency:
@@ -59,44 +64,8 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - name: Acknowledge Owner "@jules" command with rocket reaction
-        if: github.event_name == 'issue_comment'
-        uses: actions/github-script@v8
-        with:
-          script: |
-            await github.rest.reactions.createForIssueComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              comment_id: context.payload.comment.id,
-              content: 'rocket'
-            });
-
-      - name: Checkout repository on Node 24
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 20
-
-      - name: Setup Rust nightly toolchain and components
-        shell: bash
-        run: |
-          rustup toolchain install nightly --profile minimal
-          rustup default nightly
-          rustup component add rust-src llvm-tools-preview rustfmt clippy
-          rustup target add x86_64-unknown-none
-
-      - name: Restore Cargo cache on Node 24
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: rustos-cargo-v5-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
-          restore-keys: |
-            rustos-cargo-v5-
-
-      - name: Harvest Full GitHub Issue Context, All Links and Comment Thread
+      - name: Verify "/jules" Command, Sanitize Accidental "@jules" Mentions & Harvest Context
+        id: harvest
         uses: actions/github-script@v8
         env:
           INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
@@ -104,6 +73,45 @@ jobs:
         with:
           script: |
             const fs = require('fs');
+
+            // 1. Strict Command Boundary Check: Ignore URLs like "https://jules.google.com"
+            if (context.eventName === 'issue_comment') {
+              const rawBody = context.payload.comment.body || '';
+              const withoutUrls = rawBody.replace(/https?:\/\/\S+/gi, '');
+              const cmdRegex = /(?:^|\s|`)([\/!@]jules)\b/i;
+
+              if (!cmdRegex.test(withoutUrls)) {
+                core.info('No standalone /jules, !jules, or @jules command found outside URLs. Skipping.');
+                core.setOutput('should_run', 'false');
+                return;
+              }
+
+              // 2. Auto-Sanitizer: If Owner accidentally typed "@jules", rewrite it to "/jules"
+              // in the comment so the unrelated human GitHub user github.com/jules is unlinked!
+              if (/(?:^|\s)@jules\b/i.test(withoutUrls)) {
+                try {
+                  const sanitizedBody = rawBody.replace(/(^|\s)@jules\b/gi, '$1`/jules`');
+                  await github.rest.issues.updateComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    comment_id: context.payload.comment.id,
+                    body: sanitizedBody
+                  });
+                } catch (editErr) {
+                  core.info(`Note: Could not auto-sanitize @jules in comment: ${editErr.message}`);
+                }
+              }
+
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'rocket'
+              });
+            }
+
+            core.setOutput('should_run', 'true');
+
             const issueNumber = context.payload.issue
               ? context.payload.issue.number
               : parseInt(process.env.INPUT_ISSUE_NUMBER, 10);
@@ -122,25 +130,39 @@ jobs:
             });
 
             let existingSessionName = '';
-            const markerRegex = /<!--\s*jules-session-id:\s*(sessions\/[a-zA-Z0-9_-]+)\s*-->/;
+            let lastActivityCursor = 0;
+            const sessionRegex = /<!--\s*jules-session-id:\s*(sessions\/[a-zA-Z0-9_-]+)\s*-->/;
+            const cursorRegex = /<!--\s*jules-activity-cursor:\s*(\d+)\s*-->/;
+
             for (const c of commentsResp.data) {
-              const m = (c.body || '').match(markerRegex);
-              if (m && m[1]) {
-                existingSessionName = m[1];
+              const body = c.body || '';
+              const sMatch = body.match(sessionRegex);
+              if (sMatch && sMatch[1]) {
+                existingSessionName = sMatch[1];
+              }
+              const cMatch = body.match(cursorRegex);
+              if (cMatch && cMatch[1]) {
+                lastActivityCursor = parseInt(cMatch[1], 10);
               }
             }
 
             const formattedComments = commentsResp.data.map((c, idx) => {
-              return `[Comment #${idx + 1} by @${c.user.login} (${c.html_url})]:\n${c.body}`;
+              return `[Comment #${idx + 1} by${c.user.login} (${c.html_url})]:\n${c.body}`;
             }).join('\n\n---\n\n');
 
-            const latestInstruction = context.payload.comment
+            const rawInstruction = context.payload.comment
               ? context.payload.comment.body
               : (process.env.INPUT_PROMPT || issueResp.data.body || 'Analyze this issue.');
+
+            // Strip "/jules", "!jules", or "@jules" trigger tokens cleanly
+            const cleanedReply = rawInstruction
+              .replace(/`?[\/!@]jules`?\b/gi, '')
+              .trim() || rawInstruction;
 
             const contextBundle = {
               owner: context.repo.owner,
               actor: context.actor,
+              issue_author: issueResp.data.user ? issueResp.data.user.login : context.actor,
               repo: context.repo.repo,
               repo_full_name: `${context.repo.owner}/${context.repo.repo}`,
               repo_url: `https://github.com/${context.repo.owner}/${context.repo.repo}`,
@@ -148,22 +170,53 @@ jobs:
               issue_title: issueResp.data.title,
               issue_body: issueResp.data.body || '',
               issue_url: issueResp.data.html_url,
-              is_pull_request: Boolean(issueResp.data.pull_request),
               trigger_comment_url: context.payload.comment ? context.payload.comment.html_url : issueResp.data.html_url,
               existing_session_name: existingSessionName,
-              latest_instruction: latestInstruction,
+              last_activity_cursor: lastActivityCursor,
+              raw_instruction: rawInstruction,
+              cleaned_reply: cleanedReply,
               comment_thread: formattedComments
             };
 
             fs.writeFileSync('jules_issue_context.json', JSON.stringify(contextBundle, null, 2));
 
+      - name: Checkout repository on Node 24
+        if: steps.harvest.outputs.should_run == 'true'
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 20
+
+      - name: Setup Rust nightly toolchain and components
+        if: steps.harvest.outputs.should_run == 'true'
+        shell: bash
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
+          rustup component add rust-src llvm-tools-preview rustfmt clippy
+          rustup target add x86_64-unknown-none
+
+      - name: Restore Cargo cache on Node 24
+        if: steps.harvest.outputs.should_run == 'true'
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: rustos-cargo-v5-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            rustos-cargo-v5-
+
       - name: Run Pre-Analysis Workspace Diagnostics for Jules Context
+        if: steps.harvest.outputs.should_run == 'true'
         shell: bash
         run: |
           cargo clippy --workspace -- -D warnings > jules_clippy.log 2>&1 || true
           git log -5 --oneline > jules_git_log.txt 2>&1 || true
 
-      - name: Connect to Single Google Jules Session, Send Context and Poll Analysis
+      - name: Send Initial Task or Forward Owner Reply to Active Jules Session
+        if: steps.harvest.outputs.should_run == 'true'
         shell: bash
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
@@ -176,32 +229,36 @@ jobs:
           API_BASE = os.environ.get("JULES_API_BASE", "https://jules.googleapis.com/v1alpha")
           DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 
+          with open("jules_issue_context.json", "r", encoding="utf-8") as f:
+              ctx = json.load(f)
+
+          ping_user = ctx.get("actor") or ctx.get("issue_author") or ctx.get("owner")
+
           if not API_KEY:
               with open("jules_reply.json", "w", encoding="utf-8") as f:
                   json.dump({
-                      "error": "Organization/Repo secret JULES_API_KEY was not passed to this runner.",
                       "session_name": "",
                       "session_url": "https://jules.google.com",
                       "mode": "Secret Visibility Check Needed",
                       "state": "MISSING_KEY",
+                      "needs_user_reply": True,
+                      "ping_user": ping_user,
+                      "question_text": "Organization Secret `JULES_API_KEY` was not passed to this runner.",
+                      "activity_cursor": 0,
                       "pr_url": "",
-                      "issue_url": "",
-                      "trigger_comment_url": "",
+                      "issue_url": ctx["issue_url"],
+                      "trigger_comment_url": ctx["trigger_comment_url"],
                       "analysis_markdown": (
-                          "⚠️ **Action Required:** `JULES_API_KEY` is empty in this workflow run. "
-                          "Please verify in `Organization Settings -> Secrets and variables -> Actions` that `RustOS` "
-                          "is checked in the `5 repositories` visibility list and that `RustOS` is a **Public** repository."
+                          "⚠️ **Action Required:** Please verify in `Organization Settings -> Secrets -> Actions` "
+                          "that `RustOS` is checked in the repository access list for `JULES_API_KEY`."
                       )
                   }, f, indent=2)
               sys.exit(0)
 
-          with open("jules_issue_context.json", "r", encoding="utf-8") as f:
-              ctx = json.load(f)
-
           clippy_out = ""
           if os.path.exists("jules_clippy.log"):
               with open("jules_clippy.log", "r", encoding="utf-8", errors="replace") as f:
-                  clippy_out = f.read()[-1200:]
+                  clippy_out = f.read()[-1000:]
 
           git_log = ""
           if os.path.exists("jules_git_log.txt"):
@@ -211,7 +268,7 @@ jobs:
           agents_md = ""
           if os.path.exists(".agents/AGENTS.md"):
               with open(".agents/AGENTS.md", "r", encoding="utf-8", errors="replace") as f:
-                  agents_md = f.read()[:1500]
+                  agents_md = f.read()[:1200]
 
           def jules_request(method, path, payload=None):
               url = f"{API_BASE}/{path.lstrip('/')}"
@@ -225,10 +282,16 @@ jobs:
                   raw = resp.read().decode("utf-8")
                   return json.loads(raw) if raw.strip() else {}
 
+          # Outbound Mention Sanitizer: Never let Jules's output accidentally @ping random GitHub users!
+          def sanitize_outbound_mentions(text):
+              return re.sub(r'(?<![`\w])@([a-zA-Z0-9_-]+)', r'`@\1`', text)
+
           issue_num = ctx["issue_number"]
           session_title_tag = f"[RustOS Issue #{issue_num}]"
           session_name = ctx.get("existing_session_name", "").strip()
+          prev_cursor = int(ctx.get("last_activity_cursor", 0))
 
+          # Fallback lookup via API if comment marker was not yet posted
           if not session_name:
               try:
                   sessions_list = jules_request("GET", "sessions?pageSize=50").get("sessions", [])
@@ -239,43 +302,66 @@ jobs:
               except Exception as e:
                   print(f"Session list lookup note: {e}")
 
-          full_prompt = (
-              f"All responses, plans, code comments, and pull requests MUST be 100% in English.\n\n"
-              f"### GitHub Context & Direct Links\n"
-              f"- Repository Link: {ctx['repo_url']}\n"
-              f"- Issue / PR Link: {ctx['issue_url']} ({session_title_tag}: {ctx['issue_title']})\n"
-              f"- Triggering Comment Link: {ctx['trigger_comment_url']}\n\n"
-              f"### Owner Instruction (@{ctx['actor']} in Organization {ctx['owner']})\n"
-              f"{ctx['latest_instruction']}\n\n"
-              f"### Original Issue Description\n"
-              f"{ctx['issue_body']}\n\n"
-              f"### Complete Issue Comment Thread\n"
-              f"{ctx['comment_thread'][-4000:]}\n\n"
-              f"### Repository Architecture Rules (.agents/AGENTS.md)\n"
-              f"{agents_md}\n\n"
-              f"### Current Workspace Diagnostics (cargo clippy & recent commits)\n"
-              f"Recent commits:\n{git_log}\n"
-              f"Clippy output:\n{clippy_out}\n\n"
-              f"Please analyze the codebase and issue thoroughly, explain your technical findings and plan in English, "
-              f"and if code changes are requested, verify that `cargo clippy --workspace -- -D warnings` passes."
-          )
-
           session_obj = {}
           mode_used = ""
 
+          # CASE A: EXISTING SESSION -> Forward Owner's Direct Reply via :sendMessage
           if session_name:
               try:
-                  jules_request("POST", f"{session_name}:sendMessage", {"prompt": full_prompt})
-                  mode_used = f"Continued Existing Session (`{session_name}` via `:sendMessage` — No 2nd Session Created)"
+                  current_session = jules_request("GET", session_name)
+                  curr_state = current_session.get("state", "")
+                  prev_acts = jules_request("GET", f"{session_name}/activities?pageSize=50").get("activities", [])
+                  prev_cursor = max(prev_cursor, len(prev_acts))
+
+                  if curr_state == "AWAITING_PLAN_APPROVAL":
+                      try:
+                          jules_request("POST", f"{session_name}:approvePlan", {})
+                      except Exception:
+                          pass
+
+                  reply_prompt = (
+                      f"Owner {ping_user} replied in GitHub Issue #{issue_num} ({ctx['trigger_comment_url']}):\n\n"
+                      f"\"{ctx['cleaned_reply']}\"\n\n"
+                      f"### Updated Workspace Context\n"
+                      f"- Issue Link: {ctx['issue_url']}\n"
+                      f"- Latest Clippy Diagnostics:\n{clippy_out}\n\n"
+                      f"Please process this reply directly in our ongoing session. "
+                      f"All responses, plans, and pull requests MUST be in English. "
+                      f"If you have any further clarifying question, state it clearly; otherwise proceed with the implementation and tests."
+                  )
+                  jules_request("POST", f"{session_name}:sendMessage", {"prompt": reply_prompt})
+                  mode_used = f"Forwarded Owner Reply to Active Session (`{session_name}` via `:sendMessage`)"
                   session_obj = jules_request("GET", session_name)
               except Exception as err:
                   print(f"sendMessage on {session_name} failed ({err}), creating fresh session...")
                   session_name = ""
+                  prev_cursor = 0
 
+          # CASE B: FIRST CALL ON THIS ISSUE -> Create Primary Session
           if not session_name:
+              initial_prompt = (
+                  f"All responses, questions, plans, code comments, and pull requests MUST be 100% in English.\n\n"
+                  f"### GitHub Context & Direct Links\n"
+                  f"- Repository Link: {ctx['repo_url']}\n"
+                  f"- Issue / PR Link: {ctx['issue_url']} ({session_title_tag}: {ctx['issue_title']})\n"
+                  f"- Triggering Comment Link: {ctx['trigger_comment_url']}\n\n"
+                  f"### Owner Instruction ({ping_user})\n"
+                  f"{ctx['cleaned_reply']}\n\n"
+                  f"### Original Issue Description\n"
+                  f"{ctx['issue_body']}\n\n"
+                  f"### Complete Issue Comment Thread\n"
+                  f"{ctx['comment_thread'][-3500:]}\n\n"
+                  f"### Repository Architecture Rules (.agents/AGENTS.md)\n"
+                  f"{agents_md}\n\n"
+                  f"### Current Workspace Diagnostics\n"
+                  f"Recent commits:\n{git_log}\n"
+                  f"Clippy output:\n{clippy_out}\n\n"
+                  f"IMPORTANT: If anything is ambiguous or requires a design decision from {ping_user}, "
+                  f"ask a clear, direct question in English so the workflow can notify {ping_user} in the GitHub Issue."
+              )
               create_payload = {
                   "title": f"{session_title_tag} {ctx['issue_title'][:60]}",
-                  "prompt": full_prompt,
+                  "prompt": initial_prompt,
                   "sourceContext": {
                       "source": f"sources/github/{ctx['repo_full_name']}",
                       "githubRepoContext": {
@@ -289,29 +375,33 @@ jobs:
                   session_obj = jules_request("POST", "sessions", create_payload)
                   session_name = session_obj.get("name", "")
                   mode_used = f"Created Primary Session (`{session_name}`) for Issue #{issue_num}"
+                  prev_cursor = 0
               except urllib.error.HTTPError as he:
                   err_body = he.read().decode("utf-8", errors="replace")
                   with open("jules_reply.json", "w", encoding="utf-8") as f:
                       json.dump({
-                          "error": f"HTTP {he.code}: {err_body}",
                           "session_name": "",
                           "session_url": "https://jules.google.com",
                           "mode": "API Error",
                           "state": "FAILED",
+                          "needs_user_reply": True,
+                          "ping_user": ping_user,
+                          "question_text": f"Google Jules API returned HTTP {he.code}.",
+                          "activity_cursor": 0,
                           "pr_url": "",
                           "issue_url": ctx["issue_url"],
                           "trigger_comment_url": ctx["trigger_comment_url"],
-                          "analysis_markdown": (
-                              f"❌ **Google Jules API Error (HTTP {he.code}):**\n```json\n{err_body[:1000]}\n```\n"
-                              f"Ensure the Jules GitHub App is installed for `{ctx['repo_full_name']}` at https://jules.google.com."
-                          )
+                          "analysis_markdown": f"❌ **Google Jules API Error (HTTP {he.code}):**\n```json\n{err_body[:1000]}\n```"
                       }, f, indent=2)
                   sys.exit(0)
 
-          analysis_parts = []
+          new_analysis_parts = []
+          latest_question = ""
+          needs_user_reply = False
           pr_url = ""
           session_state = session_obj.get("state", "RUNNING")
           session_url = session_obj.get("url", "https://jules.google.com")
+          new_cursor = prev_cursor
 
           for poll_idx in range(18):
               time.sleep(10)
@@ -320,66 +410,81 @@ jobs:
                   session_state = session_obj.get("state", session_state)
                   session_url = session_obj.get("url", session_url)
 
-                  if session_state == "AWAITING_PLAN_APPROVAL":
-                      jules_request("POST", f"{session_name}:approvePlan", {})
-
                   for out_item in session_obj.get("outputs", []):
                       pr_obj = out_item.get("pullRequest") or {}
                       if pr_obj.get("url"):
                           pr_url = pr_obj["url"]
 
-                  act_resp = jules_request("GET", f"{session_name}/activities?pageSize=30")
+                  act_resp = jules_request("GET", f"{session_name}/activities?pageSize=50")
                   activities = act_resp.get("activities", [])
-                  collected = []
+                  new_cursor = len(activities)
 
-                  for act in activities:
+                  fresh_activities = activities[prev_cursor:] if len(activities) > prev_cursor else activities[-3:]
+                  collected = []
+                  detected_question = ""
+
+                  for act in fresh_activities:
                       if "agentMessaged" in act:
-                          msg = act["agentMessaged"].get("agentMessage") or act["agentMessaged"].get("message") or ""
+                          msg = (act["agentMessaged"].get("agentMessage") or act["agentMessaged"].get("message") or "").strip()
                           if msg:
-                              collected.append(f"**💬 Jules Agent Analysis:**\n{msg}")
+                              safe_msg = sanitize_outbound_mentions(msg)
+                              collected.append(f"**💬 Google Jules Message:**\n{safe_msg}")
+                              if "?" in safe_msg or session_state == "AWAITING_USER_FEEDBACK":
+                                  detected_question = safe_msg
                       if "planGenerated" in act:
                           plan = act["planGenerated"].get("plan") or {}
                           steps = plan.get("steps") or []
                           if steps:
                               steps_md = "\n".join(
-                                  f"{i+1}. **{st.get('title', 'Step')}**: {st.get('description', '')}"
+                                  f"{i+1}. **{sanitize_outbound_mentions(st.get('title', 'Step'))}**: {sanitize_outbound_mentions(st.get('description', ''))}"
                                   for i, st in enumerate(steps)
                               )
                               collected.append(f"**📋 Generated Execution Plan:**\n{steps_md}")
                       if "progressUpdated" in act:
                           prog = act["progressUpdated"]
-                          ptitle = prog.get("title") or ""
-                          pdesc = prog.get("description") or ""
+                          ptitle = sanitize_outbound_mentions(prog.get("title") or "")
+                          pdesc = sanitize_outbound_mentions(prog.get("description") or "")
                           if ptitle or pdesc:
                               collected.append(f"- 🔄 **{ptitle}**: {pdesc}")
 
                   if collected:
-                      analysis_parts = collected
+                      new_analysis_parts = collected
 
-                  if session_state in ("COMPLETED", "FAILED", "CANCELLED", "AWAITING_USER_FEEDBACK"):
+                  if session_state in ("AWAITING_USER_FEEDBACK", "AWAITING_PLAN_APPROVAL") or detected_question:
+                      needs_user_reply = True
+                      latest_question = detected_question or (
+                          "Google Jules has generated an execution plan or reached a decision point and is waiting for your confirmation."
+                      )
                       break
-                  if poll_idx >= 5 and any("Plan:" in p or "Analysis:" in p for p in analysis_parts):
+
+                  if session_state in ("COMPLETED", "FAILED", "CANCELLED"):
+                      break
+
+                  if len(activities) > prev_cursor and poll_idx >= 5 and any("Message:" in p or "Plan:" in p for p in new_analysis_parts):
                       break
               except Exception as poll_err:
-                  print(f"Poll warning: {poll_err}")
+                  print(f"Poll note: {poll_err}")
 
-          if not analysis_parts:
+          if not new_analysis_parts:
               analysis_md = (
-                  f"Jules has started analyzing **{ctx['issue_title']}** in its cloud VM "
+                  f"Jules received your instruction and is actively working on **{ctx['issue_title']}** "
                   f"(Current State: `{session_state}`).\n"
-                  f"- Watch live VM progress or steer in real time: {session_url}\n"
-                  f"- Reply with `@jules <follow-up message>` in this issue to continue chatting in this **exact same session** (`{session_name}`)."
+                  f"- Live Session Link: {session_url}\n"
+                  f"- Reply with `/jules <your message>` at any time to send instructions into `{session_name}` without pinging external GitHub users."
               )
           else:
-              analysis_md = "\n\n".join(analysis_parts[-6:])
+              analysis_md = "\n\n".join(new_analysis_parts[-6:])
 
           with open("jules_reply.json", "w", encoding="utf-8") as f:
               json.dump({
-                  "error": "",
                   "session_name": session_name,
                   "session_url": session_url,
                   "mode": mode_used,
                   "state": session_state,
+                  "needs_user_reply": needs_user_reply,
+                  "ping_user": ping_user,
+                  "question_text": latest_question,
+                  "activity_cursor": new_cursor,
                   "pr_url": pr_url,
                   "issue_url": ctx["issue_url"],
                   "trigger_comment_url": ctx["trigger_comment_url"],
@@ -387,7 +492,8 @@ jobs:
               }, f, indent=2)
           EOF
 
-      - name: Post Google Jules English Analysis & Single-Session Marker to GitHub Issue
+      - name: Post Google Jules Reply and Ping Owner if Question Asked
+        if: steps.harvest.outputs.should_run == 'true'
         uses: actions/github-script@v8
         env:
           INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
@@ -403,9 +509,28 @@ jobs:
               ? `\n- **Generated Pull Request:** ${reply.pr_url}`
               : '';
 
+            // Intentional Owner Ping ONLY when Jules has a question for you!
+            let pingBanner = '';
+            if (reply.needs_user_reply) {
+              pingBanner = [
+                `🔔 **Attention @${reply.ping_user} — Google Jules has a question and is waiting for your reply!**`,
+                ``,
+                `> ❓ **Question / Action Needed from Google Jules:**`,
+                `> ${reply.question_text.replace(/\n/g, '\n> ')}`,
+                ``,
+                `👉 **How to answer safely (without pinging random GitHub users):**`,
+                `Simply reply in this issue with \`/jules <your answer>\` and your response will be sent directly into this active session (\`${reply.session_name}\`).`,
+                ``,
+                `---`,
+                ``
+              ].join('\n');
+            }
+
             const body = [
               `<!-- jules-session-id: ${reply.session_name} -->`,
-              `### 🤖 Google Jules Single-Session Analysis & Response`,
+              `<!-- jules-activity-cursor: ${reply.activity_cursor} -->`,
+              pingBanner,
+              `### 🤖 Google Jules Single-Session Update`,
               `- **Session Continuity:** ${reply.mode}`,
               `- **Jules Session State:** \`${reply.state}\``,
               `- **Live Jules Web Session:** [Open Continuous Session in Google Jules](${reply.session_url})`,
@@ -417,10 +542,10 @@ jobs:
               reply.analysis_markdown,
               ``,
               `---`,
-              `<details><summary>💬 How to Continue Talking in This Exact Same Session (Organization Owner Only)</summary>`,
+              `<details><summary>💬 How to Reply Safely in This Session (Use <code>/jules</code>)</summary>`,
               ``,
-              `Reply anywhere in this issue with \`@jules <your message>\`.`,
-              `The workflow will automatically detect \`${reply.session_name}\` and call \`POST /v1alpha/${reply.session_name}:sendMessage\` so **no second session is created** and full context is preserved.`,
+              `Write a comment in this issue starting with \`/jules <your answer or instruction>\` (or \`!jules\`).`,
+              `Using \`/jules\` instead of \`@jules\` avoids mentioning unrelated GitHub users while forwarding your reply directly to \`POST /v1alpha/${reply.session_name}:sendMessage\`.`,
               `</details>`
             ].join('\n');
 
