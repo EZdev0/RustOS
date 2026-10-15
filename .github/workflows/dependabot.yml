@@ -1,0 +1,43 @@
+version: 2
+updates:
+  # 1. Scan root workspace Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "security"
+
+  # 2. Scan kernel (#![no_std]) Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/kernel"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "kernel"
+      - "security"
+
+  # 3. Scan builder Cargo dependencies
+  - package-ecosystem: "cargo"
+    directory: "/builder"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "builder"
+      - "security"
+
+  # 4. Keep GitHub Actions workflows up to date on Node 24+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "ci"
+      - "security"
