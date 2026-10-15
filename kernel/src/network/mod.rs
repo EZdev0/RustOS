@@ -96,7 +96,6 @@ pub struct NetworkManager {
     icmp_handle: SocketHandle,
     tcp_handle: SocketHandle,
     pub ping_reply: Option<([u8; 4], u16)>, // IP, Seq
-    
     pub http_state: HttpState,
     pub http_chunks: crossbeam_queue::ArrayQueue<alloc::vec::Vec<u8>>,
     pub total_bytes_received: usize,
