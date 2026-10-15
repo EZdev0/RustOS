@@ -18,7 +18,6 @@ pub enum UpdateError {
     InvalidManifest,
 }
 
-use spin::Mutex;
 use alloc::sync::Arc;
 use spin::Mutex;
 
