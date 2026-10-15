@@ -70,4 +70,7 @@ This will safely compile the OS across multiple threads, link the bootloader, an
 6. Press ▶️ Play!
 
 ## 📜 License
-Private & Proprietary.
+GNU GENERAL PUBLIC LICENSE
+                       Version 3, 29 June 2007
+
+ Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
