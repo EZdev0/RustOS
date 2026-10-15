@@ -231,7 +231,8 @@ pub async fn updater_task() {
                                 if let Ok(manifest) = UpdateManifest::from_json_bytes(body_data) {
                                     state.expected_size = manifest.expected_size;
                                     state.expected_crc32 = manifest.expected_crc32;
-                                    state.status_message = String::from("Manifest OK, downloading...");
+                                    state.status_message =
+                                        String::from("Manifest OK, downloading...");
                                 } else {
                                     process_err = Some(UpdateError::InvalidManifest);
                                 }
