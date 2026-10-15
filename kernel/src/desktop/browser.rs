@@ -34,19 +34,25 @@ impl BrowserApp {
 
     fn parse_dummy_html(&mut self) {
         self.html_elements.clear();
-        
+
         let mut in_tag = false;
         let mut current_text = String::new();
         let mut current_tag = String::new();
         let mut active_style = "text";
-        
+
         for c in self.content.chars() {
             if c == '<' {
                 if !current_text.trim().is_empty() {
                     match active_style {
-                        "h1" => self.html_elements.push(HtmlElement::Heading(current_text.clone())),
-                        "a" => self.html_elements.push(HtmlElement::Link(current_text.clone())),
-                        _ => self.html_elements.push(HtmlElement::Text(current_text.clone())),
+                        "h1" => self
+                            .html_elements
+                            .push(HtmlElement::Heading(current_text.clone())),
+                        "a" => self
+                            .html_elements
+                            .push(HtmlElement::Link(current_text.clone())),
+                        _ => self
+                            .html_elements
+                            .push(HtmlElement::Text(current_text.clone())),
                     }
                 }
                 current_text.clear();
@@ -54,9 +60,13 @@ impl BrowserApp {
             } else if c == '>' {
                 in_tag = false;
                 let tag_lower = current_tag.to_lowercase();
-                if tag_lower == "h1" { active_style = "h1"; }
-                else if tag_lower == "a" { active_style = "a"; }
-                else if tag_lower.starts_with('/') { active_style = "text"; }
+                if tag_lower == "h1" {
+                    active_style = "h1";
+                } else if tag_lower == "a" {
+                    active_style = "a";
+                } else if tag_lower.starts_with('/') {
+                    active_style = "text";
+                }
                 current_tag.clear();
             } else {
                 if in_tag {
@@ -66,7 +76,7 @@ impl BrowserApp {
                 }
             }
         }
-        
+
         if !current_text.trim().is_empty() {
             self.html_elements.push(HtmlElement::Text(current_text));
         }
@@ -79,31 +89,41 @@ impl App for BrowserApp {
     }
 
     fn update(&mut self) {
-        if self.html_elements.is_empty() && self.content == "<h1>Welcome to RustOS Browser</h1><p>Loading...</p>" {
+        if self.html_elements.is_empty()
+            && self.content == "<h1>Welcome to RustOS Browser</h1><p>Loading...</p>"
+        {
             // Trigger HTTP request to example.com (93.184.216.34)
             crate::network::start_http_request([93, 184, 216, 34]);
             self.content = String::from("<h1>Loading...</h1><p>Fetching example.com...</p>");
             self.parse_dummy_html();
         }
 
-        if let Some(res) = crate::network::get_http_response() {
+        if let Some(res) = crate::network::poll_http_chunk() {
             // Parse HTTP body simply by stripping headers (double CRLF)
-            if let Some(body_idx) = res.find("\r\n\r\n") {
-                self.content = String::from(&res[body_idx + 4..]);
+            let str_res = alloc::string::String::from_utf8_lossy(&res).into_owned();
+            if let Some(body_idx) = str_res.find("\r\n\r\n") {
+                self.content = alloc::string::String::from(&str_res[body_idx + 4..]);
             } else {
-                self.content = res;
+                self.content = str_res;
             }
             self.parse_dummy_html();
         }
     }
 
-    fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+    fn draw(
+        &mut self,
+        compositor: &mut GraphicalCompositor,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) {
         // Draw Toolbar
         compositor.draw_rect(x, y, width, 40, 200, 200, 200);
-        
+
         // Draw URL bar
         compositor.draw_rect(x + 10, y + 10, width - 20, 20, 255, 255, 255);
-        
+
         let mut cx = x + 15;
         for c in self.url_bar.chars() {
             compositor.draw_char(cx, y + 16, c, 0, 0, 0);
@@ -117,7 +137,7 @@ impl App for BrowserApp {
 
         // Render HTML Elements (stub)
         let mut draw_y = content_y as isize + 10 - self.scroll_y;
-        
+
         for el in &self.html_elements {
             if draw_y > content_y as isize + content_height as isize {
                 break;
@@ -133,7 +153,7 @@ impl App for BrowserApp {
                             px += 8;
                         }
                         draw_y += 30;
-                    },
+                    }
                     HtmlElement::Text(text) => {
                         let mut px = x + 20;
                         for c in text.chars() {
@@ -141,7 +161,7 @@ impl App for BrowserApp {
                             px += 8;
                         }
                         draw_y += 20;
-                    },
+                    }
                     HtmlElement::Link(text) => {
                         let mut px = x + 20;
                         for c in text.chars() {

@@ -22,7 +22,7 @@ impl DateTime {
                     self.month = 12;
                     self.year = self.year.saturating_sub(1);
                 }
-                self.day = 30; 
+                self.day = 30;
             }
         } else if h >= 24 {
             h -= 24;
@@ -45,7 +45,7 @@ fn read_register(reg: u8) -> u8 {
     let mut data_port = Port::<u8>::new(0x71);
     unsafe {
         // CRITICAL BUGFIX: Das MSB (Bit 7) des CMOS Address Ports kontrolliert NMI!
-        // Wenn wir 0x00 schreiben, ENABLEN wir NMIs. Wenn dann ein NMI feuert, crasht 
+        // Wenn wir 0x00 schreiben, ENABLEN wir NMIs. Wenn dann ein NMI feuert, crasht
         // das OS mit #GP Error 16 (IDT Vektor 2 * 8), da kein NMI Handler existiert.
         // Daher MÜSSEN wir das NMI-Mask Bit (0x80) setzen, um NMI zu blockieren!
         address_port.write(reg | 0x80);

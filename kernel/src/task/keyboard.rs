@@ -1,5 +1,8 @@
-use core::{pin::Pin, task::{Context, Poll}};
 use conquer_once::spin::OnceCell;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 use crossbeam_queue::ArrayQueue;
 use futures_util::{stream::Stream, task::AtomicWaker};
 use pc_keyboard::{layouts, DecodedKey, HandleControl, PS2Keyboard, ScancodeSet1};
@@ -29,7 +32,8 @@ impl Default for ScancodeStream {
 
 impl ScancodeStream {
     pub fn new() -> Self {
-        SCANCODE_QUEUE.try_init_once(|| ArrayQueue::new(100))
+        SCANCODE_QUEUE
+            .try_init_once(|| ArrayQueue::new(100))
             .expect("ScancodeStream::new should only be called once");
         ScancodeStream { _private: () }
     }
@@ -40,13 +44,14 @@ impl Stream for ScancodeStream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<u8>> {
         let queue = SCANCODE_QUEUE.try_get().expect("not initialized");
-        
-        if let Some(scancode) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
+
+        if let Some(scancode) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop())
+        {
             return Poll::Ready(Some(scancode));
         }
 
         WAKER.register(cx.waker());
-        
+
         match x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             Some(scancode) => {
                 WAKER.take();
@@ -57,7 +62,9 @@ impl Stream for ScancodeStream {
     }
 }
 
-pub async fn keyboard_task(compositor: alloc::sync::Arc<spin::Mutex<crate::desktop::compositor::GraphicalCompositor>>) {
+pub async fn keyboard_task(
+    compositor: alloc::sync::Arc<spin::Mutex<crate::desktop::compositor::GraphicalCompositor>>,
+) {
     let mut stream = ScancodeStream::new();
     let mut keyboard = PS2Keyboard::new(
         ScancodeSet1::new(),
@@ -66,7 +73,7 @@ pub async fn keyboard_task(compositor: alloc::sync::Arc<spin::Mutex<crate::deskt
     );
 
     use futures_util::stream::StreamExt;
-    
+
     while let Some(scancode) = stream.next().await {
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
             if let Some(key) = keyboard.process_keyevent(key_event) {
@@ -75,8 +82,8 @@ pub async fn keyboard_task(compositor: alloc::sync::Arc<spin::Mutex<crate::deskt
                         let mut comp = compositor.lock();
                         comp.dispatch_keyboard_event(character);
                         comp.render_all();
-                    },
-                    DecodedKey::RawKey(_) => {},
+                    }
+                    DecodedKey::RawKey(_) => {}
                 }
             }
         }

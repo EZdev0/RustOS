@@ -9,9 +9,7 @@ impl IntelligentRenderer {
         // Fallback for now due to x86_64-unknown-none disabling SSE/AVX registers
         let blitter = fallback::blit_basic;
 
-        Self {
-            blitter,
-        }
+        Self { blitter }
     }
 
     #[allow(clippy::not_unsafe_ptr_arg_deref)]

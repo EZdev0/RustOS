@@ -1,6 +1,6 @@
-use linked_list_allocator::LockedHeap;
-use core::sync::atomic::{AtomicUsize, Ordering};
 use core::alloc::{GlobalAlloc, Layout};
+use core::sync::atomic::{AtomicUsize, Ordering};
+use linked_list_allocator::LockedHeap;
 
 pub struct TrackingAllocator {
     inner: LockedHeap,
@@ -52,10 +52,10 @@ pub static ALLOCATOR: TrackingAllocator = TrackingAllocator::empty();
 pub const HEAP_SIZE: usize = 16 * 1024 * 1024; // 16 MiB Heap
 
 pub fn init_heap() {
-    // Da wir noch kein vollwertiges Paging (Memory Management Unit) haben, 
+    // Da wir noch kein vollwertiges Paging (Memory Management Unit) haben,
     // weisen wir den Heap einfach statisch im .bss Segment zu.
     static mut HEAP: [u8; HEAP_SIZE] = [0; HEAP_SIZE];
-    
+
     unsafe {
         ALLOCATOR.init(core::ptr::addr_of_mut!(HEAP) as *mut u8, HEAP_SIZE);
     }
