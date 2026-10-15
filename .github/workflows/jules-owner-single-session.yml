@@ -64,7 +64,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - name: Verify "/jules" Command, Sanitize Accidental "@jules" Mentions & Harvest Context
+      - name: Verify "/jules" Command, Sanitize Accidental "@jules" Mentions & Harvest Context to /tmp
         id: harvest
         uses: actions/github-script@v8
         env:
@@ -86,8 +86,7 @@ jobs:
                 return;
               }
 
-              // 2. Auto-Sanitizer: If Owner accidentally typed "@jules", rewrite it to "/jules"
-              // in the comment so the unrelated human GitHub user github.com/jules is unlinked!
+              // 2. Auto-Sanitizer: Rewrite accidental raw "@jules" to "`/jules`"
               if (/(?:^|\s)@jules\b/i.test(withoutUrls)) {
                 try {
                   const sanitizedBody = rawBody.replace(/(^|\s)@jules\b/gi, '$1`/jules`');
@@ -154,7 +153,6 @@ jobs:
               ? context.payload.comment.body
               : (process.env.INPUT_PROMPT || issueResp.data.body || 'Analyze this issue.');
 
-            // Strip "/jules", "!jules", or "@jules" trigger tokens cleanly
             const cleanedReply = rawInstruction
               .replace(/`?[\/!@]jules`?\b/gi, '')
               .trim() || rawInstruction;
@@ -178,7 +176,8 @@ jobs:
               comment_thread: formattedComments
             };
 
-            fs.writeFileSync('jules_issue_context.json', JSON.stringify(contextBundle, null, 2));
+            // Store in /tmp so actions/checkout@v6 never wipes the context file!
+            fs.writeFileSync('/tmp/jules_issue_context.json', JSON.stringify(contextBundle, null, 2));
 
       - name: Checkout repository on Node 24
         if: steps.harvest.outputs.should_run == 'true'
@@ -212,8 +211,8 @@ jobs:
         if: steps.harvest.outputs.should_run == 'true'
         shell: bash
         run: |
-          cargo clippy --workspace -- -D warnings > jules_clippy.log 2>&1 || true
-          git log -5 --oneline > jules_git_log.txt 2>&1 || true
+          cargo clippy --workspace -- -D warnings > /tmp/jules_clippy.log 2>&1 || true
+          git log -5 --oneline > /tmp/jules_git_log.txt 2>&1 || true
 
       - name: Send Initial Task or Forward Owner Reply to Active Jules Session
         if: steps.harvest.outputs.should_run == 'true'
@@ -229,13 +228,18 @@ jobs:
           API_BASE = os.environ.get("JULES_API_BASE", "https://jules.googleapis.com/v1alpha")
           DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 
-          with open("jules_issue_context.json", "r", encoding="utf-8") as f:
+          ctx_path = "/tmp/jules_issue_context.json"
+          if not os.path.exists(ctx_path):
+              print("Error: /tmp/jules_issue_context.json missing.")
+              sys.exit(1)
+
+          with open(ctx_path, "r", encoding="utf-8") as f:
               ctx = json.load(f)
 
           ping_user = ctx.get("actor") or ctx.get("issue_author") or ctx.get("owner")
 
           if not API_KEY:
-              with open("jules_reply.json", "w", encoding="utf-8") as f:
+              with open("/tmp/jules_reply.json", "w", encoding="utf-8") as f:
                   json.dump({
                       "session_name": "",
                       "session_url": "https://jules.google.com",
@@ -256,13 +260,13 @@ jobs:
               sys.exit(0)
 
           clippy_out = ""
-          if os.path.exists("jules_clippy.log"):
-              with open("jules_clippy.log", "r", encoding="utf-8", errors="replace") as f:
+          if os.path.exists("/tmp/jules_clippy.log"):
+              with open("/tmp/jules_clippy.log", "r", encoding="utf-8", errors="replace") as f:
                   clippy_out = f.read()[-1000:]
 
           git_log = ""
-          if os.path.exists("jules_git_log.txt"):
-              with open("jules_git_log.txt", "r", encoding="utf-8", errors="replace") as f:
+          if os.path.exists("/tmp/jules_git_log.txt"):
+              with open("/tmp/jules_git_log.txt", "r", encoding="utf-8", errors="replace") as f:
                   git_log = f.read()
 
           agents_md = ""
@@ -282,7 +286,6 @@ jobs:
                   raw = resp.read().decode("utf-8")
                   return json.loads(raw) if raw.strip() else {}
 
-          # Outbound Mention Sanitizer: Never let Jules's output accidentally @ping random GitHub users!
           def sanitize_outbound_mentions(text):
               return re.sub(r'(?<![`\w])@([a-zA-Z0-9_-]+)', r'`@\1`', text)
 
@@ -291,7 +294,6 @@ jobs:
           session_name = ctx.get("existing_session_name", "").strip()
           prev_cursor = int(ctx.get("last_activity_cursor", 0))
 
-          # Fallback lookup via API if comment marker was not yet posted
           if not session_name:
               try:
                   sessions_list = jules_request("GET", "sessions?pageSize=50").get("sessions", [])
@@ -378,7 +380,7 @@ jobs:
                   prev_cursor = 0
               except urllib.error.HTTPError as he:
                   err_body = he.read().decode("utf-8", errors="replace")
-                  with open("jules_reply.json", "w", encoding="utf-8") as f:
+                  with open("/tmp/jules_reply.json", "w", encoding="utf-8") as f:
                       json.dump({
                           "session_name": "",
                           "session_url": "https://jules.google.com",
@@ -475,7 +477,7 @@ jobs:
           else:
               analysis_md = "\n\n".join(new_analysis_parts[-6:])
 
-          with open("jules_reply.json", "w", encoding="utf-8") as f:
+          with open("/tmp/jules_reply.json", "w", encoding="utf-8") as f:
               json.dump({
                   "session_name": session_name,
                   "session_url": session_url,
@@ -504,12 +506,11 @@ jobs:
               ? context.payload.issue.number
               : parseInt(process.env.INPUT_ISSUE_NUMBER, 10);
 
-            const reply = JSON.parse(fs.readFileSync('jules_reply.json', 'utf8'));
+            const reply = JSON.parse(fs.readFileSync('/tmp/jules_reply.json', 'utf8'));
             const prLine = reply.pr_url
               ? `\n- **Generated Pull Request:** ${reply.pr_url}`
               : '';
 
-            // Intentional Owner Ping ONLY when Jules has a question for you!
             let pingBanner = '';
             if (reply.needs_user_reply) {
               pingBanner = [
