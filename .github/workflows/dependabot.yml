@@ -1,25 +1,155 @@
-version: 2
-updates:
-  - package-ecosystem: "cargo"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+name: RustOS Dependabot Auto-Installer & Cargo Security Audit
 
-  - package-ecosystem: "cargo"
-    directory: "/kernel"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dependabot.yml"
 
-  - package-ecosystem: "cargo"
-    directory: "/builder"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
 
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CI: 1
+
+jobs:
+  sync-dependabot-and-audit:
+    name: "Auto-Configure .github/dependabot.yml & Audit Workspace Crates"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository on Node 24
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Auto-Create Native .github/dependabot.yml in Correct Parent Folder
+        shell: bash
+        run: |
+          cat << 'EOF' > .github/dependabot.yml
+          version: 2
+          updates:
+            - package-ecosystem: "cargo"
+              directory: "/"
+              schedule:
+                interval: "weekly"
+              open-pull-requests-limit: 5
+
+            - package-ecosystem: "cargo"
+              directory: "/kernel"
+              schedule:
+                interval: "weekly"
+              open-pull-requests-limit: 5
+
+            - package-ecosystem: "cargo"
+              directory: "/builder"
+              schedule:
+                interval: "weekly"
+              open-pull-requests-limit: 5
+
+            - package-ecosystem: "github-actions"
+              directory: "/"
+              schedule:
+                interval: "weekly"
+              open-pull-requests-limit: 5
+          EOF
+
+          # Remove Cargo.lock from .gitignore so Dependabot can scan locked versions
+          if [ -f ".gitignore" ]; then
+            sed -i '/^Cargo\.lock$/d' .gitignore
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if ! git diff --quiet; then
+            git add .github/dependabot.yml .gitignore
+            git commit -m "ci(dependabot): auto-install .github/dependabot.yml in root .github directory"
+            git push origin HEAD:main || true
+          fi
+
+      - name: Setup Rust nightly toolchain and components
+        shell: bash
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
+          rustup component add rust-src llvm-tools-preview rustfmt clippy
+          rustup target add x86_64-unknown-none
+
+      - name: Restore shared RustOS Cargo cache on Node 24
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: rustos-cargo-v5-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            rustos-cargo-v5-
+
+      - name: Run RustSec Cargo Audit & Check Dependency Updates on Fresh Branch
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if ! command -v cargo-audit >/dev/null 2>&1; then
+            cargo install cargo-audit --locked
+          fi
+
+          cargo generate-lockfile || true
+          cargo audit > audit_report.txt 2>&1 || true
+
+          NEW_BRANCH="fix/dependabot-security-sync-${RUN_ID}"
+          git checkout -B "${NEW_BRANCH}"
+
+          os.makedirs_cmd="mkdir -p docs/ci_reports"
+          $os.makedirs_cmd
+          cp audit_report.txt "docs/ci_reports/cargo_audit_${RUN_ID}.txt"
+
+          if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
+            git add Cargo.lock docs/ci_reports/ 2>/dev/null || git add docs/ci_reports/
+            git commit -m "chore(deps): sync Cargo.lock and security audit report (${RUN_ID})" || true
+            git push -u origin "${NEW_BRANCH}" --force
+            echo "CREATED_DEPS_BRANCH=${NEW_BRANCH}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Guaranteed PR Creation for Dependency & Lockfile Sync
+        if: always() && env.CREATED_DEPS_BRANCH != ''
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs');
+            const branch = process.env.CREATED_DEPS_BRANCH;
+            const auditText = fs.existsSync('audit_report.txt')
+              ? fs.readFileSync('audit_report.txt', 'utf8').slice(-1500)
+              : 'Audit completed.';
+
+            try {
+              await github.rest.pulls.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `chore(deps): automated Dependabot setup and Cargo security audit (${branch})`,
+                head: branch,
+                base: 'main',
+                body: [
+                  `## 🛡️ Automated Dependabot & Cargo Security Sync`,
+                  `- Installed native \`.github/dependabot.yml\` in the correct \`.github/\` directory.`,
+                  `- Enabled \`Cargo.lock\` tracking for reproducible OS builds and vulnerability scanning.`,
+                  ``,
+                  `### 📋 Latest \`cargo-audit\` Output`,
+                  '```text',
+                  auditText,
+                  '```'
+                ].join('\n')
+              });
+            } catch (e) {
+              core.info(`PR creation note: ${e.message}`);
+            }
