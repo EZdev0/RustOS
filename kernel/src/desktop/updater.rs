@@ -22,7 +22,8 @@ use spin::Mutex;
 use alloc::sync::Arc;
 use spin::Mutex;
 
-pub static UPDATER_STATE: spin::Lazy<Arc<Mutex<UpdaterState>>> = spin::Lazy::new(|| Arc::new(Mutex::new(UpdaterState::new())));
+pub static UPDATER_STATE: spin::Lazy<Arc<Mutex<UpdaterState>>> =
+    spin::Lazy::new(|| Arc::new(Mutex::new(UpdaterState::new())));
 
 pub struct UpdaterState {
     pub state_flags: u8,
