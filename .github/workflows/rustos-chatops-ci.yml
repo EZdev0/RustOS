@@ -86,7 +86,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Cache Local LLM GGUF weights (~/.ollama) across CI runs
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.ollama
           key: rustos-local-llm-${{ env.LOCAL_MODEL }}-v1

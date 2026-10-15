@@ -169,7 +169,7 @@ jobs:
 
       - name: "Step 4: Restore Shared RustOS Cargo Cache on Node 24"
         if: steps.auth_parse.outputs.authorized == 'true'
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
