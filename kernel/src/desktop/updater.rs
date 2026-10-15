@@ -91,7 +91,9 @@ impl UpdateCenter {
 
     pub fn apply_update() -> Result<(), UpdateError> {
         let mut state = UPDATER_STATE.lock();
-        if (state.state_flags & FLAG_DOWNLOAD_COMPLETE) == 0 || (state.state_flags & FLAG_CHECKSUM_VALID) == 0 {
+        if (state.state_flags & FLAG_DOWNLOAD_COMPLETE) == 0
+            || (state.state_flags & FLAG_CHECKSUM_VALID) == 0
+        {
             return Err(UpdateError::NotVerifiedYet);
         }
 
