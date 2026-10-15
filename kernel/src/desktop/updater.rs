@@ -239,7 +239,9 @@ pub async fn updater_task() {
                             }
                         } else {
                             // Payload chunk
-                            if state.staging_buffer.len().saturating_add(chunk.len()) > MAX_STAGING_BYTES {
+                            if state.staging_buffer.len().saturating_add(chunk.len())
+                                > MAX_STAGING_BYTES
+                            {
                                 process_err = Some(UpdateError::BufferOverflow);
                             } else {
                                 state.staging_buffer.extend_from_slice(&chunk);
