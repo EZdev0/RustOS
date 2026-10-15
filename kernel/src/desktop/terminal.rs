@@ -313,7 +313,12 @@ impl TerminalApp {
                         "check" => {
                             self.print(String::from("Checking for updates..."), cmd_color);
                             crate::desktop::updater::UpdateCenter::start_download([10, 0, 2, 2]);
-                            self.print(String::from("Downloading update. Open Update Center app for progress."), cmd_color);
+                            self.print(
+                                String::from(
+                                    "Downloading update. Open Update Center app for progress.",
+                                ),
+                                cmd_color,
+                            );
                         }
                         "apply" => {
                             self.print(String::from("Applying update..."), cmd_color);
