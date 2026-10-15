@@ -1,0 +1,432 @@
+name: Google Jules Owner-Only Single-Session Issue & PR Agent
+
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [opened, labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "Issue number to analyze or continue in the same Jules session"
+        required: true
+        type: string
+      prompt:
+        description: "Instruction for Google Jules in English"
+        required: true
+        default: "Analyze this issue, verify kernel safety invariants, and reply with a concrete technical plan."
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CI: 1
+  JULES_API_BASE: "https://jules.googleapis.com/v1alpha"
+
+jobs:
+  jules-single-session-agent:
+    name: "Google Jules Single-Session Agent (Organization Owner Only)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # ORGANIZATION-SAFE OWNER LOCK: Allows Organization Owners (author_association == 'OWNER')
+    # and blocks bots or external users from triggering JULES_API_KEY.
+    if: >
+      github.actor != 'github-actions[bot]' &&
+      !endsWith(github.actor, '[bot]') &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issues' &&
+          contains(fromJSON('["OWNER", "MEMBER"]'), github.event.issue.author_association) &&
+          (
+            (github.event.action == 'labeled' && github.event.label.name == 'jules') ||
+            contains(github.event.issue.body, '@jules')
+          )
+        ) ||
+        (
+          github.event_name == 'issue_comment' &&
+          contains(fromJSON('["OWNER", "MEMBER"]'), github.event.comment.author_association) &&
+          contains(github.event.comment.body, '@jules')
+        )
+      )
+    concurrency:
+      group: jules-single-session-issue-${{ github.event.issue.number || github.event.inputs.issue_number }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Acknowledge Owner "@jules" command with rocket reaction
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: context.payload.comment.id,
+              content: 'rocket'
+            });
+
+      - name: Checkout repository on Node 24
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 20
+
+      - name: Setup Rust nightly toolchain and components
+        shell: bash
+        run: |
+          rustup toolchain install nightly --profile minimal
+          rustup default nightly
+          rustup component add rust-src llvm-tools-preview rustfmt clippy
+          rustup target add x86_64-unknown-none
+
+      - name: Restore Cargo cache on Node 24
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: rustos-cargo-v5-${{ hashFiles('**/Cargo.lock', '**/Cargo.toml') }}
+          restore-keys: |
+            rustos-cargo-v5-
+
+      - name: Harvest Full GitHub Issue Context, All Links and Comment Thread
+        uses: actions/github-script@v8
+        env:
+          INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+          INPUT_PROMPT: ${{ github.event.inputs.prompt }}
+        with:
+          script: |
+            const fs = require('fs');
+            const issueNumber = context.payload.issue
+              ? context.payload.issue.number
+              : parseInt(process.env.INPUT_ISSUE_NUMBER, 10);
+
+            const issueResp = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber
+            });
+
+            const commentsResp = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              per_page: 100
+            });
+
+            let existingSessionName = '';
+            const markerRegex = /<!--\s*jules-session-id:\s*(sessions\/[a-zA-Z0-9_-]+)\s*-->/;
+            for (const c of commentsResp.data) {
+              const m = (c.body || '').match(markerRegex);
+              if (m && m[1]) {
+                existingSessionName = m[1];
+              }
+            }
+
+            const formattedComments = commentsResp.data.map((c, idx) => {
+              return `[Comment #${idx + 1} by @${c.user.login} (${c.html_url})]:\n${c.body}`;
+            }).join('\n\n---\n\n');
+
+            const latestInstruction = context.payload.comment
+              ? context.payload.comment.body
+              : (process.env.INPUT_PROMPT || issueResp.data.body || 'Analyze this issue.');
+
+            const contextBundle = {
+              owner: context.repo.owner,
+              actor: context.actor,
+              repo: context.repo.repo,
+              repo_full_name: `${context.repo.owner}/${context.repo.repo}`,
+              repo_url: `https://github.com/${context.repo.owner}/${context.repo.repo}`,
+              issue_number: issueNumber,
+              issue_title: issueResp.data.title,
+              issue_body: issueResp.data.body || '',
+              issue_url: issueResp.data.html_url,
+              is_pull_request: Boolean(issueResp.data.pull_request),
+              trigger_comment_url: context.payload.comment ? context.payload.comment.html_url : issueResp.data.html_url,
+              existing_session_name: existingSessionName,
+              latest_instruction: latestInstruction,
+              comment_thread: formattedComments
+            };
+
+            fs.writeFileSync('jules_issue_context.json', JSON.stringify(contextBundle, null, 2));
+
+      - name: Run Pre-Analysis Workspace Diagnostics for Jules Context
+        shell: bash
+        run: |
+          cargo clippy --workspace -- -D warnings > jules_clippy.log 2>&1 || true
+          git log -5 --oneline > jules_git_log.txt 2>&1 || true
+
+      - name: Connect to Single Google Jules Session, Send Context and Poll Analysis
+        shell: bash
+        env:
+          JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch || 'main' }}
+        run: |
+          python3 - << 'EOF'
+          import json, os, re, sys, time, urllib.request, urllib.error
+
+          API_KEY = os.environ.get("JULES_API_KEY", "").strip()
+          API_BASE = os.environ.get("JULES_API_BASE", "https://jules.googleapis.com/v1alpha")
+          DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
+
+          if not API_KEY:
+              with open("jules_reply.json", "w", encoding="utf-8") as f:
+                  json.dump({
+                      "error": "Organization/Repo secret JULES_API_KEY was not passed to this runner.",
+                      "session_name": "",
+                      "session_url": "https://jules.google.com",
+                      "mode": "Secret Visibility Check Needed",
+                      "state": "MISSING_KEY",
+                      "pr_url": "",
+                      "issue_url": "",
+                      "trigger_comment_url": "",
+                      "analysis_markdown": (
+                          "⚠️ **Action Required:** `JULES_API_KEY` is empty in this workflow run. "
+                          "Please verify in `Organization Settings -> Secrets and variables -> Actions` that `RustOS` "
+                          "is checked in the `5 repositories` visibility list and that `RustOS` is a **Public** repository."
+                      )
+                  }, f, indent=2)
+              sys.exit(0)
+
+          with open("jules_issue_context.json", "r", encoding="utf-8") as f:
+              ctx = json.load(f)
+
+          clippy_out = ""
+          if os.path.exists("jules_clippy.log"):
+              with open("jules_clippy.log", "r", encoding="utf-8", errors="replace") as f:
+                  clippy_out = f.read()[-1200:]
+
+          git_log = ""
+          if os.path.exists("jules_git_log.txt"):
+              with open("jules_git_log.txt", "r", encoding="utf-8", errors="replace") as f:
+                  git_log = f.read()
+
+          agents_md = ""
+          if os.path.exists(".agents/AGENTS.md"):
+              with open(".agents/AGENTS.md", "r", encoding="utf-8", errors="replace") as f:
+                  agents_md = f.read()[:1500]
+
+          def jules_request(method, path, payload=None):
+              url = f"{API_BASE}/{path.lstrip('/')}"
+              data = json.dumps(payload).encode("utf-8") if payload is not None else (b"{}" if method == "POST" else None)
+              headers = {
+                  "X-Goog-Api-Key": API_KEY,
+                  "Content-Type": "application/json"
+              }
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=60) as resp:
+                  raw = resp.read().decode("utf-8")
+                  return json.loads(raw) if raw.strip() else {}
+
+          issue_num = ctx["issue_number"]
+          session_title_tag = f"[RustOS Issue #{issue_num}]"
+          session_name = ctx.get("existing_session_name", "").strip()
+
+          if not session_name:
+              try:
+                  sessions_list = jules_request("GET", "sessions?pageSize=50").get("sessions", [])
+                  for s in sessions_list:
+                      if session_title_tag in (s.get("title") or ""):
+                          session_name = s.get("name", "")
+                          break
+              except Exception as e:
+                  print(f"Session list lookup note: {e}")
+
+          full_prompt = (
+              f"All responses, plans, code comments, and pull requests MUST be 100% in English.\n\n"
+              f"### GitHub Context & Direct Links\n"
+              f"- Repository Link: {ctx['repo_url']}\n"
+              f"- Issue / PR Link: {ctx['issue_url']} ({session_title_tag}: {ctx['issue_title']})\n"
+              f"- Triggering Comment Link: {ctx['trigger_comment_url']}\n\n"
+              f"### Owner Instruction (@{ctx['actor']} in Organization {ctx['owner']})\n"
+              f"{ctx['latest_instruction']}\n\n"
+              f"### Original Issue Description\n"
+              f"{ctx['issue_body']}\n\n"
+              f"### Complete Issue Comment Thread\n"
+              f"{ctx['comment_thread'][-4000:]}\n\n"
+              f"### Repository Architecture Rules (.agents/AGENTS.md)\n"
+              f"{agents_md}\n\n"
+              f"### Current Workspace Diagnostics (cargo clippy & recent commits)\n"
+              f"Recent commits:\n{git_log}\n"
+              f"Clippy output:\n{clippy_out}\n\n"
+              f"Please analyze the codebase and issue thoroughly, explain your technical findings and plan in English, "
+              f"and if code changes are requested, verify that `cargo clippy --workspace -- -D warnings` passes."
+          )
+
+          session_obj = {}
+          mode_used = ""
+
+          if session_name:
+              try:
+                  jules_request("POST", f"{session_name}:sendMessage", {"prompt": full_prompt})
+                  mode_used = f"Continued Existing Session (`{session_name}` via `:sendMessage` — No 2nd Session Created)"
+                  session_obj = jules_request("GET", session_name)
+              except Exception as err:
+                  print(f"sendMessage on {session_name} failed ({err}), creating fresh session...")
+                  session_name = ""
+
+          if not session_name:
+              create_payload = {
+                  "title": f"{session_title_tag} {ctx['issue_title'][:60]}",
+                  "prompt": full_prompt,
+                  "sourceContext": {
+                      "source": f"sources/github/{ctx['repo_full_name']}",
+                      "githubRepoContext": {
+                          "startingBranch": DEFAULT_BRANCH
+                      }
+                  },
+                  "requirePlanApproval": False,
+                  "automationMode": "AUTO_CREATE_PR"
+              }
+              try:
+                  session_obj = jules_request("POST", "sessions", create_payload)
+                  session_name = session_obj.get("name", "")
+                  mode_used = f"Created Primary Session (`{session_name}`) for Issue #{issue_num}"
+              except urllib.error.HTTPError as he:
+                  err_body = he.read().decode("utf-8", errors="replace")
+                  with open("jules_reply.json", "w", encoding="utf-8") as f:
+                      json.dump({
+                          "error": f"HTTP {he.code}: {err_body}",
+                          "session_name": "",
+                          "session_url": "https://jules.google.com",
+                          "mode": "API Error",
+                          "state": "FAILED",
+                          "pr_url": "",
+                          "issue_url": ctx["issue_url"],
+                          "trigger_comment_url": ctx["trigger_comment_url"],
+                          "analysis_markdown": (
+                              f"❌ **Google Jules API Error (HTTP {he.code}):**\n```json\n{err_body[:1000]}\n```\n"
+                              f"Ensure the Jules GitHub App is installed for `{ctx['repo_full_name']}` at https://jules.google.com."
+                          )
+                      }, f, indent=2)
+                  sys.exit(0)
+
+          analysis_parts = []
+          pr_url = ""
+          session_state = session_obj.get("state", "RUNNING")
+          session_url = session_obj.get("url", "https://jules.google.com")
+
+          for poll_idx in range(18):
+              time.sleep(10)
+              try:
+                  session_obj = jules_request("GET", session_name)
+                  session_state = session_obj.get("state", session_state)
+                  session_url = session_obj.get("url", session_url)
+
+                  if session_state == "AWAITING_PLAN_APPROVAL":
+                      jules_request("POST", f"{session_name}:approvePlan", {})
+
+                  for out_item in session_obj.get("outputs", []):
+                      pr_obj = out_item.get("pullRequest") or {}
+                      if pr_obj.get("url"):
+                          pr_url = pr_obj["url"]
+
+                  act_resp = jules_request("GET", f"{session_name}/activities?pageSize=30")
+                  activities = act_resp.get("activities", [])
+                  collected = []
+
+                  for act in activities:
+                      if "agentMessaged" in act:
+                          msg = act["agentMessaged"].get("agentMessage") or act["agentMessaged"].get("message") or ""
+                          if msg:
+                              collected.append(f"**💬 Jules Agent Analysis:**\n{msg}")
+                      if "planGenerated" in act:
+                          plan = act["planGenerated"].get("plan") or {}
+                          steps = plan.get("steps") or []
+                          if steps:
+                              steps_md = "\n".join(
+                                  f"{i+1}. **{st.get('title', 'Step')}**: {st.get('description', '')}"
+                                  for i, st in enumerate(steps)
+                              )
+                              collected.append(f"**📋 Generated Execution Plan:**\n{steps_md}")
+                      if "progressUpdated" in act:
+                          prog = act["progressUpdated"]
+                          ptitle = prog.get("title") or ""
+                          pdesc = prog.get("description") or ""
+                          if ptitle or pdesc:
+                              collected.append(f"- 🔄 **{ptitle}**: {pdesc}")
+
+                  if collected:
+                      analysis_parts = collected
+
+                  if session_state in ("COMPLETED", "FAILED", "CANCELLED", "AWAITING_USER_FEEDBACK"):
+                      break
+                  if poll_idx >= 5 and any("Plan:" in p or "Analysis:" in p for p in analysis_parts):
+                      break
+              except Exception as poll_err:
+                  print(f"Poll warning: {poll_err}")
+
+          if not analysis_parts:
+              analysis_md = (
+                  f"Jules has started analyzing **{ctx['issue_title']}** in its cloud VM "
+                  f"(Current State: `{session_state}`).\n"
+                  f"- Watch live VM progress or steer in real time: {session_url}\n"
+                  f"- Reply with `@jules <follow-up message>` in this issue to continue chatting in this **exact same session** (`{session_name}`)."
+              )
+          else:
+              analysis_md = "\n\n".join(analysis_parts[-6:])
+
+          with open("jules_reply.json", "w", encoding="utf-8") as f:
+              json.dump({
+                  "error": "",
+                  "session_name": session_name,
+                  "session_url": session_url,
+                  "mode": mode_used,
+                  "state": session_state,
+                  "pr_url": pr_url,
+                  "issue_url": ctx["issue_url"],
+                  "trigger_comment_url": ctx["trigger_comment_url"],
+                  "analysis_markdown": analysis_md
+              }, f, indent=2)
+          EOF
+
+      - name: Post Google Jules English Analysis & Single-Session Marker to GitHub Issue
+        uses: actions/github-script@v8
+        env:
+          INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
+        with:
+          script: |
+            const fs = require('fs');
+            const issueNumber = context.payload.issue
+              ? context.payload.issue.number
+              : parseInt(process.env.INPUT_ISSUE_NUMBER, 10);
+
+            const reply = JSON.parse(fs.readFileSync('jules_reply.json', 'utf8'));
+            const prLine = reply.pr_url
+              ? `\n- **Generated Pull Request:** ${reply.pr_url}`
+              : '';
+
+            const body = [
+              `<!-- jules-session-id: ${reply.session_name} -->`,
+              `### 🤖 Google Jules Single-Session Analysis & Response`,
+              `- **Session Continuity:** ${reply.mode}`,
+              `- **Jules Session State:** \`${reply.state}\``,
+              `- **Live Jules Web Session:** [Open Continuous Session in Google Jules](${reply.session_url})`,
+              `- **Linked GitHub Issue:** ${reply.issue_url}`,
+              `- **Triggered By Comment:** ${reply.trigger_comment_url}${prLine}`,
+              ``,
+              `---`,
+              ``,
+              reply.analysis_markdown,
+              ``,
+              `---`,
+              `<details><summary>💬 How to Continue Talking in This Exact Same Session (Organization Owner Only)</summary>`,
+              ``,
+              `Reply anywhere in this issue with \`@jules <your message>\`.`,
+              `The workflow will automatically detect \`${reply.session_name}\` and call \`POST /v1alpha/${reply.session_name}:sendMessage\` so **no second session is created** and full context is preserved.`,
+              `</details>`
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: body
+            });
