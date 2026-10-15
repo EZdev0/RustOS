@@ -124,7 +124,7 @@ jobs:
 
       - name: Upload all PR Security and Compiler Logs as Artifact
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: rustos-pr-security-and-compiler-logs
           path: pr_logs/
