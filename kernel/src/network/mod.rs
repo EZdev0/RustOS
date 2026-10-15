@@ -113,7 +113,13 @@ impl NetworkManager {
     }
 
     pub fn request_http(&mut self, ip: [u8; 4]) {
-        Self::update_http_request_state(&mut self.http_state, &self.http_chunks, &mut self.total_bytes_received, &mut self.http_request_ip, ip);
+        Self::update_http_request_state(
+            &mut self.http_state,
+            &self.http_chunks,
+            &mut self.total_bytes_received,
+            &mut self.http_request_ip,
+            ip,
+        );
 
         
         // Abort old connection if active
