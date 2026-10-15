@@ -76,7 +76,7 @@ jobs:
     steps:
       - name: "Step 1: Strict Organization Admin / Owner Verification & Parameter Parser"
         id: auth_parse
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           INPUT_MODE: ${{ github.event.inputs.mode }}
           INPUT_ITEMS: ${{ github.event.inputs.items }}
@@ -182,7 +182,7 @@ jobs:
 
       - name: "Step 5: Harvest All CIs Status, Dependabot Alerts, Code Scanning & Recent Commits"
         if: steps.auth_parse.outputs.authorized == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -634,7 +634,7 @@ jobs:
 
       - name: "Step 7: Guaranteed PR Creation for Every New Branch & Post Interactive Control Plan"
         if: always() && steps.auth_parse.outputs.authorized == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           ISSUE_NUMBER: ${{ steps.auth_parse.outputs.issue_number }}
         with:
