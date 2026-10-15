@@ -291,7 +291,11 @@ impl App for UpdateCenter {
 
         let (status_msg, expected_size, progress) = {
             let state = UPDATER_STATE.lock();
-            (state.status_message.clone(), state.expected_size, state.progress)
+            (
+                state.status_message.clone(),
+                state.expected_size,
+                state.progress,
+            )
         };
 
         let title = "RustOS Update Center";
