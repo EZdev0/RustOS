@@ -24,14 +24,14 @@ pub struct PciDevice {
 
 pub fn pci_read_config_32(bus: u8, slot: u8, func: u8, offset: u8) -> u32 {
     let address: u32 = 0x8000_0000
-        | ((bus as u32) << 16) 
-        | ((slot as u32) << 11) 
-        | ((func as u32) << 8) 
+        | ((bus as u32) << 16)
+        | ((slot as u32) << 11)
+        | ((func as u32) << 8)
         | ((offset as u32) & 0xFC);
-    
+
     let mut address_port = PortWriteOnly::<u32>::new(PCI_CONFIG_ADDRESS);
     let mut data_port = Port::<u32>::new(PCI_CONFIG_DATA);
-    
+
     unsafe {
         address_port.write(address);
         data_port.read()
@@ -40,14 +40,14 @@ pub fn pci_read_config_32(bus: u8, slot: u8, func: u8, offset: u8) -> u32 {
 
 pub fn pci_write_config_32(bus: u8, slot: u8, func: u8, offset: u8, value: u32) {
     let address: u32 = 0x8000_0000
-        | ((bus as u32) << 16) 
-        | ((slot as u32) << 11) 
-        | ((func as u32) << 8) 
+        | ((bus as u32) << 16)
+        | ((slot as u32) << 11)
+        | ((func as u32) << 8)
         | ((offset as u32) & 0xFC);
-    
+
     let mut address_port = PortWriteOnly::<u32>::new(PCI_CONFIG_ADDRESS);
     let mut data_port = Port::<u32>::new(PCI_CONFIG_DATA);
-    
+
     unsafe {
         address_port.write(address);
         data_port.write(value);
@@ -62,11 +62,11 @@ pub fn scan_pci() -> Vec<PciDevice> {
                 let id_reg = pci_read_config_32(bus, device, function, 0x00);
                 let vendor_id = (id_reg & 0xFFFF) as u16;
                 let device_id = (id_reg >> 16) as u16;
-                
+
                 if vendor_id == 0xFFFF {
                     continue; // Device doesn't exist
                 }
-                
+
                 let class_reg = pci_read_config_32(bus, device, function, 0x08);
                 let class = (class_reg >> 24) as u8;
                 let subclass = (class_reg >> 16) as u8;

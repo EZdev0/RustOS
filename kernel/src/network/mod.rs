@@ -1,14 +1,16 @@
 use crate::hardware::e1000::E1000;
-use smoltcp::phy::{Device, DeviceCapabilities, Medium};
-use smoltcp::time::Instant;
-use smoltcp::iface::{Interface, Config, SocketSet, SocketHandle};
-use smoltcp::wire::{EthernetAddress, HardwareAddress, IpAddress, IpCidr, Icmpv4Packet, Icmpv4Repr};
-use smoltcp::socket::{icmp, tcp};
-use alloc::vec::Vec;
 use alloc::string::String;
-use spin::Mutex;
 use alloc::vec;
+use alloc::vec::Vec;
 use lazy_static::lazy_static;
+use smoltcp::iface::{Config, Interface, SocketHandle, SocketSet};
+use smoltcp::phy::{Device, DeviceCapabilities, Medium};
+use smoltcp::socket::{icmp, tcp};
+use smoltcp::time::Instant;
+use smoltcp::wire::{
+    EthernetAddress, HardwareAddress, Icmpv4Packet, Icmpv4Repr, IpAddress, IpCidr,
+};
+use spin::Mutex;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum HttpState {
@@ -59,8 +61,14 @@ impl<'a> smoltcp::phy::TxToken for RustOsTxToken<'a> {
 }
 
 impl<'a> Device for RustOsNetDevice<'a> {
-    type RxToken<'b> = RustOsRxToken where Self: 'b;
-    type TxToken<'b> = RustOsTxToken<'b> where Self: 'b;
+    type RxToken<'b>
+        = RustOsRxToken
+    where
+        Self: 'b;
+    type TxToken<'b>
+        = RustOsTxToken<'b>
+    where
+        Self: 'b;
 
     fn receive(&mut self, _timestamp: Instant) -> Option<(Self::RxToken<'_>, Self::TxToken<'_>)> {
         if let Some(data) = self.e1000.receive() {
@@ -103,8 +111,13 @@ pub struct NetworkManager {
 }
 
 impl NetworkManager {
-
-    pub fn update_http_request_state(http_state: &mut HttpState, http_chunks: &crossbeam_queue::ArrayQueue<alloc::vec::Vec<u8>>, total_bytes_received: &mut usize, http_request_ip: &mut Option<[u8; 4]>, ip: [u8; 4]) {
+    pub fn update_http_request_state(
+        http_state: &mut HttpState,
+        http_chunks: &crossbeam_queue::ArrayQueue<alloc::vec::Vec<u8>>,
+        total_bytes_received: &mut usize,
+        http_request_ip: &mut Option<[u8; 4]>,
+        ip: [u8; 4],
+    ) {
         *http_state = HttpState::Init;
         while http_chunks.pop().is_some() {}
         *total_bytes_received = 0;
@@ -120,7 +133,6 @@ impl NetworkManager {
             ip,
         );
 
-        
         // Abort old connection if active
         let socket = self.sockets.get_mut::<tcp::Socket>(self.tcp_handle);
         socket.abort();
@@ -134,13 +146,16 @@ impl NetworkManager {
         let socket = self.sockets.get_mut::<icmp::Socket>(self.icmp_handle);
         if socket.can_recv() {
             if let Ok((payload, _)) = socket.recv() {
-                if let Ok(Icmpv4Repr::EchoReply { seq_no, .. }) = Icmpv4Repr::parse(&Icmpv4Packet::new_unchecked(payload), &smoltcp::phy::ChecksumCapabilities::default()) {
+                if let Ok(Icmpv4Repr::EchoReply { seq_no, .. }) = Icmpv4Repr::parse(
+                    &Icmpv4Packet::new_unchecked(payload),
+                    &smoltcp::phy::ChecksumCapabilities::default(),
+                ) {
                     // Reply received
-                    self.ping_reply = Some(([0,0,0,0], seq_no));
+                    self.ping_reply = Some(([0, 0, 0, 0], seq_no));
                 }
             }
         }
-        
+
         if let Some(ip) = self.http_request_ip {
             let cx = self.iface.context();
             let socket = self.sockets.get_mut::<tcp::Socket>(self.tcp_handle);
@@ -161,7 +176,8 @@ impl NetworkManager {
                 }
                 HttpState::SendingRequest => {
                     if socket.can_send() {
-                        let request = b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n";
+                        let request =
+                            b"GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n";
                         if socket.send_slice(request).is_ok() {
                             self.http_state = HttpState::ReceivingResponse;
                         }
@@ -171,10 +187,13 @@ impl NetworkManager {
                     if socket.can_recv() {
                         if let Ok(_data) = socket.recv(|data| {
                             let len = data.len();
-                            let max_http_response_bytes = crate::desktop::updater::MAX_STAGING_BYTES + 4096;
+                            let max_http_response_bytes =
+                                crate::desktop::updater::MAX_STAGING_BYTES + 4096;
 
                             // Prevent OOM by enforcing a hard upper bound
-                            if self.total_bytes_received.saturating_add(len) > max_http_response_bytes {
+                            if self.total_bytes_received.saturating_add(len)
+                                > max_http_response_bytes
+                            {
                                 // Abort immediately
                                 self.http_state = HttpState::Done;
                                 self.http_request_ip = None;
@@ -204,21 +223,25 @@ impl NetworkManager {
         if !socket.can_send() {
             return Err("Socket cannot send");
         }
-        
+
         let payload = alloc::vec![0x42; 32];
         let repr = Icmpv4Repr::EchoRequest {
             ident: 0x1234,
             seq_no,
             data: &payload,
         };
-        
+
         let mut packet_buffer = alloc::vec![0; repr.buffer_len()];
         let mut packet = Icmpv4Packet::new_unchecked(&mut packet_buffer);
         repr.emit(&mut packet, &smoltcp::phy::ChecksumCapabilities::default());
-        
-        socket.send_slice(&packet_buffer, IpAddress::v4(ip[0], ip[1], ip[2], ip[3])).map_err(|_| "Failed to send packet")?;
-        
-        socket.bind(icmp::Endpoint::Ident(0x1234)).map_err(|_| "Failed to bind socket")?;
+
+        socket
+            .send_slice(&packet_buffer, IpAddress::v4(ip[0], ip[1], ip[2], ip[3]))
+            .map_err(|_| "Failed to send packet")?;
+
+        socket
+            .bind(icmp::Endpoint::Ident(0x1234))
+            .map_err(|_| "Failed to bind socket")?;
         Ok(())
     }
 }
@@ -250,20 +273,28 @@ pub fn poll_http_chunk() -> Option<alloc::vec::Vec<u8>> {
 
 pub fn init(mut e1000: E1000) {
     let mac = e1000.mac_address();
-    let hw_addr = HardwareAddress::Ethernet(EthernetAddress([mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]]));
-    
+    let hw_addr = HardwareAddress::Ethernet(EthernetAddress([
+        mac[0], mac[1], mac[2], mac[3], mac[4], mac[5],
+    ]));
+
     let config = Config::new(hw_addr);
-    
+
     let mut device = RustOsNetDevice::new(&mut e1000);
     let mut iface = Interface::new(config, &mut device, Instant::from_millis(0));
-    
+
     // We update IP to something static for now until DHCP is built, or just leave it loopback
     iface.update_ip_addrs(|addrs| {
         let _ = addrs.push(IpCidr::new(IpAddress::v4(10, 0, 2, 15), 24));
     });
 
-    let icmp_rx_buf = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
-    let icmp_tx_buf = icmp::PacketBuffer::new(alloc::vec![icmp::PacketMetadata::EMPTY], alloc::vec![0; 256]);
+    let icmp_rx_buf = icmp::PacketBuffer::new(
+        alloc::vec![icmp::PacketMetadata::EMPTY],
+        alloc::vec![0; 256],
+    );
+    let icmp_tx_buf = icmp::PacketBuffer::new(
+        alloc::vec![icmp::PacketMetadata::EMPTY],
+        alloc::vec![0; 256],
+    );
     let icmp_socket = icmp::Socket::new(icmp_rx_buf, icmp_tx_buf);
 
     let mut sockets = SocketSet::new(alloc::vec![]);
@@ -294,7 +325,10 @@ struct YieldNow {
 
 impl core::future::Future for YieldNow {
     type Output = ();
-    fn poll(mut self: core::pin::Pin<&mut Self>, cx: &mut core::task::Context<'_>) -> core::task::Poll<()> {
+    fn poll(
+        mut self: core::pin::Pin<&mut Self>,
+        cx: &mut core::task::Context<'_>,
+    ) -> core::task::Poll<()> {
         if self.yielded {
             core::task::Poll::Ready(())
         } else {
@@ -312,7 +346,7 @@ pub async fn network_task() {
             let ticks = crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed);
             nm.poll(ticks as u64);
         }
-        
+
         YieldNow { yielded: false }.await;
     }
 }
@@ -331,7 +365,13 @@ mod tests {
         let mut request_ip = None;
         let target_ip = [192, 168, 1, 100];
 
-        NetworkManager::update_http_request_state(&mut state, &chunks, &mut total_bytes, &mut request_ip, target_ip);
+        NetworkManager::update_http_request_state(
+            &mut state,
+            &chunks,
+            &mut total_bytes,
+            &mut request_ip,
+            target_ip,
+        );
 
         assert_eq!(state, HttpState::Init);
         assert_eq!(total_bytes, 0);

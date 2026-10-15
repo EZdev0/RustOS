@@ -268,16 +268,8 @@ jobs:
       - name: Restore Cargo cache
         uses: Swatinem/rust-cache@v2
 
-      - name: Run cargo fmt to prepare 1-click GitHub Suggestions
-        run: cargo fmt --all
-
-      - name: Post 1-Click Commit Suggestions to Pull Request
-        if: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
-        uses: reviewdog/action-suggester@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tool_name: rustfmt
-          fail_on_error: false
+      - name: Check Rust Formatting
+        run: cargo fmt --all -- --check
 
       - name: Reset working tree before Clippy SARIF scan
         run: git checkout -- .

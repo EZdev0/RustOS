@@ -9,18 +9,43 @@ pub struct MockCpuId {
 impl CpuIdReader for MockCpuId {
     fn cpuid1(&self, eax: u32) -> CpuIdResult {
         if eax == 0 {
-            return CpuIdResult { eax: 7, ebx: 0, ecx: 0, edx: 0 };
+            return CpuIdResult {
+                eax: 7,
+                ebx: 0,
+                ecx: 0,
+                edx: 0,
+            };
         }
         if eax == 7 {
-            return CpuIdResult { eax: 0, ebx: self.ebx, ecx: 0, edx: 0 };
+            return CpuIdResult {
+                eax: 0,
+                ebx: self.ebx,
+                ecx: 0,
+                edx: 0,
+            };
         }
-        CpuIdResult { eax: 0, ebx: 0, ecx: 0, edx: 0 }
+        CpuIdResult {
+            eax: 0,
+            ebx: 0,
+            ecx: 0,
+            edx: 0,
+        }
     }
     fn cpuid2(&self, eax: u32, ecx: u32) -> CpuIdResult {
         if eax == 7 && ecx == 0 {
-            CpuIdResult { eax: 0, ebx: self.ebx, ecx: 0, edx: 0 }
+            CpuIdResult {
+                eax: 0,
+                ebx: self.ebx,
+                ecx: 0,
+                edx: 0,
+            }
         } else {
-            CpuIdResult { eax: 0, ebx: 0, ecx: 0, edx: 0 }
+            CpuIdResult {
+                eax: 0,
+                ebx: 0,
+                ecx: 0,
+                edx: 0,
+            }
         }
     }
 }
