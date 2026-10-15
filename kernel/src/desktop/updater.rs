@@ -97,7 +97,10 @@ impl UpdateCenter {
         }
 
         // Apply update to file system
-        if RAM_FS.write_file("update.bin", &state.staging_buffer).is_err() {
+        if RAM_FS
+            .write_file("update.bin", &state.staging_buffer)
+            .is_err()
+        {
             return Err(UpdateError::NetworkError);
         }
 
@@ -138,8 +141,12 @@ impl UpdateManifest {
             let start = s.find(&key_str).ok_or(UpdateError::InvalidManifest)?;
             let rest = &s[start + key_str.len()..];
             let rest = rest.trim_start();
-            let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
-            rest[..end].parse::<u32>().map_err(|_| UpdateError::InvalidManifest)
+            let end = rest
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(rest.len());
+            rest[..end]
+                .parse::<u32>()
+                .map_err(|_| UpdateError::InvalidManifest)
         };
 
         let parse_string = |key: &str| -> Result<String, UpdateError> {
@@ -151,7 +158,8 @@ impl UpdateManifest {
         };
 
         // Custom parser for sizes/crc32, handling quotes if any
-        let expected_size = parse_u32("expected_size").map_err(|_| UpdateError::InvalidManifest)? as usize;
+        let expected_size =
+            parse_u32("expected_size").map_err(|_| UpdateError::InvalidManifest)? as usize;
 
         let crc32_str = parse_string("crc32").map_err(|_| UpdateError::InvalidManifest)?;
         let expected_crc32 = u32::from_str_radix(crc32_str.trim_start_matches("0x"), 16)
@@ -293,10 +301,23 @@ impl App for UpdateCenter {
 
     fn update(&mut self) {}
 
-    fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+    fn draw(
+        &mut self,
+        compositor: &mut GraphicalCompositor,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) {
         compositor.draw_rect(x, y, width, height, 40, 40, 40);
 
-        let draw_string = |comp: &mut GraphicalCompositor, mut px: usize, py: usize, s: &str, r: u8, g: u8, b: u8| {
+        let draw_string = |comp: &mut GraphicalCompositor,
+                           mut px: usize,
+                           py: usize,
+                           s: &str,
+                           r: u8,
+                           g: u8,
+                           b: u8| {
             for c in s.chars() {
                 comp.draw_char(px, py, c, r, g, b);
                 px += 8;
@@ -330,7 +351,9 @@ impl App for UpdateCenter {
 
         compositor.draw_rect(bar_x, bar_y, bar_width, bar_height, 100, 100, 100);
 
-        let fill_width = (progress * bar_width).checked_div(expected_size).unwrap_or(0);
+        let fill_width = (progress * bar_width)
+            .checked_div(expected_size)
+            .unwrap_or(0);
 
         if fill_width > 0 {
             compositor.draw_rect(
@@ -401,7 +424,11 @@ mod tests {
     #[test]
     fn test_manifest_evaluation() {
         let json_payload = b"HTTP/1.1 200 OK\r\n\r\n{\"version\":\"1.0.1\",\"expected_size\":1024,\"crc32\":\"3735928559\",\"requires_reboot\":true,\"changelog\":\"Update test\"}";
-        let body_start = json_payload.windows(4).position(|window| window == b"\r\n\r\n").unwrap() + 4;
+        let body_start = json_payload
+            .windows(4)
+            .position(|window| window == b"\r\n\r\n")
+            .unwrap()
+            + 4;
         let manifest = UpdateManifest::from_json_bytes(&json_payload[body_start..]).unwrap();
 
         assert_eq!(manifest.version_major, 1);

@@ -1,9 +1,9 @@
+use alloc::collections::BTreeMap;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::collections::BTreeMap;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use alloc::format;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum FsError {
@@ -30,11 +30,15 @@ impl Default for SafeRamFs {
 
 impl SafeRamFs {
     pub fn new() -> Self {
-        Self { inner: Mutex::new(RamFs::new()) }
+        Self {
+            inner: Mutex::new(RamFs::new()),
+        }
     }
 
     pub fn write_file(&self, path: &str, content: &[u8]) -> Result<(), FsError> {
-        x86_64::instructions::interrupts::without_interrupts(|| self.inner.lock().write_file(path, content))
+        x86_64::instructions::interrupts::without_interrupts(|| {
+            self.inner.lock().write_file(path, content)
+        })
     }
 
     pub fn mkdir(&self, path: &str) -> Result<(), FsError> {
@@ -76,14 +80,16 @@ impl Default for RamFs {
 impl RamFs {
     pub fn new() -> Self {
         Self {
-            root: FsNode::Directory { children: BTreeMap::new() },
+            root: FsNode::Directory {
+                children: BTreeMap::new(),
+            },
         }
     }
 
     fn resolve_node<'a>(&'a self, path: &str) -> Option<&'a FsNode> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
         let mut current = &self.root;
-        
+
         for part in parts {
             match current {
                 FsNode::Directory { children } => {
@@ -98,26 +104,37 @@ impl RamFs {
 
     pub fn write_file(&mut self, path: &str, content: &[u8]) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return Err(FsError::NotADirectory); }
-        
+        if parts.is_empty() {
+            return Err(FsError::NotADirectory);
+        }
+
         let file_name = parts.last().unwrap();
-        let dir_parts = &parts[0..parts.len()-1];
-        
+        let dir_parts = &parts[0..parts.len() - 1];
+
         let mut current = &mut self.root;
         for part in dir_parts {
             match current {
                 FsNode::Directory { children } => {
-                    current = children.entry(String::from(*part)).or_insert(FsNode::Directory { children: BTreeMap::new() });
+                    current = children
+                        .entry(String::from(*part))
+                        .or_insert(FsNode::Directory {
+                            children: BTreeMap::new(),
+                        });
                 }
                 FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
         }
-        
+
         if let FsNode::Directory { children } = current {
             if let Some(FsNode::Directory { .. }) = children.get(*file_name) {
                 return Err(FsError::IsDirectory);
             }
-            children.insert(String::from(*file_name), FsNode::File { content: content.to_vec() });
+            children.insert(
+                String::from(*file_name),
+                FsNode::File {
+                    content: content.to_vec(),
+                },
+            );
             Ok(())
         } else {
             Err(FsError::NotADirectory)
@@ -126,13 +143,19 @@ impl RamFs {
 
     pub fn mkdir(&mut self, path: &str) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return Err(FsError::NotADirectory); }
-        
+        if parts.is_empty() {
+            return Err(FsError::NotADirectory);
+        }
+
         let mut current = &mut self.root;
         for part in parts {
             match current {
                 FsNode::Directory { children } => {
-                    current = children.entry(String::from(part)).or_insert(FsNode::Directory { children: BTreeMap::new() });
+                    current = children
+                        .entry(String::from(part))
+                        .or_insert(FsNode::Directory {
+                            children: BTreeMap::new(),
+                        });
                 }
                 FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
@@ -147,14 +170,16 @@ impl RamFs {
             Err(FsError::NotFound)
         }
     }
-    
+
     pub fn delete_file(&mut self, path: &str) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() { return Err(FsError::NotFound); }
-        
+        if parts.is_empty() {
+            return Err(FsError::NotFound);
+        }
+
         let name = parts.last().unwrap();
-        let dir_parts = &parts[0..parts.len()-1];
-        
+        let dir_parts = &parts[0..parts.len() - 1];
+
         let mut current = &mut self.root;
         for part in dir_parts {
             match current {
@@ -168,7 +193,7 @@ impl RamFs {
                 FsNode::File { .. } => return Err(FsError::NotADirectory),
             }
         }
-        
+
         if let FsNode::Directory { children } = current {
             if let Some(FsNode::Directory { children: sub }) = children.get(*name) {
                 if !sub.is_empty() {
@@ -200,13 +225,13 @@ impl RamFs {
             Err(FsError::NotFound)
         }
     }
-    
+
     pub fn list_files(&self) -> Vec<String> {
         let mut list = Vec::new();
         self.collect_flat(&self.root, "", &mut list);
         list
     }
-    
+
     fn collect_flat(&self, node: &FsNode, current_path: &str, list: &mut Vec<String>) {
         match node {
             FsNode::File { .. } => {

@@ -1,5 +1,5 @@
-use raw_cpuid::{CpuId, CpuIdReader};
 use alloc::string::String;
+use raw_cpuid::{CpuId, CpuIdReader};
 use x86_64::registers::control::{Cr4, Cr4Flags};
 use x86_64::registers::xcontrol::{XCr0, XCr0Flags};
 

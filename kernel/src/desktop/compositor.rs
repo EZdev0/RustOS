@@ -137,6 +137,17 @@ impl GraphicalCompositor {
                 comp.draw_rect(x + 5, y + 15, 30, 10, 200, 200, 200);
             },
         });
+        apps.push(crate::desktop::app::AppDescriptor {
+            id: "Update Center",
+            default_width: 500,
+            default_height: 350,
+            spawn: || alloc::boxed::Box::new(crate::desktop::updater::UpdateCenter::new()),
+            draw_icon: |comp, x, y| {
+                // Draw an arrow-down-like icon for updater
+                comp.draw_rect(x + 15, y + 5, 10, 20, 50, 150, 50);
+                comp.draw_rect(x + 10, y + 25, 20, 10, 50, 150, 50);
+            },
+        });
 
         Self {
             info,

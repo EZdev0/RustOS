@@ -1,5 +1,8 @@
-use core::{pin::Pin, task::{Context, Poll}};
 use conquer_once::spin::OnceCell;
+use core::{
+    pin::Pin,
+    task::{Context, Poll},
+};
 use crossbeam_queue::ArrayQueue;
 use futures_util::{stream::Stream, task::AtomicWaker};
 
@@ -8,7 +11,11 @@ static WAKER: AtomicWaker = AtomicWaker::new();
 
 pub(crate) fn add_mouse_event(dx: i32, dy: i32, left: bool, right: bool) {
     if let Ok(queue) = MOUSE_QUEUE.try_get() {
-        if x86_64::instructions::interrupts::without_interrupts(|| queue.push((dx, dy, left, right))).is_err() {
+        if x86_64::instructions::interrupts::without_interrupts(|| {
+            queue.push((dx, dy, left, right))
+        })
+        .is_err()
+        {
             // Queue full
         } else {
             WAKER.wake();
@@ -28,7 +35,8 @@ impl Default for MouseStream {
 
 impl MouseStream {
     pub fn new() -> Self {
-        MOUSE_QUEUE.try_init_once(|| ArrayQueue::new(100))
+        MOUSE_QUEUE
+            .try_init_once(|| ArrayQueue::new(100))
             .expect("MouseStream::new should only be called once");
         MouseStream { _private: () }
     }
@@ -39,13 +47,13 @@ impl Stream for MouseStream {
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
         let queue = MOUSE_QUEUE.try_get().expect("not initialized");
-        
+
         if let Some(event) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             return Poll::Ready(Some(event));
         }
 
         WAKER.register(cx.waker());
-        
+
         match x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
             Some(event) => {
                 WAKER.take();
@@ -56,20 +64,24 @@ impl Stream for MouseStream {
     }
 }
 
-pub async fn mouse_task(compositor: alloc::sync::Arc<spin::Mutex<crate::desktop::compositor::GraphicalCompositor>>) {
+pub async fn mouse_task(
+    compositor: alloc::sync::Arc<spin::Mutex<crate::desktop::compositor::GraphicalCompositor>>,
+) {
     let mut stream = MouseStream::new();
     use futures_util::stream::StreamExt;
-    
+
     while let Some((mut dx, mut dy, mut left, mut right)) = stream.next().await {
         if let Ok(queue) = MOUSE_QUEUE.try_get() {
-            while let Some((ndx, ndy, nleft, nright)) = x86_64::instructions::interrupts::without_interrupts(|| queue.pop()) {
+            while let Some((ndx, ndy, nleft, nright)) =
+                x86_64::instructions::interrupts::without_interrupts(|| queue.pop())
+            {
                 dx += ndx;
                 dy += ndy;
                 left = nleft;
                 right = nright;
             }
         }
-        
+
         let mut comp = compositor.lock();
         comp.handle_mouse_event(dx, dy, left, right);
         comp.render_all();

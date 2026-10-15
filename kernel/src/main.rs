@@ -7,16 +7,16 @@ extern crate alloc;
 
 pub mod allocator;
 pub mod desktop;
-pub mod hardware;
-pub mod interrupts;
 pub mod fs;
 pub mod gdt;
-pub mod task;
+pub mod hardware;
+pub mod interrupts;
 pub mod network;
-use bootloader_api::{entry_point, BootInfo};
-use core::panic::PanicInfo;
+pub mod task;
 use crate::desktop::app::App;
+use bootloader_api::{entry_point, BootInfo};
 use core::fmt::Write;
+use core::panic::PanicInfo;
 use font8x8::UnicodeFonts;
 
 pub struct RawFrameBufferInfo {
@@ -64,11 +64,15 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         }
 
         let mut compositor = desktop::compositor::GraphicalCompositor::new(framebuffer);
-        
+
         let width = compositor.info().width;
         let height = compositor.info().height;
         let win_width = if width > 600 { width - 200 } else { width - 40 };
-        let win_height = if height > 400 { height - 150 } else { height - 80 };
+        let win_height = if height > 400 {
+            height - 150
+        } else {
+            height - 80
+        };
         let win_x = (width - win_width) / 2;
         let win_y = (height - win_height) / 2 - 20;
 
@@ -89,7 +93,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             for c in pci_str.chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
             }
-            
+
             // Initialize TCP/IP Stack
             network::init(e1000);
             for c in "[NET] TCP/IP Stack (smoltcp) initialized with IP 10.0.2.15\n".chars() {
@@ -101,10 +105,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             }
         }
 
-
         let notepad = alloc::boxed::Box::new(notepad_app);
         let window = desktop::window::Window::new(notepad, win_x, win_y, win_width, win_height);
-        
+
         // INTERRUPTS MÜSSEN FÜR TIMER AKTIVIERT WERDEN
         x86_64::instructions::interrupts::enable();
 
@@ -119,9 +122,13 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         for frame in 0..120 {
             compositor.draw_rect(0, 0, width, height, 18, 18, 22);
 
-            let pulse = if frame % 40 < 20 { frame % 40 } else { 40 - (frame % 40) }; 
+            let pulse = if frame % 40 < 20 {
+                frame % 40
+            } else {
+                40 - (frame % 40)
+            };
             let alpha = 150 + u16::try_from(pulse * 5).unwrap_or(0);
-            let radius = 40 + (pulse / 4); 
+            let radius = 40 + (pulse / 4);
 
             compositor.draw_glowing_ring(cx, cy, radius, 12, alpha, 0, 150, 255);
             compositor.draw_glowing_ring(cx, cy, radius.saturating_sub(8), 3, alpha, 255, 255, 255);
@@ -142,7 +149,9 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             compositor.swap_buffers();
 
             let start = crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed);
-            while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed) < start + 1 {
+            while crate::interrupts::TIMER_TICKS.load(core::sync::atomic::Ordering::Relaxed)
+                < start + 1
+            {
                 x86_64::instructions::hlt();
             }
         }
@@ -158,8 +167,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         let mut executor = task::executor::Executor::new();
 
         // 3. Spawn UI and Network Tasks
-        executor.spawn(task::Task::new(task::keyboard::keyboard_task(shared_compositor.clone())));
-        executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
+        executor.spawn(task::Task::new(task::keyboard::keyboard_task(
+            shared_compositor.clone(),
+        )));
+        executor.spawn(task::Task::new(task::mouse::mouse_task(
+            shared_compositor.clone(),
+        )));
         executor.spawn(task::Task::new(task::timer::timer_task(shared_compositor)));
         executor.spawn(task::Task::new(crate::network::network_task()));
         executor.spawn(task::Task::new(crate::desktop::updater::updater_task()));
@@ -190,8 +203,11 @@ impl Write for FbWriter<'_> {
                 self.y += 8 * self.scale + 10;
                 continue;
             }
-            
-            if let Some(bitmap) = font8x8::BASIC_FONTS.get(c).or_else(|| font8x8::BASIC_FONTS.get('?')) {
+
+            if let Some(bitmap) = font8x8::BASIC_FONTS
+                .get(c)
+                .or_else(|| font8x8::BASIC_FONTS.get('?'))
+            {
                 for (row, byte) in bitmap.iter().enumerate() {
                     for col in 0..8 {
                         if (*byte & (1 << col)) != 0 {
@@ -200,11 +216,12 @@ impl Write for FbWriter<'_> {
                                     let px = self.x + col * self.scale + sx;
                                     let py = self.y + row * self.scale + sy;
                                     if px < self.fb.width && py < self.fb.height {
-                                        let offset = (py * self.fb.stride + px) * self.fb.bytes_per_pixel;
+                                        let offset =
+                                            (py * self.fb.stride + px) * self.fb.bytes_per_pixel;
                                         if offset + 2 < self.buffer.len() {
                                             self.buffer[offset] = 255;
-                                            self.buffer[offset+1] = 255;
-                                            self.buffer[offset+2] = 255;
+                                            self.buffer[offset + 1] = 255;
+                                            self.buffer[offset + 2] = 255;
                                         }
                                     }
                                 }
@@ -232,19 +249,19 @@ fn panic(info: &PanicInfo) -> ! {
         let crash_info_ptr = core::ptr::addr_of_mut!(CRASH_SCREEN_INFO);
         if let Some(fb) = (*crash_info_ptr).as_mut() {
             let buffer = core::slice::from_raw_parts_mut(fb.ptr, fb.len);
-            
+
             for i in (0..buffer.len()).step_by(fb.bytes_per_pixel) {
                 if i + 2 < buffer.len() {
                     match fb.pixel_format {
                         bootloader_api::info::PixelFormat::Bgr => {
                             buffer[i] = 0;
-                            buffer[i+1] = 0;
-                            buffer[i+2] = 170;
+                            buffer[i + 1] = 0;
+                            buffer[i + 2] = 170;
                         }
                         _ => {
                             buffer[i] = 170;
-                            buffer[i+1] = 0;
-                            buffer[i+2] = 0;
+                            buffer[i + 1] = 0;
+                            buffer[i + 2] = 0;
                         }
                     }
                 }
@@ -255,10 +272,10 @@ fn panic(info: &PanicInfo) -> ! {
                 buffer,
                 x: 50,
                 y: 50,
-                scale: 3, 
+                scale: 3,
                 margin_x: 50,
             };
-            
+
             let _ = writeln!(writer, "==========================================");
             let _ = writeln!(writer, " FATAL EXCEPTION DETECTED ");
             let _ = writeln!(writer, " RED SCREEN OF DEATH ");

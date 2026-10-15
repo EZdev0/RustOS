@@ -41,16 +41,18 @@ impl Executor {
             waker_cache,
         } = self;
 
-        while let Some(task_id) = x86_64::instructions::interrupts::without_interrupts(|| task_queue.pop()) {
+        while let Some(task_id) =
+            x86_64::instructions::interrupts::without_interrupts(|| task_queue.pop())
+        {
             let task = match tasks.get_mut(&task_id) {
                 Some(task) => task,
                 None => continue,
             };
-            
+
             let waker = waker_cache
                 .entry(task_id)
                 .or_insert_with(|| TaskWaker::create(task_id, task_queue.clone()));
-            
+
             let mut context = Context::from_waker(waker);
             match task.poll(&mut context) {
                 Poll::Ready(()) => {
@@ -71,7 +73,7 @@ impl Executor {
 
     fn sleep_if_idle(&self) {
         use x86_64::instructions::interrupts::{self, enable_and_hlt};
-        
+
         interrupts::disable();
         if self.task_queue.is_empty() {
             enable_and_hlt();

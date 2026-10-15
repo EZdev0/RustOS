@@ -51,7 +51,7 @@ impl TerminalApp {
         let cmd = self.input_buffer.trim().to_string();
         // Echo the executed command in white
         self.print(String::from("> ") + &cmd, (255, 255, 255));
-        
+
         let parts: Vec<&str> = cmd.split_whitespace().collect();
         if parts.is_empty() {
             self.input_buffer.clear();
@@ -70,31 +70,66 @@ impl TerminalApp {
                             self.print(String::from("Description: Sends ICMP ECHO_REQUEST packets to network hosts to check connectivity."), cmd_color);
                             self.print(String::from("Syntax: ping <ip_address>"), cmd_color);
                             self.print(String::from("Example: ping 8.8.8.8"), cmd_color);
-                            self.print(String::from("Note: Press Ctrl+C to cancel an ongoing ping."), (200, 200, 200));
+                            self.print(
+                                String::from("Note: Press Ctrl+C to cancel an ongoing ping."),
+                                (200, 200, 200),
+                            );
                         }
                         "sysfetch" => {
                             self.print(String::from("Command: sysfetch"), (0, 200, 255));
                             self.print(String::from("Description: Displays a cool ASCII logo and system information."), cmd_color);
                         }
                         _ => {
-                            self.print(format!("No detailed help available for '{}'.", parts[1]), err_color);
+                            self.print(
+                                format!("No detailed help available for '{}'.", parts[1]),
+                                err_color,
+                            );
                         }
                     }
                 } else {
-                    self.print(String::from("RustOS v0.2 - Available Commands"), (0, 200, 255));
-                    self.print(String::from("Type 'help <command>' for specific details."), (200, 200, 200));
+                    self.print(
+                        String::from("RustOS v0.2 - Available Commands"),
+                        (0, 200, 255),
+                    );
+                    self.print(
+                        String::from("Type 'help <command>' for specific details."),
+                        (200, 200, 200),
+                    );
                     self.print(String::from(""), cmd_color);
-                    self.print(String::from("SYSTEM     sysinfo, uname, mem, sysfetch, date, reboot, clear"), cmd_color);
+                    self.print(
+                        String::from(
+                            "SYSTEM     sysinfo, uname, mem, sysfetch, date, reboot, clear",
+                        ),
+                        cmd_color,
+                    );
                     self.print(String::from("NETWORK    ping"), cmd_color);
-                    self.print(String::from("FILE       ls, cd, pwd, cat, touch, mkdir, rm, echo"), cmd_color);
+                    self.print(
+                        String::from("FILE       ls, cd, pwd, cat, touch, mkdir, rm, echo"),
+                        cmd_color,
+                    );
                 }
             }
             "sysfetch" => {
-                self.print(String::from("   ____           _    ___  ____  "), (0, 200, 255));
-                self.print(String::from("  |  _ \\ _   _ __| |_ / _ \\/ ___| "), (0, 200, 255));
-                self.print(String::from("  | |_) | | | / __| __| | | \\___ \\"), (0, 200, 255));
-                self.print(String::from("  |  _ <| |_| \\__ \\ |_| |_| |___) |"), (0, 200, 255));
-                self.print(String::from("  |_| \\_\\\\__,_|___/\\__|\\___/|____/ "), (0, 200, 255));
+                self.print(
+                    String::from("   ____           _    ___  ____  "),
+                    (0, 200, 255),
+                );
+                self.print(
+                    String::from("  |  _ \\ _   _ __| |_ / _ \\/ ___| "),
+                    (0, 200, 255),
+                );
+                self.print(
+                    String::from("  | |_) | | | / __| __| | | \\___ \\"),
+                    (0, 200, 255),
+                );
+                self.print(
+                    String::from("  |  _ <| |_| \\__ \\ |_| |_| |___) |"),
+                    (0, 200, 255),
+                );
+                self.print(
+                    String::from("  |_| \\_\\\\__,_|___/\\__|\\___/|____/ "),
+                    (0, 200, 255),
+                );
                 self.print(String::from(""), cmd_color);
                 self.print(String::from("  OS: RustOS v0.2 Bare-Metal"), cmd_color);
                 self.print(String::from("  Arch: x86_64"), cmd_color);
@@ -106,17 +141,29 @@ impl TerminalApp {
                 self.output.clear();
             }
             "pwd" => {
-                let p = if self.current_path.is_empty() { "/" } else { &self.current_path };
+                let p = if self.current_path.is_empty() {
+                    "/"
+                } else {
+                    &self.current_path
+                };
                 self.print(String::from(p), cmd_color);
             }
             "ls" => {
-                let current = if self.current_path.is_empty() { "/" } else { &self.current_path };
+                let current = if self.current_path.is_empty() {
+                    "/"
+                } else {
+                    &self.current_path
+                };
                 if let Ok(files) = crate::fs::RAM_FS.list_dir(current) {
                     if files.is_empty() {
                         self.print(String::from("(empty)"), cmd_color);
                     } else {
                         for (name, is_dir) in files {
-                            let label = if is_dir { format!("[DIR] {}", name) } else { name };
+                            let label = if is_dir {
+                                format!("[DIR] {}", name)
+                            } else {
+                                name
+                            };
                             self.print(label, cmd_color);
                         }
                     }
@@ -154,7 +201,7 @@ impl TerminalApp {
                         } else {
                             format!("{}/{}", self.current_path, target)
                         };
-                        
+
                         if crate::fs::RAM_FS.list_dir(&path).is_ok() {
                             self.current_path = path;
                         } else {
@@ -167,7 +214,11 @@ impl TerminalApp {
             }
             "touch" => {
                 if parts.len() > 1 {
-                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    let path = if self.current_path.is_empty() {
+                        String::from(parts[1])
+                    } else {
+                        format!("{}/{}", self.current_path, parts[1])
+                    };
                     let _ = crate::fs::RAM_FS.write_file(&path, b"");
                     self.print(String::from("Created file"), cmd_color);
                 } else {
@@ -176,7 +227,11 @@ impl TerminalApp {
             }
             "rm" => {
                 if parts.len() > 1 {
-                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    let path = if self.current_path.is_empty() {
+                        String::from(parts[1])
+                    } else {
+                        format!("{}/{}", self.current_path, parts[1])
+                    };
                     if crate::fs::RAM_FS.delete_file(&path).is_ok() {
                         self.print(String::from("Deleted file"), cmd_color);
                     } else {
@@ -188,7 +243,11 @@ impl TerminalApp {
             }
             "cat" => {
                 if parts.len() > 1 {
-                    let path = if self.current_path.is_empty() { String::from(parts[1]) } else { format!("{}/{}", self.current_path, parts[1]) };
+                    let path = if self.current_path.is_empty() {
+                        String::from(parts[1])
+                    } else {
+                        format!("{}/{}", self.current_path, parts[1])
+                    };
                     if let Ok(content) = crate::fs::RAM_FS.read_file(&path) {
                         if let Ok(s) = core::str::from_utf8(&content) {
                             self.print(String::from(s), cmd_color);
@@ -207,7 +266,11 @@ impl TerminalApp {
                     if let Some(pos) = parts.iter().position(|&x| x == ">") {
                         if pos + 1 < parts.len() {
                             let filename = parts[pos + 1];
-                            let path = if self.current_path.is_empty() { String::from(filename) } else { format!("{}/{}", self.current_path, filename) };
+                            let path = if self.current_path.is_empty() {
+                                String::from(filename)
+                            } else {
+                                format!("{}/{}", self.current_path, filename)
+                            };
                             let content = parts[1..pos].join(" ");
                             let _ = crate::fs::RAM_FS.write_file(&path, content.as_bytes());
                             self.print(String::from("File written"), cmd_color);
@@ -221,8 +284,13 @@ impl TerminalApp {
             }
             "date" => {
                 let rtc = crate::hardware::rtc::read_rtc();
-                self.print(format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC", 
-                    rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second), cmd_color);
+                self.print(
+                    format!(
+                        "{:04}-{:02}-{:02} {:02}:{:02}:{:02} UTC",
+                        rtc.year, rtc.month, rtc.day, rtc.hour, rtc.minute, rtc.second
+                    ),
+                    cmd_color,
+                );
             }
             "uname" => {
                 let mut sys_name = String::from("RustOS x86_64");
@@ -238,27 +306,63 @@ impl TerminalApp {
                 } else {
                     self.print(String::from("CPU Vendor: Unknown"), err_color);
                 }
-                
+
                 if let Some(finfo) = cpuid.get_feature_info() {
                     let mut features = String::new();
-                    if finfo.has_fpu() { features.push_str("FPU "); }
-                    if finfo.has_vme() { features.push_str("VME "); }
-                    if finfo.has_de() { features.push_str("DE "); }
-                    if finfo.has_pse() { features.push_str("PSE "); }
-                    if finfo.has_tsc() { features.push_str("TSC "); }
-                    if finfo.has_msr() { features.push_str("MSR "); }
-                    if finfo.has_pae() { features.push_str("PAE "); }
-                    if finfo.has_mce() { features.push_str("MCE "); }
-                    if finfo.has_apic() { features.push_str("APIC "); }
-                    if finfo.has_mtrr() { features.push_str("MTRR "); }
-                    if finfo.has_pge() { features.push_str("PGE "); }
-                    if finfo.has_mca() { features.push_str("MCA "); }
-                    if finfo.has_cmov() { features.push_str("CMOV "); }
-                    if finfo.has_pat() { features.push_str("PAT "); }
-                    if finfo.has_mmx() { features.push_str("MMX "); }
-                    if finfo.has_sse() { features.push_str("SSE "); }
-                    if finfo.has_sse2() { features.push_str("SSE2 "); }
-                    if finfo.has_htt() { features.push_str("HTT "); }
+                    if finfo.has_fpu() {
+                        features.push_str("FPU ");
+                    }
+                    if finfo.has_vme() {
+                        features.push_str("VME ");
+                    }
+                    if finfo.has_de() {
+                        features.push_str("DE ");
+                    }
+                    if finfo.has_pse() {
+                        features.push_str("PSE ");
+                    }
+                    if finfo.has_tsc() {
+                        features.push_str("TSC ");
+                    }
+                    if finfo.has_msr() {
+                        features.push_str("MSR ");
+                    }
+                    if finfo.has_pae() {
+                        features.push_str("PAE ");
+                    }
+                    if finfo.has_mce() {
+                        features.push_str("MCE ");
+                    }
+                    if finfo.has_apic() {
+                        features.push_str("APIC ");
+                    }
+                    if finfo.has_mtrr() {
+                        features.push_str("MTRR ");
+                    }
+                    if finfo.has_pge() {
+                        features.push_str("PGE ");
+                    }
+                    if finfo.has_mca() {
+                        features.push_str("MCA ");
+                    }
+                    if finfo.has_cmov() {
+                        features.push_str("CMOV ");
+                    }
+                    if finfo.has_pat() {
+                        features.push_str("PAT ");
+                    }
+                    if finfo.has_mmx() {
+                        features.push_str("MMX ");
+                    }
+                    if finfo.has_sse() {
+                        features.push_str("SSE ");
+                    }
+                    if finfo.has_sse2() {
+                        features.push_str("SSE2 ");
+                    }
+                    if finfo.has_htt() {
+                        features.push_str("HTT ");
+                    }
                     self.print(format!("Features: {}", features.trim()), cmd_color);
                 } else {
                     self.print(String::from("Features: Unknown"), err_color);
@@ -269,7 +373,7 @@ impl TerminalApp {
                 let used_ram_mb = 23;
                 let bar_length = 20;
                 let filled_length = (used_ram_mb * bar_length) / total_ram_mb;
-                
+
                 let mut bar = String::from("[");
                 for i in 0..bar_length {
                     if i < filled_length {
@@ -279,20 +383,30 @@ impl TerminalApp {
                     }
                 }
                 bar.push(']');
-                
-                self.print(format!("RAM: {} MB / {} MB", used_ram_mb, total_ram_mb), cmd_color);
+
+                self.print(
+                    format!("RAM: {} MB / {} MB", used_ram_mb, total_ram_mb),
+                    cmd_color,
+                );
                 self.print(bar, cmd_color);
             }
             "reboot" => {
                 self.print(String::from("Rebooting..."), cmd_color);
-                unsafe { x86_64::instructions::port::Port::<u8>::new(0x64).write(0xFE); }
+                unsafe {
+                    x86_64::instructions::port::Port::<u8>::new(0x64).write(0xFE);
+                }
             }
             "ping" => {
                 if parts.len() > 1 {
                     let target_ip = parts[1];
                     let ip_parts: Vec<&str> = target_ip.split('.').collect();
                     if ip_parts.len() == 4 {
-                        if let (Ok(a), Ok(b), Ok(c), Ok(d)) = (ip_parts[0].parse::<u8>(), ip_parts[1].parse::<u8>(), ip_parts[2].parse::<u8>(), ip_parts[3].parse::<u8>()) {
+                        if let (Ok(a), Ok(b), Ok(c), Ok(d)) = (
+                            ip_parts[0].parse::<u8>(),
+                            ip_parts[1].parse::<u8>(),
+                            ip_parts[2].parse::<u8>(),
+                            ip_parts[3].parse::<u8>(),
+                        ) {
                             let ip = [a, b, c, d];
                             self.print(format!("PING {} (32 data bytes)", target_ip), cmd_color);
                             self.ping_state = Some((ip, 1));
@@ -369,36 +483,68 @@ impl App for TerminalApp {
             // Check reply
             if let Some(ref mut nm) = *crate::network::NETWORK_MANAGER.lock() {
                 if let Some((_, reply_seq)) = nm.ping_reply.take() {
-                    self.print(format!("32 bytes from {}.{}.{}.{}: icmp_seq={} time=1ms", 
-                        ip[0], ip[1], ip[2], ip[3], reply_seq), (200, 200, 200));
+                    self.print(
+                        format!(
+                            "32 bytes from {}.{}.{}.{}: icmp_seq={} time=1ms",
+                            ip[0], ip[1], ip[2], ip[3], reply_seq
+                        ),
+                        (200, 200, 200),
+                    );
                     self.ping_state = Some((ip, seq + 1));
                     self.ping_delay = 60; // reset delay after reply
                 }
             }
-            
-            if seq >= 5 { // Auto-stop after 4 pings for demo
+
+            if seq >= 5 {
+                // Auto-stop after 4 pings for demo
                 self.print(String::from("--- ping statistics ---"), (0, 255, 0));
-                self.print("4 packets transmitted, 4 received, 0% packet loss".to_string(), (0, 200, 255));
+                self.print(
+                    "4 packets transmitted, 4 received, 0% packet loss".to_string(),
+                    (0, 200, 255),
+                );
                 self.ping_state = None;
             }
         }
     }
 
-    fn draw(&mut self, compositor: &mut GraphicalCompositor, x: usize, y: usize, width: usize, height: usize) {
+    fn draw(
+        &mut self,
+        compositor: &mut GraphicalCompositor,
+        x: usize,
+        y: usize,
+        width: usize,
+        height: usize,
+    ) {
         compositor.draw_rect(x, y, width, height, 0, 0, 0);
 
         let padding = 10;
-        let max_lines = if height > 2 * padding { (height - 2 * padding) / 12 } else { 0 };
-        let chars_per_line = if width > 2 * padding { (width - 2 * padding) / 8 } else { 1 };
+        let max_lines = if height > 2 * padding {
+            (height - 2 * padding) / 12
+        } else {
+            0
+        };
+        let chars_per_line = if width > 2 * padding {
+            (width - 2 * padding) / 8
+        } else {
+            1
+        };
 
         let mut visual_lines = 0;
         for (line, _) in &self.output {
             let len = line.chars().count();
-            visual_lines += if len == 0 { 1 } else { len.div_ceil(chars_per_line) };
+            visual_lines += if len == 0 {
+                1
+            } else {
+                len.div_ceil(chars_per_line)
+            };
         }
-        
+
         let input_len = 2 + self.input_buffer.chars().count();
-        visual_lines += if input_len == 0 { 1 } else { input_len.div_ceil(chars_per_line) };
+        visual_lines += if input_len == 0 {
+            1
+        } else {
+            input_len.div_ceil(chars_per_line)
+        };
 
         let max_scroll = if visual_lines > max_lines && max_lines > 0 {
             visual_lines - max_lines
@@ -441,7 +587,7 @@ impl App for TerminalApp {
 
         // Draw input
         let mut cur_x = x + padding;
-        
+
         let prompt = "> ";
         for c in prompt.chars() {
             if cur_x + 8 > x + content_width - padding {
@@ -484,13 +630,20 @@ impl App for TerminalApp {
             }
         }
 
-        compositor.draw_scrollbar(x + width - 10, y, height, self.scroll_y as usize, max_scroll);
+        compositor.draw_scrollbar(
+            x + width - 10,
+            y,
+            height,
+            self.scroll_y as usize,
+            max_scroll,
+        );
     }
 
     fn handle_event(&mut self, event: Event) {
         match event {
             Event::KeyPress(c) => {
-                if c == '\x03' { // Ctrl+C to cancel ping
+                if c == '\x03' {
+                    // Ctrl+C to cancel ping
                     if self.ping_state.is_some() {
                         self.print(String::from("Ping canceled."), (255, 255, 0));
                         self.ping_state = None;
@@ -508,18 +661,23 @@ impl App for TerminalApp {
                     self.input_buffer.push(c);
                 }
                 self.scroll_y = -1; // Scroll down when typing
-            },
+            }
             Event::MouseScroll { delta } => {
                 if self.scroll_y == -1 {
                     // It will be calculated in draw() next frame, but roughly guess it
                     // The easiest way is to let the user scroll up from bottom
                 }
                 self.scroll_y = self.scroll_y.saturating_add(delta as isize);
-                if self.scroll_y < 0 { self.scroll_y = 0; }
-            },
-            Event::MouseClick { x: _rel_x, y: _rel_y } => {
+                if self.scroll_y < 0 {
+                    self.scroll_y = 0;
+                }
+            }
+            Event::MouseClick {
+                x: _rel_x,
+                y: _rel_y,
+            } => {
                 // Not passing width/height to event, we just approximate it, or we could handle scrollbar dragging
-            },
+            }
             _ => {}
         }
     }
