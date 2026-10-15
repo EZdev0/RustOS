@@ -93,7 +93,7 @@ jobs:
 
       - name: Install and start 100% Local Ollama Engine (No API Keys)
         run: |
-          curl -fsSL [https://ollama.com/install.sh](https://ollama.com/install.sh) | sh
+          curl -fsSL https://ollama.com/install.sh | sh
           nohup ollama serve > ollama.log 2>&1 &
           for i in $(seq 1 30); do
             if curl -s "http://${OLLAMA_HOST}/api/tags" >/dev/null; then

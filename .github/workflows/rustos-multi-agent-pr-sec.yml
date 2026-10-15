@@ -98,8 +98,8 @@ jobs:
           fi
 
           # Step 3: Audit kernel and builder unsafe blocks
-          UNSAFE_CNT=$(grep -rn "unsafe " kernel/src/ builder/src/ 2>/dev/null | wc -l | tr -d ' ' || echo "0")
-          SAFETY_CNT=$(grep -rn "// SAFETY:" kernel/src/ builder/src/ 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+          UNSAFE_CNT=$({ grep -rn "unsafe " kernel/src/ builder/src/ 2>/dev/null || true; } | wc -l | tr -d ' ')
+          SAFETY_CNT=$({ grep -rn "// SAFETY:" kernel/src/ builder/src/ 2>/dev/null || true; } | wc -l | tr -d ' ')
           grep -rn "unsafe " kernel/src/ builder/src/ > pr_logs/unsafe_blocks.log 2>&1 || true
           UNSAFE_STATUS="🔍 ${UNSAFE_CNT} unsafe blocks / ${SAFETY_CNT} documented"
 
@@ -111,10 +111,10 @@ jobs:
           fi
           cargo test -p builder --release > pr_logs/builder_tests.log 2>&1 || true
 
-          echo "leaks_status=${LEAKS_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "audit_status=${AUDIT_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "unsafe_status=${UNSAFE_STATUS}" >> "$GITHUB_OUTPUT"
-          echo "clippy_status=${CLIPPY_STATUS}" >> "$GITHUB_OUTPUT"
+          echo "leaks_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${LEAKS_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "audit_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${AUDIT_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "unsafe_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${UNSAFE_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "clippy_status<<EOF" >> "$GITHUB_OUTPUT"; echo "${CLIPPY_STATUS}" >> "$GITHUB_OUTPUT"; echo "EOF" >> "$GITHUB_OUTPUT"
 
       - name: Upload Gitleaks SARIF report on Node 24
         if: always() && hashFiles('gitleaks.sarif') != ''
