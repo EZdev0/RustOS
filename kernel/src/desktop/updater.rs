@@ -165,7 +165,8 @@ impl UpdateManifest {
         let version_minor = v_parts.next().unwrap_or("0").parse().unwrap_or(0);
         let version_patch = v_parts.next().unwrap_or("0").parse().unwrap_or(0);
 
-        let requires_reboot = s.contains("\"requires_reboot\":true") || s.contains("\"requires_reboot\": true");
+        let requires_reboot =
+            s.contains("\"requires_reboot\":true") || s.contains("\"requires_reboot\": true");
         let changelog_summary = parse_string("changelog").unwrap_or_else(|_| String::from(""));
 
         if expected_size == 0 || expected_size > MAX_STAGING_BYTES {
