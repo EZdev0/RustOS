@@ -60,7 +60,7 @@ jobs:
           rustup target add x86_64-unknown-none
 
       - name: Cache Cargo registry and build artifacts on Node 24
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -166,7 +166,7 @@ jobs:
           rustup target add x86_64-unknown-none
 
       - name: Restore Cargo cache on Node 24
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry/index/
@@ -217,7 +217,7 @@ jobs:
             }, null, 2));
 
       - name: Cache Local Tool-Calling LLM Weights on Node 24
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ~/.ollama
           key: rustos-local-llm-${{ env.LOCAL_TOOL_MODEL }}-v2
