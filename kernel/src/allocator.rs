@@ -61,6 +61,7 @@ pub fn init_heap() {
     }
 }
 
+#[cfg(all(not(test), target_os = "none"))]
 #[alloc_error_handler]
 fn alloc_error_handler(layout: Layout) -> ! {
     panic!("allocation error: {:?}", layout)

@@ -319,6 +319,23 @@ jobs:
         run: |
           mkdir -p release_assets
           find artifacts/ -type f -exec mv {} release_assets/ \; || true
+
+          # Generate update_manifest.json
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          IMAGE_SIZE=$(stat -c%s release_assets/my_rust_os_desktop.img 2>/dev/null || echo 0)
+          IMAGE_CRC32=$(python3 -c 'import binascii; print(binascii.crc32(open("release_assets/my_rust_os_desktop.img", "rb").read()) & 0xFFFFFFFF)' 2>/dev/null || echo 0)
+
+          cat <<EOF2 > release_assets/update_manifest.json
+          {
+            "version": "1.0.${{ github.run_number }}",
+            "build_timestamp": "$TIMESTAMP",
+            "expected_size": $IMAGE_SIZE,
+            "crc32": "$IMAGE_CRC32",
+            "changelog": "Automated update",
+            "requires_reboot": true
+          }
+          EOF2
+
           echo "Files ready for release:"
           ls -lh release_assets/ || true
 

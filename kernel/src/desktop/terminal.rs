@@ -307,6 +307,35 @@ impl TerminalApp {
                     self.print(String::from("Usage: ping <ip_address>"), err_color);
                 }
             }
+            "update" => {
+                if parts.len() > 1 {
+                    match parts[1] {
+                        "check" => {
+                            self.print(String::from("Checking for updates..."), cmd_color);
+                            crate::desktop::updater::UpdateCenter::start_download([10, 0, 2, 2]);
+                            self.print(
+                                String::from(
+                                    "Downloading update. Open Update Center app for progress.",
+                                ),
+                                cmd_color,
+                            );
+                        }
+                        "apply" => {
+                            self.print(String::from("Applying update..."), cmd_color);
+                            if crate::desktop::updater::UpdateCenter::apply_update().is_ok() {
+                                self.print(String::from("Update Applied. Rebooting..."), cmd_color);
+                            } else {
+                                self.print(String::from("Update failed to apply. Ensure download is complete and verified."), err_color);
+                            }
+                        }
+                        _ => {
+                            self.print(String::from("Usage: update <check|apply>"), err_color);
+                        }
+                    }
+                } else {
+                    self.print(String::from("Usage: update <check|apply>"), err_color);
+                }
+            }
             _ => {
                 self.print(String::from("Unknown command: ") + parts[0], err_color);
             }

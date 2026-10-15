@@ -4,10 +4,13 @@ pub mod terminal;
 pub mod app;
 pub mod notepad;
 pub mod filemanager;
-pub mod taskmanager;
-pub mod settings;
+pub mod notepad;
 pub mod renderer;
-pub mod browser;
+pub mod settings;
+pub mod taskmanager;
+pub mod terminal;
+pub mod updater;
+pub mod window;
 
 use core::sync::atomic::AtomicU8;
 pub static THEME: AtomicU8 = AtomicU8::new(0); // 0 = Light, 1 = Dark
