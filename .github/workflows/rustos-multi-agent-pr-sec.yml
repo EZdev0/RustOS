@@ -98,8 +98,8 @@ jobs:
           fi
 
           # Step 3: Audit kernel and builder unsafe blocks
-          UNSAFE_CNT=$(grep -rn "unsafe " kernel/src/ builder/src/ 2>/dev/null | wc -l | tr -d ' ' || echo "0")
-          SAFETY_CNT=$(grep -rn "// SAFETY:" kernel/src/ builder/src/ 2>/dev/null | wc -l | tr -d ' ' || echo "0")
+          UNSAFE_CNT=$({ grep -rn "unsafe " kernel/src/ builder/src/ 2>/dev/null || true; } | wc -l | tr -d ' ')
+          SAFETY_CNT=$({ grep -rn "// SAFETY:" kernel/src/ builder/src/ 2>/dev/null || true; } | wc -l | tr -d ' ')
           grep -rn "unsafe " kernel/src/ builder/src/ > pr_logs/unsafe_blocks.log 2>&1 || true
           UNSAFE_STATUS="🔍 ${UNSAFE_CNT} unsafe blocks / ${SAFETY_CNT} documented"
 
