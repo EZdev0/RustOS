@@ -322,7 +322,15 @@ impl App for UpdateCenter {
         let fill_width = (progress * bar_width).checked_div(expected_size).unwrap_or(0);
 
         if fill_width > 0 {
-            compositor.draw_rect(bar_x, bar_y, fill_width.min(bar_width), bar_height, 0, 200, 0);
+            compositor.draw_rect(
+                bar_x,
+                bar_y,
+                fill_width.min(bar_width),
+                bar_height,
+                0,
+                200,
+                0,
+            );
         }
 
         let percentage = (progress * 100).checked_div(expected_size).unwrap_or(0);
