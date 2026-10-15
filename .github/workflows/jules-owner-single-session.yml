@@ -66,7 +66,7 @@ jobs:
     steps:
       - name: Verify "/jules" Command, Sanitize Accidental "@jules" Mentions & Harvest Context to /tmp
         id: harvest
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
           INPUT_PROMPT: ${{ github.event.inputs.prompt }}
@@ -496,7 +496,7 @@ jobs:
 
       - name: Post Google Jules Reply and Ping Owner if Question Asked
         if: steps.harvest.outputs.should_run == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           INPUT_ISSUE_NUMBER: ${{ github.event.inputs.issue_number }}
         with:

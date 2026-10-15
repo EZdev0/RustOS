@@ -123,7 +123,7 @@ jobs:
 
       - name: Guaranteed PR Creation for Dependency & Lockfile Sync
         if: always() && env.CREATED_DEPS_BRANCH != ''
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');

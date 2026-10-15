@@ -178,7 +178,7 @@ jobs:
             rustos-cargo-v5-
 
       - name: Fetch All PR Files, Diff Hunks and Commits via GitHub API
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -544,7 +544,7 @@ jobs:
           EOF
 
       - name: "Agent 4: Publish Pre-Verified 1-Click Suggestions and Full PR Report"
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           LEAKS_STATUS: ${{ needs.agent-1-security-and-leaks.outputs.leaks_status }}
           AUDIT_STATUS: ${{ needs.agent-1-security-and-leaks.outputs.audit_status }}
