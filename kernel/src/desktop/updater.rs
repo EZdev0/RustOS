@@ -251,7 +251,9 @@ pub async fn updater_task() {
                                     state.downloading = false;
                                     if state.progress == state.expected_size {
                                         state.state_flags |= FLAG_DOWNLOAD_COMPLETE;
-                                        if UpdateCenter::crc32(&state.staging_buffer) == state.expected_crc32 {
+                                        if UpdateCenter::crc32(&state.staging_buffer)
+                                            == state.expected_crc32
+                                        {
                                             state.state_flags |= FLAG_CHECKSUM_VALID;
                                             state.status_message = String::from("Verification Passed");
                                         } else {
