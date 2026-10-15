@@ -255,7 +255,8 @@ pub async fn updater_task() {
                                             == state.expected_crc32
                                         {
                                             state.state_flags |= FLAG_CHECKSUM_VALID;
-                                            state.status_message = String::from("Verification Passed");
+                                            state.status_message =
+                                                String::from("Verification Passed");
                                         } else {
                                             process_err = Some(UpdateError::ChecksumMismatch);
                                         }
