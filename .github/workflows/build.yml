@@ -185,7 +185,7 @@ jobs:
           fi
 
       - name: 📦 Upload OS Disk Image Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: RustOS-Limbo-Image-${{ matrix.os }}
@@ -239,7 +239,7 @@ jobs:
           cat $REPORT
 
       - name: 📦 Upload Analysis Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: RustOS-Analysis-Report
           path: rustos-analysis-report.txt
