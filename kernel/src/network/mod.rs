@@ -98,20 +98,22 @@ pub struct NetworkManager {
     pub ping_reply: Option<([u8; 4], u16)>, // IP, Seq
     
     pub http_state: HttpState,
-    pub http_response: String,
+    pub http_chunks: crossbeam_queue::ArrayQueue<alloc::vec::Vec<u8>>,
+    pub total_bytes_received: usize,
     pub http_request_ip: Option<[u8; 4]>,
 }
 
 impl NetworkManager {
 
-    pub fn update_http_request_state(http_state: &mut HttpState, http_response: &mut String, http_request_ip: &mut Option<[u8; 4]>, ip: [u8; 4]) {
+    pub fn update_http_request_state(http_state: &mut HttpState, http_chunks: &crossbeam_queue::ArrayQueue<alloc::vec::Vec<u8>>, total_bytes_received: &mut usize, http_request_ip: &mut Option<[u8; 4]>, ip: [u8; 4]) {
         *http_state = HttpState::Init;
-        http_response.clear();
+        while http_chunks.pop().is_some() {}
+        *total_bytes_received = 0;
         *http_request_ip = Some(ip);
     }
 
     pub fn request_http(&mut self, ip: [u8; 4]) {
-        Self::update_http_request_state(&mut self.http_state, &mut self.http_response, &mut self.http_request_ip, ip);
+        Self::update_http_request_state(&mut self.http_state, &self.http_chunks, &mut self.total_bytes_received, &mut self.http_request_ip, ip);
 
         
         // Abort old connection if active
@@ -164,11 +166,22 @@ impl NetworkManager {
                     if socket.can_recv() {
                         if let Ok(_data) = socket.recv(|data| {
                             let len = data.len();
-                            if let Ok(s) = core::str::from_utf8(data) {
-                                self.http_response.push_str(s);
+                            let max_http_response_bytes = crate::desktop::updater::MAX_STAGING_BYTES + 4096;
+
+                            // Prevent OOM by enforcing a hard upper bound
+                            if self.total_bytes_received.saturating_add(len) > max_http_response_bytes {
+                                // Abort immediately
+                                self.http_state = HttpState::Done;
+                                self.http_request_ip = None;
+                            } else {
+                                self.total_bytes_received += len;
+                                let _ = self.http_chunks.push(data.to_vec());
                             }
                             (len, data)
                         }) {
+                            if self.http_request_ip.is_none() {
+                                socket.abort();
+                            }
                         }
                     } else if !socket.may_recv() {
                         self.http_state = HttpState::Done;
@@ -220,12 +233,12 @@ pub fn start_http_request(ip: [u8; 4]) {
 }
 
 pub fn get_http_response() -> Option<String> {
+    None // Stubbed out as chunks are preferred now
+}
+
+pub fn poll_http_chunk() -> Option<alloc::vec::Vec<u8>> {
     if let Some(ref mut nm) = *NETWORK_MANAGER.lock() {
-        if nm.http_state == HttpState::Done && !nm.http_response.is_empty() {
-            let res = nm.http_response.clone();
-            nm.http_response.clear();
-            return Some(res);
-        }
+        return nm.http_chunks.pop();
     }
     None
 }
@@ -264,7 +277,8 @@ pub fn init(mut e1000: E1000) {
         tcp_handle,
         ping_reply: None,
         http_state: HttpState::Init,
-        http_response: alloc::string::String::new(),
+        http_chunks: crossbeam_queue::ArrayQueue::new(100),
+        total_bytes_received: 0,
         http_request_ip: None,
     });
 }
@@ -298,7 +312,7 @@ pub async fn network_task() {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "none")))]
 mod tests {
     use super::*;
     use alloc::string::String;
@@ -306,14 +320,17 @@ mod tests {
     #[test]
     fn test_update_http_request_state() {
         let mut state = HttpState::Done;
-        let mut response = String::from("old response");
+        let chunks = crossbeam_queue::ArrayQueue::new(100);
+        let _ = chunks.push(alloc::vec![0; 10]);
+        let mut total_bytes = 10;
         let mut request_ip = None;
         let target_ip = [192, 168, 1, 100];
 
-        NetworkManager::update_http_request_state(&mut state, &mut response, &mut request_ip, target_ip);
+        NetworkManager::update_http_request_state(&mut state, &chunks, &mut total_bytes, &mut request_ip, target_ip);
 
         assert_eq!(state, HttpState::Init);
-        assert!(response.is_empty());
+        assert_eq!(total_bytes, 0);
+        assert!(chunks.is_empty());
         assert_eq!(request_ip, Some(target_ip));
     }
 }

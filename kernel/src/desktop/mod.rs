@@ -8,6 +8,7 @@ pub mod taskmanager;
 pub mod settings;
 pub mod renderer;
 pub mod browser;
+pub mod updater;
 
 use core::sync::atomic::AtomicU8;
 pub static THEME: AtomicU8 = AtomicU8::new(0); // 0 = Light, 1 = Dark

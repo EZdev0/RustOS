@@ -1,7 +1,7 @@
-#![no_std]
+#![cfg_attr(not(test), no_std)]
 #![no_main]
 #![feature(abi_x86_interrupt)]
-#![feature(alloc_error_handler)]
+#![cfg_attr(not(test), feature(alloc_error_handler))]
 
 extern crate alloc;
 
@@ -162,6 +162,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         executor.spawn(task::Task::new(task::mouse::mouse_task(shared_compositor.clone())));
         executor.spawn(task::Task::new(task::timer::timer_task(shared_compositor)));
         executor.spawn(task::Task::new(crate::network::network_task()));
+        executor.spawn(task::Task::new(crate::desktop::updater::updater_task()));
 
         // 4. Start Scheduler Loop (never returns)
         executor.run();
@@ -222,6 +223,7 @@ impl Write for FbWriter<'_> {
     }
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     x86_64::instructions::interrupts::disable();

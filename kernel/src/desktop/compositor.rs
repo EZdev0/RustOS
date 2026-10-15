@@ -611,7 +611,7 @@ impl GraphicalCompositor {
         } else {
             for r in &self.dirty_rects {
                 if r.y < 28 {
-                    self.top_rects_buffer.push(r.clone());
+                    self.top_rects_buffer.push(*r);
                 }
             }
         }
