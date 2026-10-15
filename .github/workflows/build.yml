@@ -202,7 +202,7 @@ jobs:
 
     steps:
       - name: 📥 Download OS Image
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: RustOS-Limbo-Image-ubuntu-latest
           path: .
@@ -310,7 +310,7 @@ jobs:
           fi
 
       - name: 📥 Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
         continue-on-error: true
