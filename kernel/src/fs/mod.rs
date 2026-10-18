@@ -104,12 +104,8 @@ impl RamFs {
 
     pub fn write_file(&mut self, path: &str, content: &[u8]) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(FsError::NotADirectory);
-        }
 
-        let file_name = parts.last().unwrap();
-        let dir_parts = &parts[0..parts.len() - 1];
+        let (file_name, dir_parts) = parts.split_last().ok_or(FsError::NotADirectory)?;
 
         let mut current = &mut self.root;
         for part in dir_parts {
@@ -173,12 +169,8 @@ impl RamFs {
 
     pub fn delete_file(&mut self, path: &str) -> Result<(), FsError> {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        if parts.is_empty() {
-            return Err(FsError::NotFound);
-        }
 
-        let name = parts.last().unwrap();
-        let dir_parts = &parts[0..parts.len() - 1];
+        let (name, dir_parts) = parts.split_last().ok_or(FsError::NotFound)?;
 
         let mut current = &mut self.root;
         for part in dir_parts {
