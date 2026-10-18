@@ -2,12 +2,12 @@ pub mod app;
 pub mod browser;
 pub mod compositor;
 pub mod filemanager;
+pub mod notepad;
 pub mod renderer;
 pub mod settings;
 pub mod taskmanager;
-pub mod updater;
-pub mod notepad;
 pub mod terminal;
+pub mod updater;
 pub mod window;
 
 use core::sync::atomic::AtomicU8;
