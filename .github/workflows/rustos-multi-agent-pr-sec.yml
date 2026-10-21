@@ -46,7 +46,7 @@ jobs:
       clippy_status: ${{ steps.sec_scan.outputs.clippy_status }}
     steps:
       - name: Checkout repository with full git history
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -152,7 +152,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout Pull Request Head Branch on Node 24
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
