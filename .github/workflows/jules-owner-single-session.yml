@@ -181,7 +181,7 @@ jobs:
 
       - name: Checkout repository on Node 24
         if: steps.harvest.outputs.should_run == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 20
 

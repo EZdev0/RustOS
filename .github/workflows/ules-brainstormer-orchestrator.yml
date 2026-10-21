@@ -154,7 +154,7 @@ jobs:
 
       - name: "Step 2: Checkout Repository with Full Commit History on Node 24"
         if: steps.auth_parse.outputs.authorized == 'true'
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
