@@ -192,18 +192,10 @@ impl GraphicalCompositor {
             return (0, 0, 0);
         }
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
-        if pixel_offset + 2 < self.backbuffer.len() {
+        if let Some(chunk) = self.backbuffer.get(pixel_offset..pixel_offset + 3) {
             match self.info.pixel_format {
-                PixelFormat::Rgb => (
-                    self.backbuffer[pixel_offset],
-                    self.backbuffer[pixel_offset + 1],
-                    self.backbuffer[pixel_offset + 2],
-                ),
-                PixelFormat::Bgr => (
-                    self.backbuffer[pixel_offset + 2],
-                    self.backbuffer[pixel_offset + 1],
-                    self.backbuffer[pixel_offset],
-                ),
+                PixelFormat::Rgb => (chunk[0], chunk[1], chunk[2]),
+                PixelFormat::Bgr => (chunk[2], chunk[1], chunk[0]),
                 _ => (0, 0, 0),
             }
         } else {
@@ -224,20 +216,20 @@ impl GraphicalCompositor {
 
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
 
-        if pixel_offset + 2 < self.backbuffer.len() {
+        if let Some(chunk) = self.backbuffer.get_mut(pixel_offset..pixel_offset + 3) {
             match self.info.pixel_format {
                 PixelFormat::Rgb => {
-                    self.backbuffer[pixel_offset] = r;
-                    self.backbuffer[pixel_offset + 1] = g;
-                    self.backbuffer[pixel_offset + 2] = b;
+                    chunk[0] = r;
+                    chunk[1] = g;
+                    chunk[2] = b;
                 }
                 PixelFormat::Bgr => {
-                    self.backbuffer[pixel_offset] = b;
-                    self.backbuffer[pixel_offset + 1] = g;
-                    self.backbuffer[pixel_offset + 2] = r;
+                    chunk[0] = b;
+                    chunk[1] = g;
+                    chunk[2] = r;
                 }
                 _ => {
-                    self.backbuffer[pixel_offset] = b;
+                    chunk[0] = b;
                 }
             }
         }
@@ -317,20 +309,12 @@ impl GraphicalCompositor {
             }
         }
         let pixel_offset = (y * self.info.stride + x) * (self.info.bytes_per_pixel);
-        if pixel_offset + 2 < self.backbuffer.len() {
+        if let Some(chunk) = self.backbuffer.get_mut(pixel_offset..pixel_offset + 3) {
             let inv_alpha = 256 - alpha_256;
 
             let (bg_r, bg_g, bg_b) = match self.info.pixel_format {
-                PixelFormat::Rgb => (
-                    self.backbuffer[pixel_offset],
-                    self.backbuffer[pixel_offset + 1],
-                    self.backbuffer[pixel_offset + 2],
-                ),
-                PixelFormat::Bgr => (
-                    self.backbuffer[pixel_offset + 2],
-                    self.backbuffer[pixel_offset + 1],
-                    self.backbuffer[pixel_offset],
-                ),
+                PixelFormat::Rgb => (chunk[0], chunk[1], chunk[2]),
+                PixelFormat::Bgr => (chunk[2], chunk[1], chunk[0]),
                 _ => (0, 0, 0),
             };
 
@@ -340,17 +324,17 @@ impl GraphicalCompositor {
 
             match self.info.pixel_format {
                 PixelFormat::Rgb => {
-                    self.backbuffer[pixel_offset] = out_r;
-                    self.backbuffer[pixel_offset + 1] = out_g;
-                    self.backbuffer[pixel_offset + 2] = out_b;
+                    chunk[0] = out_r;
+                    chunk[1] = out_g;
+                    chunk[2] = out_b;
                 }
                 PixelFormat::Bgr => {
-                    self.backbuffer[pixel_offset] = out_b;
-                    self.backbuffer[pixel_offset + 1] = out_g;
-                    self.backbuffer[pixel_offset + 2] = out_r;
+                    chunk[0] = out_b;
+                    chunk[1] = out_g;
+                    chunk[2] = out_r;
                 }
                 _ => {
-                    self.backbuffer[pixel_offset] = out_b;
+                    chunk[0] = out_b;
                 }
             }
         }
@@ -381,23 +365,29 @@ impl GraphicalCompositor {
         match self.info.pixel_format {
             PixelFormat::Rgb => {
                 for _ in start_x..end_x {
-                    self.backbuffer[offset] = r;
-                    self.backbuffer[offset + 1] = g;
-                    self.backbuffer[offset + 2] = b;
+                    if let Some(chunk) = self.backbuffer.get_mut(offset..offset + 3) {
+                        chunk[0] = r;
+                        chunk[1] = g;
+                        chunk[2] = b;
+                    }
                     offset += bpp;
                 }
             }
             PixelFormat::Bgr => {
                 for _ in start_x..end_x {
-                    self.backbuffer[offset] = b;
-                    self.backbuffer[offset + 1] = g;
-                    self.backbuffer[offset + 2] = r;
+                    if let Some(chunk) = self.backbuffer.get_mut(offset..offset + 3) {
+                        chunk[0] = b;
+                        chunk[1] = g;
+                        chunk[2] = r;
+                    }
                     offset += bpp;
                 }
             }
             _ => {
                 for _ in start_x..end_x {
-                    self.backbuffer[offset] = b;
+                    if let Some(val) = self.backbuffer.get_mut(offset) {
+                        *val = b;
+                    }
                     offset += bpp;
                 }
             }
