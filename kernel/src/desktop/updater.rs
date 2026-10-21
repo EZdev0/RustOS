@@ -21,6 +21,7 @@ pub enum UpdateError {
 use alloc::sync::Arc;
 use spin::Mutex;
 
+#[allow(deprecated)]
 pub static UPDATER_STATE: spin::Lazy<Arc<Mutex<UpdaterState>>> =
     spin::Lazy::new(|| Arc::new(Mutex::new(UpdaterState::new())));
 
@@ -139,12 +140,15 @@ impl UpdateManifest {
         let parse_u32 = |key: &str| -> Result<u32, UpdateError> {
             let key_str = alloc::format!("\"{}\":", key);
             let start = s.find(&key_str).ok_or(UpdateError::InvalidManifest)?;
-            let rest = &s[start + key_str.len()..];
+            let rest = s
+                .get(start + key_str.len()..)
+                .ok_or(UpdateError::InvalidManifest)?;
             let rest = rest.trim_start();
             let end = rest
                 .find(|c: char| !c.is_ascii_digit())
                 .unwrap_or(rest.len());
-            rest[..end]
+            rest.get(..end)
+                .ok_or(UpdateError::InvalidManifest)?
                 .parse::<u32>()
                 .map_err(|_| UpdateError::InvalidManifest)
         };
@@ -152,9 +156,12 @@ impl UpdateManifest {
         let parse_string = |key: &str| -> Result<String, UpdateError> {
             let key_str = alloc::format!("\"{}\":\"", key);
             let start = s.find(&key_str).ok_or(UpdateError::InvalidManifest)?;
-            let rest = &s[start + key_str.len()..];
+            let rest = s
+                .get(start + key_str.len()..)
+                .ok_or(UpdateError::InvalidManifest)?;
             let end = rest.find('\"').ok_or(UpdateError::InvalidManifest)?;
-            Ok(String::from(&rest[..end]))
+            let value = rest.get(..end).ok_or(UpdateError::InvalidManifest)?;
+            Ok(String::from(value))
         };
 
         // Custom parser for sizes/crc32, handling quotes if any
@@ -220,21 +227,15 @@ pub async fn updater_task() {
 
                         if state.expected_size == 0 {
                             // First chunk: try to find manifest boundaries \r\n\r\n
-                            let mut body_start = 0;
-                            for i in 0..chunk.len().saturating_sub(3) {
-                                if chunk[i] == b'\r'
-                                    && chunk[i + 1] == b'\n'
-                                    && chunk[i + 2] == b'\r'
-                                    && chunk[i + 3] == b'\n'
-                                {
-                                    body_start = i + 4;
-                                    break;
-                                }
-                            }
+                            let body_start = chunk
+                                .windows(4)
+                                .position(|w| w == b"\r\n\r\n")
+                                .map(|i| i + 4)
+                                .unwrap_or(0);
 
                             if body_start > 0 {
                                 // Extract manifest
-                                let body_data = &chunk[body_start..];
+                                let body_data = chunk.get(body_start..).unwrap_or(b"");
                                 if let Ok(manifest) = UpdateManifest::from_json_bytes(body_data) {
                                     state.expected_size = manifest.expected_size;
                                     state.expected_crc32 = manifest.expected_crc32;
@@ -427,9 +428,10 @@ mod tests {
         let body_start = json_payload
             .windows(4)
             .position(|window| window == b"\r\n\r\n")
-            .unwrap()
+            .expect("Could not find payload start")
             + 4;
-        let manifest = UpdateManifest::from_json_bytes(&json_payload[body_start..]).unwrap();
+        let manifest = UpdateManifest::from_json_bytes(&json_payload[body_start..])
+            .expect("Failed to parse manifest");
 
         assert_eq!(manifest.version_major, 1);
         assert_eq!(manifest.version_minor, 0);
