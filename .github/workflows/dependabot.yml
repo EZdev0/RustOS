@@ -110,8 +110,8 @@ jobs:
           NEW_BRANCH="fix/dependabot-security-sync-${RUN_ID}"
           git checkout -B "${NEW_BRANCH}"
 
-          os.makedirs_cmd="mkdir -p docs/ci_reports"
-          $os.makedirs_cmd
+          OS_MAKEDIRS_CMD="mkdir -p docs/ci_reports"
+          $OS_MAKEDIRS_CMD
           cp audit_report.txt "docs/ci_reports/cargo_audit_${RUN_ID}.txt"
 
           if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
