@@ -19,7 +19,10 @@ issue. That is a reasonable release pipeline but a bad gate.
 
 `verify.yml` therefore re-runs the important checks in strict mode
 (`-D warnings`, no `continue-on-error`) and publishes a single required status
-check named `verify`.
+check named `verify`. The tolerant steps in `build.yml` now say so explicitly
+("`✅ RustOS Verify` is the blocking gate") instead of looking like a real gate,
+and the release body is written through a heredoc so its markdown is not full of
+literal `\n` sequences.
 
 ### What `verify.yml` does
 
