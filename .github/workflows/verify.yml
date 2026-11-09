@@ -1,0 +1,277 @@
+name: ✅ RustOS Verify
+
+# Hard gate: formatting, lints, host tests, docs and a headless boot test.
+# The 🦀 RustOS Master Pipeline (build.yml) publishes images/releases and
+# tolerates failures so the AI reporter can analyse them — this workflow is the
+# one that must be green before merging.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTC_BOOTSTRAP: "1"
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  # Tooling & documentation: pure Python, finishes in seconds.
+  # ──────────────────────────────────────────────────────────────────────────
+  tooling:
+    name: Tooling & Docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🐍 Python version
+        run: python3 --version
+
+      - name: 🧪 Build-tool unit tests
+        run: python3 -m unittest discover -s tools/tests -v
+
+      - name: 📚 Documentation gate (links + claim drift)
+        run: python3 tools/rustos.py docs
+
+      - name: 🩺 Build tool doctor
+        run: python3 tools/rustos.py doctor
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Formatting
+  # ──────────────────────────────────────────────────────────────────────────
+  fmt:
+    name: cargo fmt
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🦀 Toolchain
+        uses: dtolnay/rust-toolchain@6d653acede28a3815aa42cb00f43cb86b035bf93 # stable
+        with:
+          components: rustfmt
+
+      - name: 🖋️ Check formatting
+        run: cargo fmt --all -- --check
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Clippy: host crates (fast) and the bare-metal kernel target
+  # ──────────────────────────────────────────────────────────────────────────
+  clippy:
+    name: Clippy (${{ matrix.scope }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scope: host
+            packages: -p rustos-web -p builder
+          - scope: kernel
+            packages: -p kernel --target x86_64-unknown-none
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🦀 Toolchain (nightly + rust-src)
+        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        with:
+          components: rust-src, clippy, llvm-tools-preview
+          targets: x86_64-unknown-none
+
+      - name: 📦 Cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-clippy-${{ matrix.scope }}-${{ hashFiles('**/Cargo.toml', 'Cargo.lock') }}
+
+      - name: 🧐 Clippy ${{ matrix.scope }}
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ "${{ matrix.scope }}" = "kernel" ]; then
+            cargo clippy ${{ matrix.packages }} -Z build-std=core,alloc,compiler_builtins -- -D warnings 2>&1 | tee clippy.log
+          else
+            cargo clippy ${{ matrix.packages }} --all-targets -- -D warnings 2>&1 | tee clippy.log
+          fi
+
+      - name: 📤 Upload clippy log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: clippy-${{ matrix.scope }}.log
+          path: clippy.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Host test suite (kernel is excluded: it needs a bare-metal target)
+  # ──────────────────────────────────────────────────────────────────────────
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🦀 Toolchain
+        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        with:
+          components: rust-src, rustfmt, clippy
+          targets: x86_64-unknown-none
+
+      - name: 📦 Cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-test-${{ hashFiles('**/Cargo.toml', 'Cargo.lock') }}
+
+      - name: 🧪 Workspace tests (host)
+        run: cargo test --workspace --exclude kernel -- --nocapture
+
+      - name: 🌐 Browser engine test report
+        run: cargo test -p rustos-web --lib -- --test-threads=1
+
+      - name: 🐍 Python tool tests
+        run: python3 -m unittest discover -s tools/tests -v
+
+      - name: 📊 Write machine readable report
+        if: always()
+        run: python3 tools/rustos.py report > target/rustos-status.json || true
+
+      - name: 📤 Upload report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: verify-report
+          path: target/rustos-status.json
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Build the image and prove it boots (no panic on the serial console)
+  # ──────────────────────────────────────────────────────────────────────────
+  boot:
+    name: Build & Boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🦀 Toolchain (nightly + rust-src)
+        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        with:
+          components: rust-src, llvm-tools-preview
+          targets: x86_64-unknown-none
+
+      - name: 📦 Cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-boot-${{ hashFiles('**/Cargo.toml', 'Cargo.lock') }}
+
+      - name: 🥾 Install QEMU
+        run: sudo apt-get update && sudo apt-get install -y qemu-system-x86
+
+      - name: 🛠️ Build bootable image
+        run: python3 tools/rustos.py build
+
+      - name: 🖥️ Headless boot test
+        run: python3 tools/rustos.py qemu --seconds 20
+
+      - name: 📤 Upload image and serial log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: rustos-image-verify
+          path: |
+            target/my_rust_os_desktop.img
+            target/qemu_serial.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Optional local-LLM failure analysis (read-only, never pushes code)
+  # ──────────────────────────────────────────────────────────────────────────
+  ai-report:
+    name: AI Failure Report
+    needs: [tooling, fmt, clippy, test, boot]
+    if: always() && failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: 🧠 Ask the local model what went wrong
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FAILED: >-
+            tooling=${{ needs.tooling.result }}
+            fmt=${{ needs.fmt.result }}
+            clippy=${{ needs.clippy.result }}
+            test=${{ needs.test.result }}
+            boot=${{ needs.boot.result }}
+        run: |
+          set -euo pipefail
+          echo "Failed jobs: $FAILED"
+          curl -fsSL https://ollama.com/install.sh | command sh
+          ollama serve &
+          sleep 5
+          ollama pull qwen2.5-coder:3b || true
+          PROMPT=$(printf 'You are a Rust systems expert. The RustOS verification pipeline failed.\nJob results: %s\nSuggest the most likely root cause and a minimal fix. You are READ-ONLY: do not modify or push code.' "$FAILED")
+          jq -n --arg prompt "$PROMPT" '{model:"qwen2.5-coder:3b",prompt:$prompt,stream:false}' > payload.json
+          AI_RESPONSE=$(curl -s -X POST http://localhost:11434/api/generate -d @payload.json | jq -r '.response' || echo "model unavailable")
+          gh issue create \
+            --title "🤖 Verify pipeline failure (run ${{ github.run_number }})" \
+            --body "$(printf '## Job results\n\n%s\n\n## AI suggestion\n\n%s\n' "$FAILED" "$AI_RESPONSE")" || true
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Single required status check
+  # ──────────────────────────────────────────────────────────────────────────
+  verify:
+    name: verify
+    needs: [tooling, fmt, clippy, test, boot]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: 📊 Aggregate results
+        run: |
+          echo "tooling : ${{ needs.tooling.result }}"
+          echo "fmt     : ${{ needs.fmt.result }}"
+          echo "clippy  : ${{ needs.clippy.result }}"
+          echo "test    : ${{ needs.test.result }}"
+          echo "boot    : ${{ needs.boot.result }}"
+          failed=0
+          for result in \
+            "${{ needs.tooling.result }}" \
+            "${{ needs.fmt.result }}" \
+            "${{ needs.clippy.result }}" \
+            "${{ needs.test.result }}" \
+            "${{ needs.boot.result }}"; do
+            if [ "$result" != "success" ]; then failed=1; fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "::error::At least one verification job failed"
+            exit 1
+          fi
+          echo "All verification jobs passed."

@@ -184,6 +184,7 @@ impl GraphicalCompositor {
 
     pub fn add_window(&mut self, window: Window) {
         self.windows.push(Some(window));
+        crate::desktop::request_repaint();
     }
 
     #[inline]
@@ -340,6 +341,12 @@ impl GraphicalCompositor {
         }
     }
 
+    /// Fill one scanline.
+    ///
+    /// The whole run is resolved to a single mutable slice and then written in
+    /// `bytes_per_pixel` chunks, which is 2-4x faster than re-checking the
+    /// bounds for every pixel (relevant because the desktop gradient, every
+    /// window fill and every dock layer end up here).
     pub fn draw_hline(&mut self, start_x: usize, end_x: usize, y: usize, r: u8, g: u8, b: u8) {
         if y >= self.info.height || start_x >= self.info.width {
             return;
@@ -360,35 +367,43 @@ impl GraphicalCompositor {
         }
 
         let bpp = self.info.bytes_per_pixel;
-        let mut offset = (y * self.info.stride + start_x) * bpp;
+        let offset = y
+            .checked_mul(self.info.stride)
+            .and_then(|row| row.checked_add(start_x))
+            .and_then(|index| index.checked_mul(bpp));
+        let offset = match offset {
+            Some(offset) => offset,
+            None => return,
+        };
+        let len = match (end_x - start_x).checked_mul(bpp) {
+            Some(len) => len,
+            None => return,
+        };
+        let row = match self.backbuffer.get_mut(offset..offset + len) {
+            Some(row) => row,
+            None => return,
+        };
 
         match self.info.pixel_format {
             PixelFormat::Rgb => {
-                for _ in start_x..end_x {
-                    if let Some(chunk) = self.backbuffer.get_mut(offset..offset + 3) {
-                        chunk[0] = r;
-                        chunk[1] = g;
-                        chunk[2] = b;
+                for pixel in row.chunks_exact_mut(bpp) {
+                    if let Some(target) = pixel.get_mut(0..3) {
+                        target.copy_from_slice(&[r, g, b]);
                     }
-                    offset += bpp;
                 }
             }
             PixelFormat::Bgr => {
-                for _ in start_x..end_x {
-                    if let Some(chunk) = self.backbuffer.get_mut(offset..offset + 3) {
-                        chunk[0] = b;
-                        chunk[1] = g;
-                        chunk[2] = r;
+                for pixel in row.chunks_exact_mut(bpp) {
+                    if let Some(target) = pixel.get_mut(0..3) {
+                        target.copy_from_slice(&[b, g, r]);
                     }
-                    offset += bpp;
                 }
             }
             _ => {
-                for _ in start_x..end_x {
-                    if let Some(val) = self.backbuffer.get_mut(offset) {
-                        *val = b;
+                for pixel in row.chunks_exact_mut(bpp) {
+                    if let Some(target) = pixel.first_mut() {
+                        *target = b;
                     }
-                    offset += bpp;
                 }
             }
         }
@@ -864,9 +879,42 @@ impl GraphicalCompositor {
         }
     }
 
+    /// True while any transition (window opening, dock slide, drag) needs
+    /// 60 Hz frames.
+    fn animations_active(&self) -> bool {
+        if self.dock_y_offset != self.dock_target_offset {
+            return true;
+        }
+        if self.dragging_window.is_some() {
+            return true;
+        }
+        self.windows.iter().flatten().any(|window| {
+            matches!(
+                window.anim_state,
+                crate::desktop::window::WindowAnimState::Opening(_)
+            )
+        })
+    }
+
+    /// Composite and present one frame.
+    ///
+    /// Called by the timer task at 60 Hz, but returns immediately when nothing
+    /// changed: input, network traffic and animations request frames through
+    /// [`crate::desktop::request_repaint`].
     pub fn render_all(&mut self) {
+        self.ticks = self.ticks.wrapping_add(1);
+
+        // 2 Hz forced refresh so clocks, uptime counters and the network
+        // indicator stay truthful even on a completely idle desktop.
+        let housekeeping = self.ticks % 30 == 0;
+        let requested = crate::desktop::take_repaint_request();
         let req =
             crate::desktop::THEME_CHANGE_REQUESTED.load(core::sync::atomic::Ordering::Relaxed);
+        if !(requested || housekeeping || req != 0 || self.full_redraw || self.animations_active())
+        {
+            return;
+        }
+
         if req != 0 {
             // Close all windows
             self.windows.clear();
@@ -883,8 +931,6 @@ impl GraphicalCompositor {
             crate::desktop::THEME_CHANGE_REQUESTED.store(0, core::sync::atomic::Ordering::Relaxed);
             self.full_redraw = true;
         }
-
-        self.ticks = self.ticks.wrapping_add(1);
 
         let mut any_maximized = false;
         for win in self.windows.iter().flatten() {
@@ -1154,6 +1200,58 @@ impl GraphicalCompositor {
         }
     }
 
+    /// Draw a string with the built-in 8x8 font at an arbitrary integer scale.
+    ///
+    /// The advance is exactly `8 * scale` pixels per character, matching the
+    /// metrics used by the `rustos-web` layout engine. `bold` draws a second
+    /// pass offset by one pixel (the font has no bold face).
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_text(
+        &mut self,
+        x: usize,
+        y: usize,
+        text: &str,
+        scale: usize,
+        bold: bool,
+        r: u8,
+        g: u8,
+        b: u8,
+    ) {
+        let scale = scale.clamp(1, 4);
+        let mut cursor = x;
+        for character in text.chars() {
+            if character == '\n' {
+                continue;
+            }
+            if let Some(bitmap) = font8x8::BASIC_FONTS
+                .get(character)
+                .or_else(|| font8x8::LATIN_FONTS.get(character))
+            {
+                for (row, byte) in bitmap.iter().enumerate() {
+                    for col in 0..8 {
+                        if (*byte & (1 << col)) == 0 {
+                            continue;
+                        }
+                        let px = cursor.saturating_add(col * scale);
+                        let py = y.saturating_add(row * scale);
+                        if scale == 1 {
+                            self.draw_pixel(px, py, r, g, b);
+                            if bold {
+                                self.draw_pixel(px.saturating_add(1), py, r, g, b);
+                            }
+                        } else {
+                            self.draw_rect(px, py, scale, scale, r, g, b);
+                            if bold {
+                                self.draw_rect(px.saturating_add(1), py, scale, scale, r, g, b);
+                            }
+                        }
+                    }
+                }
+            }
+            cursor = cursor.saturating_add(8 * scale);
+        }
+    }
+
     pub fn draw_scrollbar(
         &mut self,
         x: usize,
@@ -1201,12 +1299,14 @@ impl GraphicalCompositor {
     }
 
     pub fn dispatch_keyboard_event(&mut self, c: char) {
+        crate::desktop::request_repaint();
         if let Some(Some(window)) = self.windows.last_mut() {
             window.app.handle_event(Event::KeyPress(c));
         }
     }
 
     pub fn dispatch_keycode_event(&mut self, code: u8) {
+        crate::desktop::request_repaint();
         if let Some(Some(window)) = self.windows.last_mut() {
             if code == 0x48 {
                 // Up Arrow
@@ -1220,6 +1320,7 @@ impl GraphicalCompositor {
     }
 
     pub fn handle_mouse_event(&mut self, dx: i32, dy: i32, left_down: bool, _right_down: bool) {
+        crate::desktop::request_repaint();
         self.dirty_rects.push(Rect {
             x: self.mouse_x,
             y: self.mouse_y,

@@ -19,7 +19,28 @@ RustOS is a `#![no_std]` kernel relying heavily on Rust's memory safety guarante
 - **Privilege Escalation:** Escaping userspace boundaries to execute arbitrary code in Ring 0.
 - **CI/CD Supply Chain:** Leaked secrets or injection vulnerabilities in the Multi-Agent `/Jules-brainstormer` and `@rustos-ci` pipelines.
 
+- **Untrusted web content:** `rustos-web` parses attacker-controlled HTML, CSS
+  and HTTP responses while running in Ring 0. Any panic, out-of-bounds access,
+  unbounded allocation or infinite loop reachable from a hostile page/site is in
+  scope (see `docs/webcore.md` for the enforced budgets: 1.5 MiB page body,
+  20 000 nodes, depth 64, 20 000 layout commands, 256 CSS rules).
+- **Network stack:** malformed TCP/HTTP framing that leads to memory exhaustion
+  (the client honours a per-transfer byte budget) or a kernel panic.
+
 *Out of scope:* Physical attacks (e.g., cold boot attacks, hardware fault injections) and physical side-channels.
+
+## Hardening status
+
+| Control | State |
+| --- | --- |
+| `panic = "abort"` + serial panic report | done |
+| User input parsed without `unwrap()`; `FsError` instead of panics | done |
+| Byte budgets on HTTP body, page size, DOM size, layout commands | done |
+| `#![forbid(unsafe_code)]` in the browser engine | done |
+| `clippy -D warnings` + 83 engine tests + hostile-input tests in CI | done |
+| Ollama install script `curl \| sh` in CI | **open** — pin by checksum or use a digest-pinned image |
+| TLS / DNS (currently plain HTTP + static host table) | planned |
+| Ring 3 isolation (everything runs in Ring 0 today) | planned |
 
 ## Reporting a Vulnerability
 

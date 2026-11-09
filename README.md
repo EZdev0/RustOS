@@ -1,76 +1,194 @@
-# 🦀 RustOS (Limbo & QEMU Compatible)
+# 🦀 RustOS — a bare-metal desktop written in Rust
 
-A highly robust, lightweight, bare-metal operating system written entirely in Rust. Designed to be fast, memory-efficient, and compatible with various emulators like **Limbo PC Emulator (Android)** and **QEMU**.
+RustOS is a small but complete `no_std` operating system for `x86_64` PCs: it boots
+from BIOS, brings up a graphical compositor, a window manager, an asynchronous
+task executor, a TCP/IP stack and — since this change — a real **HTML/CSS
+rendering engine**.
 
-## 🚀 Architecture & Compatibility
+It is designed to stay readable (≈8 kLOC of Rust) and to run everywhere from a
+256 MiB QEMU guest to [Limbo PC Emulator](https://play.google.com/store/apps/details?id=com.kobyl.ai) on Android
+phones.
 
-This OS kernel is designed to be **architecture-agnostic** in its core logic (`no_std`, `no_main`), but currently utilizes the `bootloader` crate for seamless `x86_64` (64-bit PC) booting. 
-
-- **Primary Target**: `x86_64-unknown-none`
-- **Boot Protocol**: `bootloader_api` (v0.11.x) - Supports both legacy BIOS (MBR) and modern UEFI booting natively!
-- **Limbo PC Emulator**: The generated `.img` file is 100% compatible with Limbo PC Emulator (x86_64 architecture setting). Just mount the `target/my_rust_os_desktop.img` as a Hard Disk (IDE/SATA) in Limbo and boot!
-- **Cross-Architecture Scalability**: Because the GUI logic (in `kernel/src/desktop`) interacts strictly with a generic linear `Framebuffer`, the kernel can easily be extended to support `aarch64` (ARM) in the future by simply swapping the bootloader layer (e.g., to u-boot or direct aarch64 UEFI).
-
-## 📁 Deep Analysis of the Project Structure
-
-### 1. The Kernel (`kernel/`)
-The heart of the OS. Runs entirely in ring-0 (supervisor mode) without any underlying operating system.
-- **`src/main.rs`**: The main entry point. Sets up the Heap Allocator, IDT, initializes the graphical compositor, and manages the Window/App lifecycle.
-- **`src/interrupts.rs`**: Manages Hardware Interrupts! Implements the x86_64 IDT and places keyboard events safely into a lock-free `KEY_QUEUE` array.
-- **`src/desktop/compositor.rs`**: A custom Window Manager and software-rendering engine!
-  - Features an object-oriented architecture (`Vec<Option<Window>>`) to safely composite multiple `Box<dyn App>` applications on the screen.
-  - Linear Framebuffer abstraction (`draw_pixel`, `draw_rect`) and `font8x8` text rendering.
-- **`src/desktop/app.rs`**: Defines the dynamic `App` trait for user-space applications (e.g. `NotepadApp`) to handle events and draw to the Compositor.
-- **Cargo.toml**: Heavily optimized for "CachyOS"-style performance using `lto = "fat"`, `codegen-units = 1`, and `opt-level = 3`.
-
-### 2. The Builder (`builder/`)
-A custom Rust host application that acts as a wrapper around the build system.
-- Compiles the kernel for the `x86_64-unknown-none` target using Cargo.
-- Takes the compiled ELF binary and converts it into a bootable MBR Disk Image using `bootloader::BiosBoot::new()`.
-- Automatically invokes `qemu-system-x86_64` with the generated image.
-
-## 🤖 Smart CI/CD Pipeline (AI Integrated)
-
-The repository features an ultra-modern GitHub Actions workflow inspired by systems like *JulesOS* and *WebEngine2.0*. 
-- **Auto-Compilation & Release**: Automatically builds the `.img` and creates GitHub Releases.
-- **Local AI Bug Reporter (Ollama)**: If the kernel compilation fails, the pipeline automatically installs Ollama, pulls the `qwen2.5-coder:3b` LLM directly onto the GitHub Runner, feeds it the compiler logs, and automatically opens a GitHub Issue with an AI-generated fix!
-
-## 🛡️ Stability, Multi-Threading & RAM Optimizations
-
-Building operating systems from source is extremely memory-intensive (often crashing mobile environments like Termux due to RAM limits). To guarantee stability and prevent Out-Of-Memory (OOM) crashes on 12GB/8GB devices:
-
-1. **Strict Thread Capping (`.cargo/config.toml`)**:
-   We restricted Cargo to `jobs = 4`. This ensures multi-threading is used for speed, but the parallel spawned `rustc` processes won't consume more than 4-6 GB of RAM collectively.
-2. **Codegen-Unit Tuning**:
-   We set `codegen-units = 8` for release builds. This dramatically reduces the compiler's memory footprint during the optimization and LLVM generation phases.
-3. **Compiler Trick (`RUSTC_BOOTSTRAP=1`)**:
-   The `Makefile` dynamically injects `RUSTC_BOOTSTRAP=1` to allow building the required Nightly Rust features (`-Z build-std`) using the stable compiler provided by Termux! This guarantees zero crashes and high compatibility across toolchains.
-
-## 🛠️ How to Build and Run
-
-### Prerequisites
-Make sure you have Rust and an Emulator installed:
-```bash
-# On Termux
-pkg install rust rust-src qemu-system-x86-64-headless make
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ top bar: clock · network indicator                                   │
+│ ┌────────────────────────────┐   ┌───────────────────────────────┐   │
+│ │ Web Browser                │   │ Terminal                      │   │
+│ │  URL bar / status          │   │  $ ls                         │   │
+│ │  rendered HTML + CSS       │   │  $ cat /readme.txt            │   │
+│ └────────────────────────────┘   └───────────────────────────────┘   │
+│                        [dock: 7 apps]                                │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Build & Run (QEMU)
-```bash
-make run
-```
-This will safely compile the OS across multiple threads, link the bootloader, and boot it headlessly or in an X11 window.
+---
 
-### Run on Limbo PC Emulator (Android)
-1. Run the build step above.
-2. Copy `target/my_rust_os_desktop.img` to your Android internal storage (e.g., `/sdcard/Download/`).
-3. Open Limbo PC Emulator.
-4. Create a new Machine (Architecture: `x64`, CPU Model: `qemu64`, RAM: `512MB`).
-5. Under Hard Disk A, select the copied `.img` file.
-6. Press ▶️ Play!
+## ✅ What works today
+
+| Area | Status |
+| --- | --- |
+| Boot | BIOS via `bootloader_api` 0.11 (MBR disk image), `x86_64-unknown-none` |
+| CPU | GDT + TSS, IDT, double-fault stack, PIT @ 1 kHz, PS/2 keyboard + mouse |
+| Memory | 16 MiB static heap (`linked_list_allocator`) with allocation tracking |
+| Scheduling | Custom async executor (`Task`/`Waker`, lock-free ready queue) |
+| Graphics | Software compositor, back buffer, damage rectangles, shadows, "glass" dock, glyph cache-free 8×8 font |
+| Networking | `smoltcp` + Intel E1000, ICMP echo, HTTP/1.1 client with per-transfer byte budget |
+| Files | In-memory filesystem with a path-safe API (`FsError` instead of panics) |
+| Browser | `rustos-web`: URL parsing, HTTP streaming decoder, HTML parser, CSS subset, block/inline layout engine |
+| Tooling | `python3 tools/rustos.py …` — no `make`/`bash`/`binutils` required on the host |
+| CI | `verify.yml` (hard gate) + `build.yml` (images, releases, AI reporter) |
+
+Deliberately **not** implemented: user mode/ring 3, paging, TLS, DNS, JavaScript,
+images/pixels from `<img>`, floats in the renderer. See
+[docs/browser_engine_2026.md](docs/browser_engine_2026.md) for why, and for the
+roadmap that would remove each limitation.
+
+---
+
+## 🚀 Quick start
+
+```bash
+# 1. Toolchain (nightly is required for -Z build-std)
+rustup toolchain install nightly --component rust-src llvm-tools-preview
+rustup target add x86_64-unknown-none
+
+# 2. Check the machine and build the bootable image
+python3 tools/rustos.py doctor
+python3 tools/rustos.py build        # -> target/my_rust_os_desktop.img
+
+# 3. Boot it
+python3 tools/rustos.py qemu         # headless serial smoke test
+#   or: qemu-system-x86_64 -drive format=raw,file=target/my_rust_os_desktop.img
+```
+
+Everything the tool does is also plain cargo:
+
+```bash
+cargo run --bin builder          # build kernel + MBR image (+ QEMU when not in CI)
+cargo test --workspace --exclude kernel
+cargo clippy -p rustos-web -p builder --all-targets -- -D warnings
+```
+
+### On Android (Termux / Limbo)
+
+```bash
+pkg install rust rust-src qemu-system-x86-64-headless python
+python3 tools/rustos.py build
+# copy target/my_rust_os_desktop.img to /sdcard/Download, then in Limbo:
+#   Architecture: x64 · CPU: qemu64 · RAM: 512 MB · HD-A: the .img file
+```
+
+Termux ships a stable `rustc`; the builder exports `RUSTC_BOOTSTRAP=1` so the
+`-Z build-std` flags used for `x86_64-unknown-none` work there too. Memory
+constraints and workarounds are documented in
+[docs/build_tooling.md](docs/build_tooling.md).
+
+---
+
+## 📁 Repository layout
+
+```text
+kernel/        ring-0 kernel: desktop, drivers, network, scheduler, fs
+rustos-web/    browser engine core (no_std, zero dependencies, host-testable)
+builder/       host tool: compiles the kernel, links the bootloader, writes the image
+tools/         python build/verification tool + its unit tests
+docs/          architecture, browser research, CI, performance, tooling
+.github/       workflows (verify = hard gate, build = release pipeline)
+```
+
+### `kernel/` — the operating system
+
+| File | Purpose |
+| --- | --- |
+| `src/main.rs` | entry point: GDT/IDT/PIC/PIT, heap, PCI + E1000, boot animation, task spawn, panic handler (red screen **and** serial) |
+| `src/desktop/compositor.rs` | window manager + software renderer, damage-rect presentation, **idle frame skipping** |
+| `src/desktop/browser.rs` | browser chrome; drives one `PageEngine` and replays its display list |
+| `src/desktop/{terminal,notepad,filemanager,taskmanager,settings,updater}.rs` | the pre-installed apps |
+| `src/network/mod.rs` | `smoltcp` glue, HTTP client state machine, byte budgets |
+| `src/task/` | executor, keyboard/mouse/timer streams, `yield_now` |
+| `src/fs/mod.rs` | in-memory filesystem |
+| `src/interrupts.rs`, `src/gdt.rs`, `src/allocator.rs`, `src/serial.rs` | low-level plumbing |
+
+### `rustos-web/` — the browser engine core
+
+Zero dependencies, `#![forbid(unsafe_code)]`, unit tested on the host (83 tests),
+and compiled into the kernel for the bare-metal target:
+
+```text
+Url::parse ─► http::request_bytes ─► [ TCP socket ]
+                                        │
+      http::ResponseParser ◄────────────┘   incremental, chunk-safe, bounded
+                  │
+                  ▼
+            html::Document      forgiving parser, max depth 64 / 20k nodes
+                  │
+      style::StyleSheet (tag + .class + #id rules)
+                  │
+                  ▼
+      layout::layout_document ─► Layout { Vec<DrawCmd> }
+                  │
+                  ▼
+      compositor draws rects + glyph runs (only the visible ones)
+```
+
+Details, supported HTML/CSS subsets and limits: [docs/webcore.md](docs/webcore.md).
+Full documentation index: [docs/README.md](docs/README.md).
+
+---
+
+## 🧠 Why the UI does not lag
+
+Three rules, all enforced in code:
+
+1. **Layout once, paint many times.** Parsing, styling and layout run on page
+   load or resize; a frame only replays a flat display list.
+2. **No idle frames.** `GraphicalCompositor::render_all` returns immediately
+   unless a repaint was requested (input, network, animation) or the 2 Hz
+   housekeeping tick is due — an idle desktop costs ~0 % CPU instead of a
+   full-screen composite 60 times per second.
+3. **Damage rectangles.** Only changed regions are copied from the back buffer
+   to the framebuffer, and only commands intersecting the viewport are drawn.
+
+Measurements, arithmetic and the tuning knobs: [docs/rendering_performance.md](docs/rendering_performance.md).
+
+---
+
+## 🧪 Testing & CI
+
+```bash
+python3 tools/rustos.py verify        # fmt + clippy + rust tests + python tests + docs
+python3 tools/rustos.py verify --full # additionally lints the kernel target
+```
+
+* `rustos-web`: 83 unit tests (URL, HTTP framing, HTML repair, CSS cascade,
+  layout, hostile input, command budget).
+* `builder`: CPUID feature detection tests.
+* `tools/tests`: 33 tests for the build tool (manifest parsing, image validation,
+  serial-log scanning, documentation gate).
+* Kernel: boot-tested in QEMU on every push — the serial log must contain the
+  `[boot]` banner and no panic markers.
+
+Pipeline documentation, required checks and the read-only AI failure reporter:
+[docs/ci.md](docs/ci.md).
+
+---
+
+## 🛡️ Stability & memory rules
+
+* Kernel heap is a static **16 MiB** array; every subsystem has an explicit cap
+  (page body 1.5 MiB, HTTP response 4 MiB, 20k layout commands, 20k DOM nodes,
+  64 nesting levels).
+* No `unwrap()` on user input, no unchecked slicing in the parser, no recursion
+  while parsing markup.
+* `panic = "abort"` everywhere; the panic handler paints a red screen **and**
+  writes to COM1 so CI can see it.
+* Build profiles are tuned for a small, fast binary: `opt-level = 3`,
+  `lto = "fat"`, `codegen-units = 1`, `strip = "debuginfo"`.
+
+Security policy and threat model: [SECURITY.md](SECURITY.md).
+
+---
 
 ## 📜 License
-GNU GENERAL PUBLIC LICENSE
-                       Version 3, 29 June 2007
 
- Copyright (C) 2007 Free Software Foundation, Inc. <https://fsf.org/>
+GNU General Public License v3.0 — see [LICENSE](LICENSE).
