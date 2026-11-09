@@ -208,6 +208,30 @@ def cmd_build(report: lib.Report) -> int:
     return 0 if image["bootable"] else 1
 
 
+def emit_annotations(lines: list[str]) -> None:
+    """Print GitHub Actions annotations (no-op outside CI)."""
+    if not os.environ.get("GITHUB_ACTIONS"):
+        return
+    for line in lines:
+        say(line)
+
+
+def cmd_annotate(args: argparse.Namespace) -> int:
+    """Convert a captured log into GitHub Actions annotations."""
+    path = Path(args.file)
+    if not path.exists():
+        emit_annotations([lib.gha_error(f"{path} does not exist")])
+        return 0
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if args.mode == "clippy":
+        lines = lib.clippy_annotations(text, args.limit)
+    else:
+        lines = lib.annotate_lines(text, args.limit)
+    for line in lines:
+        say(line)
+    return 0
+
+
 def cmd_qemu(args: argparse.Namespace) -> int:
     image = lib.inspect_image(IMAGE)
     if not image["exists"]:
@@ -244,9 +268,11 @@ def cmd_qemu(args: argparse.Namespace) -> int:
     if failures:
         say(color("panic markers found:", RED))
         say("\n".join(f"  {line}" for line in failures[:10]))
+        emit_annotations(lib.annotate_lines(text, 8))
         return 1
     if not text.strip():
         say(color("serial log is empty - the kernel printed nothing", YELLOW))
+        emit_annotations([f"serial log is empty; qemu said: {lib.tail(output, 3)}"])
         return 1
     if not lib.boot_marker_present(text):
         say(
@@ -256,6 +282,7 @@ def cmd_qemu(args: argparse.Namespace) -> int:
             )
         )
         say(lib.tail(text, 15))
+        emit_annotations(lib.annotate_lines(text, 6))
         return 1
     say(color("boot test passed: no panic markers", GREEN))
     return 0
@@ -295,6 +322,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("build", help="build kernel and bootable image")
     qemu = sub.add_parser("qemu", help="headless boot smoke test")
     qemu.add_argument("--seconds", type=int, default=15)
+
+    annotate = sub.add_parser(
+        "annotate", help="turn a captured log into GitHub Actions annotations"
+    )
+    annotate.add_argument("--file", required=True)
+    annotate.add_argument("--limit", type=int, default=8)
+    annotate.add_argument("--mode", choices=("clippy", "tail"), default="tail")
     verify = sub.add_parser("verify", help="fmt + clippy + tests + docs")
     verify.add_argument("--full", action="store_true", help="include kernel clippy")
     sub.add_parser("report", help="print a JSON status report")
@@ -318,6 +352,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if run_docs(report) else 1
     if args.command == "build":
         return cmd_build(report)
+    if args.command == "annotate":
+        return cmd_annotate(args)
     if args.command == "qemu":
         return cmd_qemu(args)
     if args.command == "verify":

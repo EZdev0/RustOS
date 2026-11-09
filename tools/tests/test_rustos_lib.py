@@ -192,6 +192,54 @@ class ConsistencyTests(unittest.TestCase):
             self.assertTrue(any(".cargo/config.toml" in problem for problem in problems))
 
 
+class AnnotationTests(unittest.TestCase):
+    def test_percent_is_escaped(self):
+        self.assertEqual(lib.gha_escape("100% ok"), "100%25 ok")
+        self.assertEqual(lib.gha_escape("a\nb"), "a%0Ab")
+
+    def test_ansi_is_stripped(self):
+        self.assertEqual(lib.strip_ansi("\x1b[1mbold\x1b[0m"), "bold")
+        self.assertNotIn("\x1b", lib.gha_error("\x1b[31mred\x1b[0m panic"))
+
+    def test_annotation_prefix_is_not_doubled(self):
+        self.assertEqual(lib.gha_error("::error::already"), "::error::already")
+        self.assertTrue(lib.gha_error("boom").startswith("::error::"))
+
+    def test_annotate_lines_keeps_the_tail(self):
+        text = "\n".join(f"line{i}" for i in range(20))
+        lines = lib.annotate_lines(text, 3)
+        self.assertEqual(len(lines), 3)
+        self.assertIn("line19", lines[-1])
+
+    def test_annotate_lines_handles_empty_output(self):
+        lines = lib.annotate_lines("   \n\n", 5)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("no output", lines[0])
+
+    def test_clippy_annotations_pair_location(self):
+        log = (
+            "   Checking kernel v0.2.0\n"
+            "error: unused variable: `width`\n"
+            "  --> kernel/src/desktop/browser.rs:120:9\n"
+            "warning: this loop never loops\n"
+            "  --> kernel/src/x.rs:9:5\n"
+        )
+        lines = lib.clippy_annotations(log)
+        self.assertEqual(len(lines), 2)
+        self.assertIn("browser.rs:120:9", lines[0])
+        self.assertIn("unused variable", lines[0])
+
+    def test_clippy_annotations_fall_back_to_tail(self):
+        log = "error: could not compile `kernel`\nno location\n"
+        lines = lib.clippy_annotations(log)
+        self.assertTrue(lines)
+        self.assertTrue(all(line.startswith("::error::") for line in lines))
+
+    def test_clippy_annotations_respect_limit(self):
+        log = "\n".join(f"error: e{i}\n  --> f.rs:{i}:1" for i in range(30))
+        self.assertEqual(len(lib.clippy_annotations(log, 4)), 4)
+
+
 class DocIndexTests(unittest.TestCase):
     def test_unlinked_doc_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -301,7 +349,7 @@ class CliSmokeTests(unittest.TestCase):
         self.assertTrue(actions, "no subcommand action")
         choices = set(actions[0].choices)
         for command in ("doctor", "fmt", "clippy", "test", "docs", "build", "qemu",
-                        "verify", "report"):
+                        "verify", "report", "annotate"):
             self.assertIn(command, choices)
 
     def test_doctor_runs(self):

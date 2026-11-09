@@ -152,6 +152,51 @@ def scan_log_for_panics(text: str) -> list[str]:
     return hits
 
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences (colour codes in captured output)."""
+    return _ANSI_RE.sub("", text)
+
+
+def gha_escape(text: str) -> str:
+    """Escape a message for a GitHub Actions workflow command."""
+    return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+
+
+def gha_error(message: str) -> str:
+    """Build an `::error::` annotation line from arbitrary captured output."""
+    clean = strip_ansi(message).replace("\r", "").strip()
+    clean = clean.replace("::error::", "").replace("::warning::", "")
+    return "::error::" + gha_escape(clean)
+
+
+def annotate_lines(text: str, limit: int = 8) -> list[str]:
+    """Turn the last `limit` non-empty lines into annotations."""
+    lines = [line for line in strip_ansi(text).splitlines() if line.strip()]
+    if not lines:
+        return [gha_error("(no output was captured)")]
+    return [gha_error(line) for line in lines[-limit:]]
+
+
+def clippy_annotations(text: str, limit: int = 8) -> list[str]:
+    """Pick compiler diagnostics out of a clippy/cargo log for annotations."""
+    lines = strip_ansi(text).splitlines()
+    found: list[str] = []
+    for index, line in enumerate(lines):
+        if re.match(r"^(error|warning)(\[[^\]]*\])?:", line):
+            location = ""
+            if index + 1 < len(lines):
+                following = lines[index + 1].strip()
+                if following.startswith("-->"):
+                    location = " @ " + following[3:].strip()
+            found.append(gha_error(line + location))
+            if len(found) >= limit:
+                break
+    return found or annotate_lines(text, limit)
+
+
 def boot_marker_present(text: str) -> bool:
     """True when the kernel actually reached `kernel_main`."""
     return BOOT_MARKER in text

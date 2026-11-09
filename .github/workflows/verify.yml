@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 concurrency:
@@ -102,33 +102,26 @@ jobs:
       - name: 🧐 Clippy ${{ matrix.scope }}
         shell: bash
         run: |
-          annotate() {
-            # Job logs and artifacts can be unreachable; annotations are not.
-            local file="$1" count="$2" line
-            tail -n "$count" "$file" | while IFS= read -r line; do
-              line="${line//'%'/'%25'}"
-              line="${line//$'\r'/}"
-              echo "::error::${line#::error::}"
-            done
-          }
-          set +e
           if [ "${{ matrix.scope }}" = "kernel" ]; then
             cargo clippy ${{ matrix.packages }} \
               -Z build-std=core,alloc,compiler_builtins \
               -Z build-std-features=compiler-builtins-mem \
-              -- -D warnings > clippy.log 2>&1
+              -- -D warnings > clippy.log 2>&1 && rc=0 || rc=$?
           else
-            cargo clippy ${{ matrix.packages }} --all-targets -- -D warnings > clippy.log 2>&1
+            cargo clippy ${{ matrix.packages }} --all-targets -- -D warnings \
+              > clippy.log 2>&1 && rc=0 || rc=$?
           fi
-          rc=$?
           tail -n 40 clippy.log
-          if [ $rc -ne 0 ]; then
-            # "error: ..." plus the following "--> file:line:col" location.
-            awk '/^(error|warning)(\[[^]]+\])?:/ { loc=""; if ((getline nxt) > 0) { if (nxt ~ /-->/ ) loc=" @ " nxt; } print $0 loc }' \
-              clippy.log | head -n 10 > errors.log || true
-            annotate errors.log 10
+          if [ "$rc" -ne 0 ]; then
+            python3 tools/rustos.py annotate --file clippy.log --mode clippy || true
           fi
-          exit $rc
+          exit "$rc"
+
+      - name: 🚑 Publish logs (diagnostics)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/ci/publish_logs.sh
 
       - name: 📤 Upload clippy log
         if: always()
@@ -220,27 +213,21 @@ jobs:
       - name: 🖥️ Headless boot test
         shell: bash
         run: |
-          annotate() {
-            # Job logs and artifacts can be unreachable; annotations are not.
-            local file="$1" count="$2" line
-            tail -n "$count" "$file" | while IFS= read -r line; do
-              line="${line//'%'/'%25'}"
-              line="${line//$'\r'/}"
-              echo "::error::${line#::error::}"
-            done
-          }
-          python3 tools/rustos.py qemu --seconds 20 > boot.log 2>&1
-          rc=$?
+          python3 tools/rustos.py qemu --seconds 20 > boot.log 2>&1 && rc=0 || rc=$?
           cat boot.log
-          if [ $rc -ne 0 ]; then
-            annotate boot.log 8
+          if [ "$rc" -ne 0 ]; then
+            python3 tools/rustos.py annotate --file boot.log --limit 8 || true
             if [ -f target/qemu_serial.log ]; then
-              echo "--- serial log (tail) ---"
-              tail -n 20 target/qemu_serial.log
-              annotate target/qemu_serial.log 8
+              python3 tools/rustos.py annotate --file target/qemu_serial.log --limit 8 || true
             fi
           fi
-          exit $rc
+          exit "$rc"
+
+      - name: 🚑 Publish logs (diagnostics)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash tools/ci/publish_logs.sh
 
       - name: 📤 Upload image and serial log
         if: always()
