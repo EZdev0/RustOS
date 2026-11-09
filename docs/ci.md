@@ -125,12 +125,28 @@ moving target. Follow-up (tracked in `SECURITY.md`): pin the installer by SHA-25
 or use a container image digest. The reporter is best-effort: `|| true` keeps a
 failed install from hiding the real job failure.
 
+## Verified state
+
+Both pipelines were re-run on 2026-11-09 and are green end to end:
+
+| Run | Workflow | Result |
+| --- | --- | --- |
+| `42701358011` | ✅ RustOS Verify | 7/7 jobs: tooling & docs, fmt, clippy host, clippy kernel, tests, build & boot (two QEMU boots), `verify` |
+| `42701357544` | 🦀 RustOS Master Pipeline | 3/3 platforms built, image analysis succeeded, summary succeeded (release skipped on PRs) |
+
+Kernel clippy runs with `-D warnings` against `x86_64-unknown-none`, so the
+bare-metal code is linted as strictly as the host crates. The only finding that
+was still open after the first green run was `cargo`'s optional
+`unused_crate_dependencies` note about `volatile` in `kernel/Cargo.toml`; it is a
+nightly `cargo` lint, not a `rustc`/clippy warning, and it does not fail the job.
+
 ## Artifacts
 
 | Artifact | Content | Retention |
 | --- | --- | --- |
 | `rustos-image-verify` | `my_rust_os_desktop.img`, `qemu_serial.log` | 7 days |
 | `clippy-host.log`, `clippy-kernel.log` | full lint output | 7 days |
+| `boot.log`, `boot-none.log` | output of both boot tests | 7 days |
 | `verify-report` | `target/rustos-status.json` (workspace, image, docs status) | 7 days |
 | `RustOS-Limbo-Image-*` | per-OS images from the master pipeline | 14 days |
 | `RustOS-Analysis-Report` | binwalk/fdisk report | 14 days |
