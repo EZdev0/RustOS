@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 🦀 Toolchain
-        uses: dtolnay/rust-toolchain@6d653acede28a3815aa42cb00f43cb86b035bf93 # stable
+        uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
         with:
           components: rustfmt
 
@@ -85,7 +85,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 🦀 Toolchain (nightly + rust-src)
-        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
         with:
           components: rust-src, clippy, llvm-tools-preview
           targets: x86_64-unknown-none
@@ -102,12 +102,33 @@ jobs:
       - name: 🧐 Clippy ${{ matrix.scope }}
         shell: bash
         run: |
-          set -o pipefail
+          annotate() {
+            # Job logs and artifacts can be unreachable; annotations are not.
+            local file="$1" count="$2" line
+            tail -n "$count" "$file" | while IFS= read -r line; do
+              line="${line//'%'/'%25'}"
+              line="${line//$'\r'/}"
+              echo "::error::${line#::error::}"
+            done
+          }
+          set +e
           if [ "${{ matrix.scope }}" = "kernel" ]; then
-            cargo clippy ${{ matrix.packages }} -Z build-std=core,alloc,compiler_builtins -- -D warnings 2>&1 | tee clippy.log
+            cargo clippy ${{ matrix.packages }} \
+              -Z build-std=core,alloc,compiler_builtins \
+              -Z build-std-features=compiler-builtins-mem \
+              -- -D warnings > clippy.log 2>&1
           else
-            cargo clippy ${{ matrix.packages }} --all-targets -- -D warnings 2>&1 | tee clippy.log
+            cargo clippy ${{ matrix.packages }} --all-targets -- -D warnings > clippy.log 2>&1
           fi
+          rc=$?
+          tail -n 40 clippy.log
+          if [ $rc -ne 0 ]; then
+            # "error: ..." plus the following "--> file:line:col" location.
+            awk '/^(error|warning)(\[[^]]+\])?:/ { loc=""; if ((getline nxt) > 0) { if (nxt ~ /-->/ ) loc=" @ " nxt; } print $0 loc }' \
+              clippy.log | head -n 10 > errors.log || true
+            annotate errors.log 10
+          fi
+          exit $rc
 
       - name: 📤 Upload clippy log
         if: always()
@@ -129,7 +150,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 🦀 Toolchain
-        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
         with:
           components: rust-src, rustfmt, clippy
           targets: x86_64-unknown-none
@@ -176,7 +197,7 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: 🦀 Toolchain (nightly + rust-src)
-        uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb # nightly
+        uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
         with:
           components: rust-src, llvm-tools-preview
           targets: x86_64-unknown-none
@@ -197,7 +218,29 @@ jobs:
         run: python3 tools/rustos.py build
 
       - name: 🖥️ Headless boot test
-        run: python3 tools/rustos.py qemu --seconds 20
+        shell: bash
+        run: |
+          annotate() {
+            # Job logs and artifacts can be unreachable; annotations are not.
+            local file="$1" count="$2" line
+            tail -n "$count" "$file" | while IFS= read -r line; do
+              line="${line//'%'/'%25'}"
+              line="${line//$'\r'/}"
+              echo "::error::${line#::error::}"
+            done
+          }
+          python3 tools/rustos.py qemu --seconds 20 > boot.log 2>&1
+          rc=$?
+          cat boot.log
+          if [ $rc -ne 0 ]; then
+            annotate boot.log 8
+            if [ -f target/qemu_serial.log ]; then
+              echo "--- serial log (tail) ---"
+              tail -n 20 target/qemu_serial.log
+              annotate target/qemu_serial.log 8
+            fi
+          fi
+          exit $rc
 
       - name: 📤 Upload image and serial log
         if: always()

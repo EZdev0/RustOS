@@ -231,7 +231,13 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         "256M",
     ]
     say(f"{BOLD}==> qemu boot test ({args.seconds}s){RESET}")
-    code, _ = lib.run_command(argv, ROOT, timeout=args.seconds)
+    say(f"  {' '.join(argv)}")
+    code, output = lib.run_command(argv, ROOT, timeout=args.seconds)
+    if output.strip():
+        say(color("qemu output:", YELLOW))
+        say(lib.tail(output, 12))
+    if code not in (0, 124):
+        say(color(f"qemu exited with {code}", RED))
     text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
     failures = lib.scan_log_for_panics(text)
     say(f"serial log: {log_path} ({lib.human_bytes(len(text))})")
