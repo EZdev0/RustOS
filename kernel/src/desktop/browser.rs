@@ -452,10 +452,8 @@ impl App for BrowserApp {
                 '\x08' => {
                     self.url_bar.pop();
                 }
-                other if !other.is_control() => {
-                    if self.url_bar.chars().count() < 180 {
-                        self.url_bar.push(other);
-                    }
+                other if !other.is_control() && self.url_bar.chars().count() < 180 => {
+                    self.url_bar.push(other);
                 }
                 _ => {}
             },

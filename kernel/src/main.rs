@@ -12,6 +12,7 @@ pub mod gdt;
 pub mod hardware;
 pub mod interrupts;
 pub mod network;
+pub mod paging;
 pub mod serial;
 pub mod task;
 use crate::desktop::app::App;

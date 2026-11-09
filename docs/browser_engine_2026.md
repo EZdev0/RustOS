@@ -99,6 +99,7 @@ Two observations matter for an operating system:
 
 | Limitation | Reason | Roadmap |
 | --- | --- | --- |
+| Network needs mapped MMIO | the kernel does not build page tables, so PCI BARs are unmapped and the NIC is skipped | kernel page tables + MMIO mapping + DMA address translation |
 | `http://` only, no TLS | TLS needs a crypto stack + RNG + certificates (megabytes) | TLS 1.3 with `embedded-tls` + RDRAND, after paging |
 | No DNS | `smoltcp` supports a DNS socket; needs async wiring + a resolver cache | `socket-dns` + hosts table |
 | No JavaScript | needs a JS interpreter + heap/paging | optional Boa in ring 3 |

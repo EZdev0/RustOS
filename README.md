@@ -32,14 +32,14 @@ phones.
 | Memory | 16 MiB static heap (`linked_list_allocator`) with allocation tracking |
 | Scheduling | Custom async executor (`Task`/`Waker`, lock-free ready queue) |
 | Graphics | Software compositor, back buffer, damage rectangles, shadows, "glass" dock, glyph cache-free 8×8 font |
-| Networking | `smoltcp` + Intel E1000, ICMP echo, HTTP/1.1 client with per-transfer byte budget |
+| Networking | `smoltcp` + Intel E1000, ICMP echo, HTTP/1.1 client with per-transfer byte budget — **disabled automatically when the bootloader did not map the PCI BAR** (see [docs/http_network_indicator.md](docs/http_network_indicator.md)) |
 | Files | In-memory filesystem with a path-safe API (`FsError` instead of panics) |
 | Browser | `rustos-web`: URL parsing, HTTP streaming decoder, HTML parser, CSS subset, block/inline layout engine |
 | Tooling | `python3 tools/rustos.py …` — no `make`/`bash`/`binutils` required on the host |
 | CI | `verify.yml` (hard gate) + `build.yml` (images, releases, AI reporter) |
 
-Deliberately **not** implemented: user mode/ring 3, paging, TLS, DNS, JavaScript,
-images/pixels from `<img>`, floats in the renderer. See
+Deliberately **not** implemented: user mode/ring 3, own page tables/MMIO mapping,
+TLS, DNS, JavaScript, images from `<img>`, floats in the renderer. See
 [docs/browser_engine_2026.md](docs/browser_engine_2026.md) for why, and for the
 roadmap that would remove each limitation.
 
@@ -108,6 +108,7 @@ docs/          architecture, browser research, CI, performance, tooling
 | `src/task/` | executor, keyboard/mouse/timer streams, `yield_now` |
 | `src/fs/mod.rs` | in-memory filesystem |
 | `src/interrupts.rs`, `src/gdt.rs`, `src/allocator.rs`, `src/serial.rs` | low-level plumbing |
+| `src/paging.rs` | read-only page-table walk (`is_mapped`), used by drivers to refuse unmapped MMIO |
 
 ### `rustos-web/` — the browser engine core
 

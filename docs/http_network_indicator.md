@@ -70,7 +70,34 @@ never allowed to fill up because a server keeps sending.
   in the UI task, no busy waiting.
 * `http_state()` drives the browser status text ("Loading…", "Done", "Failed").
 
+### Device MMIO must be mapped by the bootloader
+
+The kernel runs on the page tables installed by `bootloader_api` 0.11, which map
+the kernel, the boot info and the framebuffer — **not** PCI BARs. Reading the
+e1000's MAC register (`BAR0 + 0x5400`) therefore raised a page fault on every
+boot with a NIC present, and because the panic handler used to write only to the
+framebuffer, CI never noticed.
+
+`hardware/e1000.rs::init_e1000` now asks `paging::is_range_mapped(bar, 0x6000)`
+first. When the window is not mapped it logs
+
+```text
+[net] e1000 at 0xfeb80000 is not mapped by the bootloader - networking disabled
+```
+
+and returns `None`, leaving `NETWORK_MANAGER` unset. `network_task` and every
+`start_http_request_*` call handle that case, so the desktop boots normally and
+the browser shows "Network unavailable" instead of taking the kernel down.
+
+Note that DMA is broken for the same reason: descriptor addresses are computed as
+`virtual.saturating_sub(physical_memory_offset)`, which is only correct once the
+kernel manages its own address space. Making the NIC fully functional needs the
+same piece of work as mapping MMIO — tracked in
+[browser_engine_2026.md](browser_engine_2026.md).
+
 ### Known limitations
+* **No MMIO mapping.** A NIC is only used when its BAR is already mapped (see
+  above); otherwise networking is disabled with a log line.
 * **No TLS.** Only `http://` URLs are accepted; `https://` shows a clear error.
   A TLS 1.3 client with a pinned root store is on the roadmap (needs an entropy
   source and more heap than the current 16 MiB static heap leaves spare).
