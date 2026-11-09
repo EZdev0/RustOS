@@ -164,10 +164,11 @@ python3 tools/rustos.py verify --full # additionally lints the kernel target
 * `rustos-web`: 83 unit tests (URL, HTTP framing, HTML repair, CSS cascade,
   layout, hostile input, command budget).
 * `builder`: CPUID feature detection tests.
-* `tools/tests`: 33 tests for the build tool (manifest parsing, image validation,
+* `tools/tests`: 44 tests for the build tool (manifest parsing, image validation,
   serial-log scanning, documentation gate).
-* Kernel: boot-tested in QEMU on every push — the serial log must contain the
-  `[boot]` banner and no panic markers.
+* Kernel: boot-tested in QEMU on every push — twice: without network hardware and
+  with an explicit e1000 NIC. The serial log must contain the `[boot]` banner and
+  no panic markers.
 
 Pipeline documentation, required checks and the read-only AI failure reporter:
 [docs/ci.md](docs/ci.md).

@@ -341,6 +341,14 @@ class TailTests(unittest.TestCase):
 class CliSmokeTests(unittest.TestCase):
     """The CLI must be importable and its parser must expose every command."""
 
+    def test_qemu_net_option(self):
+        import rustos
+
+        parser = rustos.build_parser()
+        args = parser.parse_args(["qemu", "--net", "none", "--seconds", "1"])
+        self.assertEqual(args.net, "none")
+        self.assertEqual(args.seconds, 1)
+
     def test_parser_commands(self):
         import rustos
 

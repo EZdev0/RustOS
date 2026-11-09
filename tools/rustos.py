@@ -254,6 +254,13 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         "-m",
         "256M",
     ]
+    if args.net == "none":
+        # No NIC at all: proves the desktop boots without network hardware.
+        argv += ["-net", "none"]
+    else:
+        # Explicit e1000: the driver must refuse an unmapped BAR instead of
+        # faulting (see kernel/src/paging.rs).
+        argv += ["-net", "nic,model=e1000"]
     say(f"{BOLD}==> qemu boot test ({args.seconds}s){RESET}")
     say(f"  {' '.join(argv)}")
     code, output = lib.run_command(argv, ROOT, timeout=args.seconds)
@@ -322,6 +329,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("build", help="build kernel and bootable image")
     qemu = sub.add_parser("qemu", help="headless boot smoke test")
     qemu.add_argument("--seconds", type=int, default=15)
+    qemu.add_argument(
+        "--net", choices=("e1000", "none"), default="e1000", help="network hardware"
+    )
 
     annotate = sub.add_parser(
         "annotate", help="turn a captured log into GitHub Actions annotations"

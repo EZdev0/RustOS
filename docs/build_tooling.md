@@ -17,7 +17,8 @@ python3 tools/rustos.py --help
 | `test` | `cargo test --workspace --exclude kernel` + Python unit tests | 0/1 |
 | `docs` | markdown link check + documentation/claim consistency | 0/1 |
 | `build` | `cargo run --bin builder` with `CI=1` (no emulator launch) | 0/1 |
-| `qemu` | headless boot test (`--seconds`, default 15) | 0/1, 2 = no qemu |
+| `qemu` | headless boot test (`--seconds`, default 15; `--net none|e1000`) | 0/1, 2 = no qemu |
+| `annotate` | turn a captured log into GitHub Actions annotations (`--mode clippy\|tail`) | 0 |
 | `verify` | fmt + clippy + tests + docs, writes `target/rustos-report.json` | 0/1 |
 | `report` | JSON status (workspace, image, docs) | 0 |
 
@@ -45,8 +46,8 @@ no documentation.
 python3 -m unittest discover -s tools/tests -v
 ```
 
-33 tests cover byte formatting, manifest/profile parsing, MBR magic detection,
-serial-log scanning, markdown link extraction, the consistency gate, the command
+44 tests cover byte formatting, manifest/profile parsing, MBR magic detection,
+serial-log scanning, annotation escaping (ANSI/%), markdown link extraction, the consistency gate, the command
 table, subprocess error handling (missing binary → 127, timeout → 124) and the
 CLI parser.
 

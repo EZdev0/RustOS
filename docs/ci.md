@@ -33,9 +33,11 @@ clippy    -p rustos-web -p builder --all-targets -- -D warnings
 test      cargo test --workspace --exclude kernel
           cargo test -p rustos-web --lib
           python3 -m unittest discover -s tools/tests
-boot      python3 tools/rustos.py build     (kernel + MBR image)
-          python3 tools/rustos.py qemu      (20 s headless; serial log must
-                                             contain "[boot]" and no panic)
+boot      python3 tools/rustos.py build            (kernel + MBR image)
+          python3 tools/rustos.py qemu --net none    (15 s, no NIC: must boot)
+          python3 tools/rustos.py qemu --net e1000    (20 s, NIC present: must
+                                                      boot, i.e. the driver has
+                                                      to skip an unmapped BAR)
 ai-report only on main when something failed → opens a READ-ONLY issue
 verify    aggregates the five jobs; fails if any of them did not succeed
 ```
@@ -43,6 +45,31 @@ verify    aggregates the five jobs; fails if any of them did not succeed
 All jobs run on `ubuntu-latest`, use `concurrency` cancellation, cache
 `~/.cargo/registry` + `target`, and have explicit `timeout-minutes` so a hung
 QEMU cannot burn the run budget.
+
+### Failure output you can actually read
+
+Job logs and uploaded artifacts live on a storage host that automation cannot
+always reach. Therefore every failing step publishes its diagnostics twice:
+
+* `python3 tools/rustos.py annotate --file <log> [--mode clippy]` turns the last
+  lines (or the compiler diagnostics) into `::error::` annotations, which are
+  readable through the checks API, and
+* `tools/ci/publish_logs.sh` force-pushes the captured logs to the `ci-logs`
+  branch (`contents: write` is granted to the clippy and boot jobs only).
+
+Both mechanisms were the reason the boot-time page fault described below could
+finally be diagnosed: `git show origin/ci-logs:qemu_serial.log` contained the
+full panic.
+
+### Bugs this pipeline found on its first runs
+
+| Bug | How it showed up |
+| --- | --- |
+| Kernel page-faulted at boot whenever a NIC was attached (unmapped PCI BAR) | serial log contained `[PANIC] ... PAGE FAULT ... 0xfeb85400` |
+| Panic handler was invisible headless (framebuffer only) | the log above was empty before the serial change |
+| README claimed `codegen-units = 8`, a `.cargo/config.toml` that does not exist | `tools/rustos.py docs` |
+| `clippy::collapsible_match` in the browser app | kernel clippy job |
+| A non-existent action SHA (`dtolnay/rust-toolchain@6d653a…`) | `cargo fmt` job failed at setup |
 
 ### The boot test is real
 
@@ -59,6 +86,8 @@ The panic handler writes `[PANIC] …` to the same port (raw port I/O, no locks,
 allocation), so `tools/rustos.py qemu` can distinguish three outcomes:
 
 * no `[boot]` banner → the kernel never started (bootloader/emulator problem),
+  * the e1000 regression test additionally requires the boot to survive a NIC
+    being present (`[net] e1000 at ... is not mapped ... networking disabled`),
 * `[PANIC]`/`Exception`/`triple fault` markers → a regression,
 * banner without markers → pass.
 

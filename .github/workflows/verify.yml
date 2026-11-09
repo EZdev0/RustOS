@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   issues: write
 
 concurrency:
@@ -73,6 +73,9 @@ jobs:
     name: Clippy (${{ matrix.scope }})
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    permissions:
+      contents: write # diagnostic branch `ci-logs` on failure only
+      issues: write
     strategy:
       fail-fast: false
       matrix:
@@ -186,6 +189,9 @@ jobs:
     name: Build & Boot
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write # diagnostic branch `ci-logs` on failure only
+      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -210,10 +216,22 @@ jobs:
       - name: 🛠️ Build bootable image
         run: python3 tools/rustos.py build
 
-      - name: 🖥️ Headless boot test
+      - name: 🖥️ Boot test (no network hardware)
         shell: bash
         run: |
-          python3 tools/rustos.py qemu --seconds 20 > boot.log 2>&1 && rc=0 || rc=$?
+          python3 tools/rustos.py qemu --seconds 15 --net none > boot-none.log 2>&1 && rc=0 || rc=$?
+          cat boot-none.log
+          if [ "$rc" -ne 0 ]; then
+            python3 tools/rustos.py annotate --file boot-none.log --limit 8 || true
+          fi
+          exit "$rc"
+
+      - name: 🖥️ Boot test (e1000 present)
+        shell: bash
+        run: |
+          # Regression test for the boot-time page fault: the e1000 driver must
+          # skip an unmapped BAR window instead of faulting.
+          python3 tools/rustos.py qemu --seconds 20 --net e1000 > boot.log 2>&1 && rc=0 || rc=$?
           cat boot.log
           if [ "$rc" -ne 0 ]; then
             python3 tools/rustos.py annotate --file boot.log --limit 8 || true
@@ -237,6 +255,8 @@ jobs:
           path: |
             target/my_rust_os_desktop.img
             target/qemu_serial.log
+            boot-none.log
+            boot.log
           retention-days: 7
           if-no-files-found: ignore
 
