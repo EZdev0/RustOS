@@ -1,0 +1,52 @@
+name: diag
+on: [push]
+permissions:
+  contents: read
+  issues: write
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@2c76c034f9e32a5d6e2c104dc4df23a22476db04 # nightly
+        with:
+          components: rust-src, llvm-tools-preview, clippy, rustfmt
+          targets: x86_64-unknown-none
+      - name: annotation channel test
+        run: echo "::error::annotation channel works"
+      - name: kernel clippy
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cargo clippy -p kernel --target x86_64-unknown-none \
+            -Z build-std=core,alloc,compiler_builtins \
+            -Z build-std-features=compiler-builtins-mem -- -D warnings > /tmp/clippy.log 2>&1
+          echo "clippy rc=$?"
+          { echo 'clippy exit and output:'; echo '```'; head -c 50000 /tmp/clippy.log; echo '```'; } > /tmp/clippy.txt
+          gh issue create --title "diag: kernel clippy ${{ github.run_id }}" --body-file /tmp/clippy.txt || true
+      - name: build and boot
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq qemu-system-x86
+          CI=1 RUSTC_BOOTSTRAP=1 cargo run --release --bin builder > /tmp/build.log 2>&1
+          echo "build rc=$?"
+          timeout 25 qemu-system-x86_64 -drive format=raw,file=target/my_rust_os_desktop.img \
+            -display none -serial file:/tmp/serial.log -no-reboot -m 256M > /tmp/qemu.log 2>&1
+          echo "qemu rc=$?"
+          python3 tools/rustos.py qemu --seconds 20 > /tmp/toolqemu.log 2>&1
+          echo "tool qemu rc=$?"
+          {
+            echo 'diagnostics'
+            echo '```'
+            echo "--- build (tail) ---"; tail -25 /tmp/build.log
+            echo "--- qemu stderr/stdout ---"; tail -25 /tmp/qemu.log
+            echo "--- serial size: $(stat -c%s /tmp/serial.log 2>/dev/null || echo missing) ---"
+            tail -60 /tmp/serial.log 2>/dev/null
+            echo "--- tool qemu ---"; tail -25 /tmp/toolqemu.log
+            echo '```'
+          } > /tmp/diag.txt
+          gh issue create --title "diag: boot ${{ github.run_id }}" --body-file /tmp/diag.txt || true
