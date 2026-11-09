@@ -1,0 +1,16 @@
+[package]
+name = "rustos-web"
+version = "0.3.0"
+edition = "2021"
+description = "Dependency-free HTML/CSS/HTTP engine core for RustOS (no_std + alloc, host-testable)"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/EZdev0/RustOS"
+rust-version = "1.75"
+
+# This crate must never grow external dependencies:
+# the kernel builds it for `x86_64-unknown-none` with `-Z build-std` and a
+# strictly bounded memory budget. Only `core` + `alloc` are allowed.
+[dependencies]
+
+[features]
+default = []

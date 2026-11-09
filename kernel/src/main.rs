@@ -12,6 +12,8 @@ pub mod gdt;
 pub mod hardware;
 pub mod interrupts;
 pub mod network;
+pub mod paging;
+pub mod serial;
 pub mod task;
 use crate::desktop::app::App;
 use bootloader_api::{entry_point, BootInfo};
@@ -34,6 +36,14 @@ pub static mut CRASH_SCREEN_INFO: Option<RawFrameBufferInfo> = None;
 entry_point!(kernel_main);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
+    // COM1 first: everything below (including a panic) must be observable in
+    // the CI boot test.
+    serial::init_early();
+    crate::serial_println!(
+        "[boot] RustOS {} entering kernel_main",
+        env!("CARGO_PKG_VERSION")
+    );
+
     gdt::init();
     interrupts::init_idt();
     unsafe { interrupts::PICS.lock().initialize() };
@@ -41,6 +51,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
 
     // Initialize the dynamic Heap Allocator
     allocator::init_heap();
+    crate::serial_println!("[boot] heap ready ({} KiB)", allocator::HEAP_SIZE / 1024);
     interrupts::init_mouse();
 
     // Detect CPU features and initialize SIMD/AVX
@@ -63,6 +74,12 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
             });
         }
 
+        crate::serial_println!(
+            "[boot] framebuffer {}x{} ({} bpp)",
+            info.width,
+            info.height,
+            info.bytes_per_pixel
+        );
         let mut compositor = desktop::compositor::GraphicalCompositor::new(framebuffer);
 
         let width = compositor.info().width;
@@ -178,6 +195,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         executor.spawn(task::Task::new(crate::desktop::updater::updater_task()));
 
         // 4. Start Scheduler Loop (never returns)
+        crate::serial_println!("[boot] entering scheduler loop");
         executor.run();
     }
 
@@ -245,6 +263,10 @@ impl Write for FbWriter<'_> {
 fn panic(info: &PanicInfo) -> ! {
     x86_64::instructions::interrupts::disable();
 
+    // Serial first: the red screen is useless on a headless CI runner.
+    serial::write_bytes_raw(b"\n[PANIC] ");
+    serial::panic_write(format_args!("{}\n", info));
+
     unsafe {
         let crash_info_ptr = core::ptr::addr_of_mut!(CRASH_SCREEN_INFO);
         if let Some(fb) = (*crash_info_ptr).as_mut() {
@@ -289,4 +311,3 @@ fn panic(info: &PanicInfo) -> ! {
         x86_64::instructions::hlt();
     }
 }
-pub mod serial;

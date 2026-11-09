@@ -27,6 +27,9 @@ const RX_RING_SIZE: usize = 32;
 const TX_RING_SIZE: usize = 32;
 const BUFFER_SIZE: usize = 2048;
 
+/// The register window this driver touches (RAL/RAH at 0x5400 is the last one).
+const MMIO_WINDOW: u64 = 0x6000;
+
 #[repr(C, align(16))]
 #[derive(Clone, Copy)]
 pub struct RxDesc {
@@ -269,11 +272,30 @@ impl E1000 {
 
 pub fn init_e1000(devices: &[PciDevice], phys_offset: u64) -> Option<E1000> {
     for dev in devices {
-        if dev.vendor_id == E1000_VENDOR_ID && dev.device_id == E1000_DEVICE_ID {
-            let mut nic = E1000::new(dev, phys_offset);
-            nic.init();
-            return Some(nic);
+        if dev.vendor_id != E1000_VENDOR_ID || dev.device_id != E1000_DEVICE_ID {
+            continue;
         }
+
+        // The bootloader's page tables do not cover PCI BARs, and this kernel
+        // does not build its own address space yet. Touching the MMIO window
+        // unmapped would raise a page fault at boot, so refuse instead of
+        // crashing: the desktop keeps working without networking.
+        let mut bar = (dev.bar0 & !0xF) as u64;
+        if bar == 0 {
+            bar = 0xFEB8_0000; // QEMU's default e1000 BAR
+        }
+        if !crate::paging::is_range_mapped(bar, MMIO_WINDOW, phys_offset) {
+            crate::serial_println!(
+                "[net] e1000 at {:#x} is not mapped by the bootloader - networking disabled",
+                bar
+            );
+            return None;
+        }
+
+        crate::serial_println!("[net] e1000 MMIO at {:#x} is mapped", bar);
+        let mut nic = E1000::new(dev, phys_offset);
+        nic.init();
+        return Some(nic);
     }
     None
 }
