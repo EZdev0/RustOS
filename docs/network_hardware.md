@@ -99,6 +99,20 @@ Writing `len | 0x2000` made the card ignore every frame — TX looked "queued"
 (`TSD` read back with our bit, `ISR` without `TxOK`) and nothing ever left the
 machine.
 
+### rtl8139: `CAPR` is the read pointer minus 16
+
+The receive ring is 8 KiB (`RCR` size `00`), and the chip's read pointer is
+programmed as `CAPR + 16`. An empty ring is therefore `CAPR = 8192 - 16 =
+8176`, not `8192`. With `CAPR = 8192` the emulated card computes a 16-byte
+backlog and QEMU's `rtl8139_can_receive()` returns false, so **no packet is ever
+accepted** — again "TX fine, RX dead".
+
+### rtl8139 loopback select
+
+The datasheet puts internal loopback in `TCR` bits 12:11; QEMU implements it in
+bits 18:17. The self test sets both, which is harmless where the bits are
+read-only.
+
 The test result separates the two failure classes:
 
 * `loopback: failed` → the RX ring, the descriptor layout, the `buffer_addr`

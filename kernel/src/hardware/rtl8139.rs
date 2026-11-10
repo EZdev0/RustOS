@@ -44,10 +44,15 @@ const CR_RST: u8 = 0x10;
 const CR_RE: u8 = 0x08;
 const CR_TE: u8 = 0x04;
 
-/// Accept broadcast + multicast + physical match + wrap at the ring end.
+/// Accept all + broadcast + multicast + physical match + wrap at ring end.
+///
+/// Bit 0 (`AAP`, "accept all physical") makes reception permissive: a filter
+/// mismatch silently drops the frame and looks exactly like a dead link.
 const RCR_VALUE: u32 = 0x8F;
-/// `RCR` ring size 00 = 8 KiB + 16 byte header area.
-const RX_RING_SIZE: usize = 8192 + 16;
+/// `RCR` ring size 00 = 8 KiB. This is the *usable* size the chip (and QEMU's
+/// `RxBufferSize`) counts with; the 16-byte headroom only exists as the gap
+/// between `CAPR` and the write pointer, not as extra ring memory.
+const RX_RING_SIZE: usize = 8192;
 /// Extra room so a frame that starts at the very end of the ring still fits.
 const RX_BUFFER_SIZE: usize = RX_RING_SIZE + 1500;
 const TX_BUFFERS: usize = 4;
@@ -60,11 +65,15 @@ const TX_BUFFER_SIZE: usize = 1792;
 /// while it is set, exactly like the real RTL8139 and like Linux' `8139too`
 /// (`RTL_W32_F(TxStatus0, tx_flag | len)`, no `TxHostOwns`).
 const TSD_HOST_OWNS: u32 = 1 << 13;
-/// `TCR` bits 12:11 select the loopback mode: 0b11 = internal loopback, in
-/// which transmitted frames come back through the receive ring without ever
-/// touching the wire. That is exactly what a boot-time self test needs.
-const TCR_LBM_INTERNAL: u32 = 0b11 << 11;
-const TCR_LBM_MASK: u32 = 0b11 << 11;
+/// Loopback select in `TCR`: 0b11 = internal loopback, in which transmitted
+/// frames come back through the receive ring without touching the wire.
+///
+/// The datasheet puts it in bits 12:11, QEMU's model in bits 18:17
+/// (`TxLoopBack`) and accepts no write to 12:11 at all. Setting both keeps the
+/// self test meaningful on silicon *and* under emulation; bits 12:11 are simply
+/// dropped where they are read-only.
+const TCR_LBM_INTERNAL: u32 = (0b11 << 11) | (0b11 << 17);
+const TCR_LBM_MASK: u32 = (0b11 << 11) | (0b11 << 17);
 
 /// Boot-time diagnostics, same idea as in the e1000 driver: the first few
 /// transmit/receive events are logged so a dead direction is visible instead of
@@ -298,8 +307,12 @@ impl Rtl8139 {
             self.write_u32(REG_TSD0 + (index as u16) * 4, TSD_HOST_OWNS);
         }
 
-        // Ring is empty: the chip's read pointer sits 16 bytes behind the
-        // packet offset (documented CAPR quirk), so offset 0 means CAPR = ring-16.
+        // Ring is empty: the chip's read pointer sits 16 bytes behind the packet
+        // offset (documented CAPR quirk), so "nothing consumed yet" is
+        // CAPR = ring - 16, i.e. write pointer 0. Writing CAPR = ring (what this
+        // driver did before) makes QEMU compute a 16-byte backlog and refuse
+        // *every* incoming packet (`rtl8139_can_receive()`), so the card looked
+        // deaf while TX worked.
         self.rx_offset = 0;
         self.write_u16(REG_CAPR, (RX_RING_SIZE - 16) as u16);
 
