@@ -5,7 +5,9 @@
 set -euo pipefail
 
 work="$(mktemp -d)"
-for file in clippy.log boot.log target/qemu_serial.log qemu_output.log clippy-*.log; do
+for file in clippy.log boot.log boot-*.log boot-*.status \
+            target/qemu_serial.log target/qemu_serial-*.log \
+            qemu_output.log clippy-*.log; do
   if [ -f "$file" ]; then
     cp -f "$file" "$work/$(basename "$file")"
   fi

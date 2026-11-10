@@ -70,6 +70,53 @@ pub fn is_mapped(virtual_address: u64, physical_memory_offset: u64) -> bool {
     true
 }
 
+/// Translate `virtual_address` to a physical address by walking the tables.
+///
+/// Returns `None` when the address is not mapped or the offset is missing.
+/// Needed for DMA: the NIC needs *physical* addresses for descriptor rings and
+/// packet buffers, while the kernel only knows virtual ones.
+pub fn physical_address(virtual_address: u64, physical_memory_offset: u64) -> Option<u64> {
+    if physical_memory_offset == 0 {
+        return None;
+    }
+    let (level_4, _) = Cr3::read();
+    let mut table = level_4.start_address().as_u64();
+    if table == 0 {
+        return None;
+    }
+    let indices = [
+        (virtual_address >> 39) & 0x1ff, // PML4
+        (virtual_address >> 30) & 0x1ff, // PDPT
+        (virtual_address >> 21) & 0x1ff, // PD
+        (virtual_address >> 12) & 0x1ff, // PT
+    ];
+    for (level, index) in indices.iter().enumerate() {
+        let entry = read_entry(table, physical_memory_offset, *index)?;
+        if entry & PRESENT == 0 {
+            return None;
+        }
+        let address = entry & ADDRESS_MASK;
+        if address == 0 {
+            return None;
+        }
+        // 1 GiB page in the PDPT, 2 MiB page in the PD.
+        if level == 1 && (entry & HUGE_PAGE) != 0 {
+            let offset = virtual_address & 0x3fff_ffff;
+            return address.checked_add(offset);
+        }
+        if level == 2 && (entry & HUGE_PAGE) != 0 {
+            let offset = virtual_address & 0x1f_ffff;
+            return address.checked_add(offset);
+        }
+        if level == 3 {
+            let offset = virtual_address & 0xfff;
+            return address.checked_add(offset);
+        }
+        table = address;
+    }
+    None
+}
+
 /// True when every byte of `[start, start + length)` is mapped.
 pub fn is_range_mapped(start: u64, length: u64, physical_memory_offset: u64) -> bool {
     let Some(end) = start.checked_add(length) else {

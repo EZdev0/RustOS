@@ -35,12 +35,15 @@ clippy    -p rustos-web -p builder --all-targets -- -D warnings
           -p kernel --target x86_64-unknown-none -Z build-std=… -- -D warnings
 test      cargo test --workspace --exclude kernel
           cargo test -p rustos-web --lib
+          python3 tools/webprobe.py --check          (renders the engine's display
+                                                      lists and checks invariants)
           python3 -m unittest discover -s tools/tests
 boot      python3 tools/rustos.py build            (kernel + MBR image)
           python3 tools/rustos.py qemu --net none    (15 s, no NIC: must boot)
-          python3 tools/rustos.py qemu --net e1000    (20 s, NIC present: must
-                                                      boot, i.e. the driver has
-                                                      to skip an unmapped BAR)
+          python3 tools/rustos.py qemu --net rtl8139 (20 s, Realtek: driver up,
+                                                      DHCP lease, `[net] online`)
+          python3 tools/rustos.py qemu --net e1000   (20 s, Intel: driver up,
+                                                      DHCP lease, `[net] online`)
 ai-report only on main when something failed → opens a READ-ONLY issue
 verify    aggregates the five jobs; fails if any of them did not succeed
 ```
@@ -89,8 +92,15 @@ The panic handler writes `[PANIC] …` to the same port (raw port I/O, no locks,
 allocation), so `tools/rustos.py qemu` can distinguish three outcomes:
 
 * no `[boot]` banner → the kernel never started (bootloader/emulator problem),
-  * the e1000 regression test additionally requires the boot to survive a NIC
-    being present (`[net] e1000 at ... is not mapped ... networking disabled`),
+  * the NIC boot tests require a driver to come up (`[net] <driver> up`), an
+    address from DHCP or the static fallback (`[net] dhcp: …` / `[net] ip: …`)
+    and a gateway that answers ping (`[net] online`), so "device found but dead"
+    fails the same way "no device at all" does. This applies to **every** model
+    with a driver (`e1000`, `rtl8139`); the rtl8139 run used to check panics
+    only and therefore passed while completely offline,
+* both NIC runs always execute (`continue-on-error` plus a summary step), so a
+  failing rtl8139 test can no longer hide the e1000 result. The serial logs are
+  kept separately as `target/qemu_serial-<model>.log`.
 * `[PANIC]`/`Exception`/`triple fault` markers → a regression,
 * banner without markers → pass.
 

@@ -32,6 +32,11 @@ import rustos_lib as lib  # noqa: E402
 ROOT = lib.repo_root()
 IMAGE = ROOT / "target" / lib.IMAGE_NAME
 
+# NIC models RustOS actually has a driver for. Only these can be expected to
+# reach the network; for every other model the boot test only proves that the
+# kernel survives the hardware and reports it as unsupported.
+DRIVEN_NICS = frozenset({"e1000", "rtl8139"})
+
 BOLD = "\033[1m"
 GREEN = "\033[32m"
 RED = "\033[31m"
@@ -254,13 +259,12 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         "-m",
         "256M",
     ]
-    if args.net == "none":
-        # No NIC at all: proves the desktop boots without network hardware.
-        argv += ["-net", "none"]
-    else:
-        # Explicit e1000: the driver must refuse an unmapped BAR instead of
-        # faulting (see kernel/src/paging.rs).
-        argv += ["-net", "nic,model=e1000"]
+    # Explicit model (never rely on QEMU's default) *with* a user-mode backend:
+    # the drivers must refuse an unmapped BAR instead of faulting, and the boot
+    # test proves that packets actually flow (see docs/network_hardware.md and
+    # docs/limbo.md). The NIC/backend pairing lives in rustos_lib so that the
+    # unit tests can assert on it.
+    argv += lib.qemu_network_args(args.net)
     say(f"{BOLD}==> qemu boot test ({args.seconds}s){RESET}")
     say(f"  {' '.join(argv)}")
     code, output = lib.run_command(argv, ROOT, timeout=args.seconds)
@@ -272,6 +276,9 @@ def cmd_qemu(args: argparse.Namespace) -> int:
     text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
     failures = lib.scan_log_for_panics(text)
     say(f"serial log: {log_path} ({lib.human_bytes(len(text))})")
+    nic_line = lib.nic_summary(text)
+    if nic_line:
+        say(f"  {nic_line}")
     if failures:
         say(color("panic markers found:", RED))
         say("\n".join(f"  {line}" for line in failures[:10]))
@@ -291,7 +298,37 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         say(lib.tail(text, 15))
         emit_annotations(lib.annotate_lines(text, 6))
         return 1
-    say(color("boot test passed: no panic markers", GREEN))
+    state = lib.network_state(text)
+    if args.net in DRIVEN_NICS:
+        # Regression guard: with a NIC attached the driver must come up *and*
+        # prove that packets flow. A silently disabled driver used to look
+        # exactly like a healthy boot - the rtl8139 test happily passed while
+        # every frame was dropped, because it only checked for panics.
+        if state == "absent":
+            say(
+                color(
+                    f"--net {args.net} was requested but no NIC driver came up "
+                    "(missing a `[net] <driver> up` line):",
+                    RED,
+                )
+            )
+            say(lib.tail(text, 20))
+            emit_annotations(lib.annotate_lines(text, 8))
+            return 1
+        if state == "device-only":
+            say(
+                color(
+                    f"the NIC is up but '{lib.NET_ONLINE_MARKER}' is missing "
+                    "(no packet ever made it through)",
+                    RED,
+                )
+            )
+            say(lib.tail(text, 20))
+            emit_annotations(lib.annotate_lines(text, 8))
+            return 1
+        say(color("boot test passed: no panic markers, network online", GREEN))
+        return 0
+    say(color("boot test passed: no panic markers (no NIC attached)", GREEN))
     return 0
 
 
@@ -330,7 +367,10 @@ def build_parser() -> argparse.ArgumentParser:
     qemu = sub.add_parser("qemu", help="headless boot smoke test")
     qemu.add_argument("--seconds", type=int, default=15)
     qemu.add_argument(
-        "--net", choices=("e1000", "none"), default="e1000", help="network hardware"
+        "--net",
+        choices=("e1000", "rtl8139", "pcnet", "ne2k_pci", "none"),
+        default="e1000",
+        help="emulated network card (QEMU -net nic,model=...)",
     )
 
     annotate = sub.add_parser(

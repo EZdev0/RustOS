@@ -89,6 +89,49 @@ class LogScanTests(unittest.TestCase):
         self.assertFalse(lib.boot_marker_present("GRUB loading\n"))
         self.assertFalse(lib.boot_marker_present(""))
 
+    def test_qemu_network_args_always_attach_a_backend(self):
+        # A NIC without a backend has no peer: QEMU drops every frame, which
+        # masquerades as a dead receiver. The backend is not optional.
+        for model in ("e1000", "rtl8139", "pcnet", "ne2k_pci", "virtio-net-pci"):
+            argv = lib.qemu_network_args(model)
+            self.assertIn("-netdev", argv, model)
+            self.assertIn("user,id=net0", argv, model)
+            self.assertIn("-device", argv, model)
+            self.assertIn(f"{model},netdev=net0", argv, model)
+            self.assertNotIn("nic", argv, model)
+        self.assertEqual(lib.qemu_network_args("none"), ["-net", "none"])
+
+    def test_network_state(self):
+        self.assertEqual(lib.network_state("[boot] x\n"), "absent")
+        self.assertEqual(
+            lib.network_state("[boot] x\n[net] e1000 up: bar=0xfeb80000\n"),
+            "device-only",
+        )
+        self.assertEqual(
+            lib.network_state("[net] e1000 up: bar=0x1\n[net] online: 10.0.2.2 answered\n"),
+            "online",
+        )
+        self.assertEqual(lib.network_state("[net] offline: no network device"), "absent")
+
+    def test_network_state_accepts_every_driver(self):
+        for driver in ("e1000", "rtl8139", "virtio"):
+            text = f"[boot] ok\n[net] {driver} up: bar=0xfeb80000 mac=52:54:00:12:34:56\n"
+            self.assertEqual(lib.network_state(text), "device-only", driver)
+            online = text + "[net] online: 10.0.2.2 answered ping seq=0\n"
+            self.assertEqual(lib.network_state(online), "online", driver)
+
+    def test_nic_summary_prefers_the_lease_line(self):
+        text = (
+            "[net] rtl8139 up: bar=0xc000 mac=52:54:00:12:34:56 link=up\n"
+            "[net] dhcp: ip=192.168.1.7/24 gw=192.168.1.1 dns=1.1.1.1\n"
+        )
+        self.assertIn("dhcp: ip=192.168.1.7/24", lib.nic_summary(text))
+        self.assertEqual(lib.nic_summary("[boot] nothing"), "")
+
+    def test_nic_summary_reports_unsupported_cards(self):
+        text = "[net] unsupported NIC 1022:2000 (class 02.00, bar0=0x00000000) - skipped\n"
+        self.assertIn("unsupported NIC 1022:2000", lib.nic_summary(text))
+
     def test_triple_fault_and_page_fault(self):
         log = "EXCEPTION: TRIPLE FAULT\npage fault at 0x0\n"
         self.assertEqual(len(lib.scan_log_for_panics(log)), 2)

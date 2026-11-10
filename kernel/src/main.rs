@@ -16,6 +16,7 @@ pub mod paging;
 pub mod serial;
 pub mod task;
 use crate::desktop::app::App;
+use bootloader_api::config::{BootloaderConfig, Mapping};
 use bootloader_api::{entry_point, BootInfo};
 use core::fmt::Write;
 use core::panic::PanicInfo;
@@ -33,7 +34,22 @@ pub struct RawFrameBufferInfo {
 
 pub static mut CRASH_SCREEN_INFO: Option<RawFrameBufferInfo> = None;
 
-entry_point!(kernel_main);
+/// Bootloader configuration.
+///
+/// `physical_memory` makes the bootloader map the first 4 GiB of the physical
+/// address space at a dynamic virtual offset. Without it the kernel cannot
+/// touch PCI BARs (the e1000 MMIO window) at all — that is exactly the page
+/// fault that used to kill the boot whenever a NIC was attached. The mapping
+/// also gives us a way to walk the page tables (`kernel/src/paging.rs`).
+/// See `bootloader_api::config::Mappings::physical_memory` and
+/// `docs/http_network_indicator.md`.
+pub static BOOTLOADER_CONFIG: BootloaderConfig = {
+    let mut config = BootloaderConfig::new_default();
+    config.mappings.physical_memory = Some(Mapping::Dynamic);
+    config
+};
+
+entry_point!(kernel_main, config = &BOOTLOADER_CONFIG);
 
 fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
     // COM1 first: everything below (including a panic) must be observable in
@@ -101,23 +117,41 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         }
 
         let phys_offset = boot_info.physical_memory_offset.into_option().unwrap_or(0);
+        if phys_offset == 0 {
+            crate::serial_println!(
+                "[boot] WARNING: no physical memory mapping - PCI MMIO is unreachable"
+            );
+        } else {
+            crate::serial_println!("[boot] physical memory mapped at {:#x}", phys_offset);
+        }
         // Initialize PCI and Network
         let pci_devices = hardware::pci::scan_pci();
-        if let Some(e1000) = hardware::e1000::init_e1000(&pci_devices, phys_offset) {
-            let mac = e1000.mac_address();
-            let pci_str = alloc::format!("\n[PCI] Intel PRO/1000 E1000 Network Card found!\n[NET] MAC Address: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}\n", 
-                mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+        crate::serial_println!("[boot] PCI devices: {}", pci_devices.len());
+        // Driver-agnostic: `probe` walks the network class and dispatches to
+        // whatever driver matches (Intel 8254x, Realtek 8139, ...).
+        if let Some(nic) = hardware::net::probe(&pci_devices, phys_offset) {
+            let mac = nic.mac_address();
+            let pci_str = alloc::format!(
+                "\n[NET] {} NIC found\n[NET] MAC Address: {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}\n",
+                nic.name().to_uppercase(),
+                mac[0],
+                mac[1],
+                mac[2],
+                mac[3],
+                mac[4],
+                mac[5]
+            );
             for c in pci_str.chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
             }
 
-            // Initialize TCP/IP Stack
-            network::init(e1000);
-            for c in "[NET] TCP/IP Stack (smoltcp) initialized with IP 10.0.2.15\n".chars() {
+            // Initialize TCP/IP Stack (DHCP runs in the network task)
+            network::init(nic);
+            for c in "[NET] TCP/IP stack (smoltcp) up, asking DHCP for a lease\n".chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
             }
         } else {
-            for c in "\n[PCI] No Intel E1000 Network Card found.\n".chars() {
+            for c in "\n[PCI] No supported network card found.\n".chars() {
                 notepad_app.handle_event(desktop::app::Event::KeyPress(c));
             }
         }
@@ -192,6 +226,7 @@ fn kernel_main(boot_info: &'static mut BootInfo) -> ! {
         )));
         executor.spawn(task::Task::new(task::timer::timer_task(shared_compositor)));
         executor.spawn(task::Task::new(crate::network::network_task()));
+        executor.spawn(task::Task::new(crate::network::net_selftest_task()));
         executor.spawn(task::Task::new(crate::desktop::updater::updater_task()));
 
         // 4. Start Scheduler Loop (never returns)

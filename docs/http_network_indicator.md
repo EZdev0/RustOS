@@ -70,41 +70,52 @@ never allowed to fill up because a server keeps sending.
   in the UI task, no busy waiting.
 * `http_state()` drives the browser status text ("Loading…", "Done", "Failed").
 
-### Device MMIO must be mapped by the bootloader
+### Device MMIO is mapped by the bootloader
 
-The kernel runs on the page tables installed by `bootloader_api` 0.11, which map
-the kernel, the boot info and the framebuffer — **not** PCI BARs. Reading the
-e1000's MAC register (`BAR0 + 0x5400`) therefore raised a page fault on every
-boot with a NIC present, and because the panic handler used to write only to the
-framebuffer, CI never noticed.
+The kernel runs on the page tables installed by `bootloader_api` 0.11. With the
+default configuration those page tables map the kernel, the boot info and the
+framebuffer — **not** PCI BARs, so reading a NIC register (for example the
+e1000's MAC at `BAR0 + 0x5400`) raised a page fault on every boot with a NIC
+present, and because the panic handler used to write only to the framebuffer,
+CI never noticed.
 
-`hardware/e1000.rs::init_e1000` now asks `paging::is_range_mapped(bar, 0x6000)`
-first. When the window is not mapped it logs
+`BOOTLOADER_CONFIG.mappings.physical_memory` is therefore set to
+`Mapping::Dynamic`, which maps physical memory — including the PCI BAR windows —
+at `BootInfo::physical_memory_offset`. The drivers add that offset to a BAR and
+call `paging::is_range_mapped()` before the first register access; when a window
+is somehow not mapped they log
 
 ```text
-[net] e1000 at 0xfeb80000 is not mapped by the bootloader - networking disabled
+[net] e1000 at 0xfeb80000 is not mapped (phys offset 0x0) - driver skipped
 ```
 
-and returns `None`, leaving `NETWORK_MANAGER` unset. `network_task` and every
-`start_http_request_*` call handle that case, so the desktop boots normally and
-the browser shows "Network unavailable" instead of taking the kernel down.
+and fall through to the next driver, leaving `NETWORK_MANAGER` unset.
+`network_task` and every `start_http_request_*` call handle that case, so the
+desktop boots normally and the browser shows "Network unavailable" instead of
+taking the kernel down.
 
-Note that DMA is broken for the same reason: descriptor addresses are computed as
-`virtual.saturating_sub(physical_memory_offset)`, which is only correct once the
-kernel manages its own address space. Making the NIC fully functional needs the
-same piece of work as mapping MMIO — tracked in
-[browser_engine_2026.md](browser_engine_2026.md).
+DMA works for the same reason: descriptor and buffer addresses are translated by
+`paging::physical_address()` (PML4 → PDPT → PD → PT, huge pages included), and a
+buffer that cannot be translated aborts driver start-up instead of pointing the
+card at garbage. See [network_hardware.md](network_hardware.md).
 
 ### Known limitations
-* **No MMIO mapping.** A NIC is only used when its BAR is already mapped (see
-  above); otherwise networking is disabled with a log line.
+* **Two drivers.** Intel 8254x (`e1000`) and Realtek 8139 (`rtl8139`) only;
+  every other NIC is logged as `[net] unsupported NIC …` and the machine boots
+  without networking. The matrix and the way to add a driver are in
+  [network_hardware.md](network_hardware.md), the roadmap in
+  [TODO.md](TODO.md).
 * **No TLS.** Only `http://` URLs are accepted; `https://` shows a clear error.
   A TLS 1.3 client with a pinned root store is on the roadmap (needs an entropy
   source and more heap than the current 16 MiB static heap leaves spare).
-* **No DNS.** The browser resolves hosts through a small static table
-  (`example.com`, `neverssl.com`, `info.cern.ch`, `rust-lang.org`, …) plus an
-  optional `hosts` file from the in-memory filesystem. Unknown hosts produce
-  "Unknown host" instead of a silent hang.
+* **DNS is bounded, not exhaustive.** Names are resolved by a smoltcp
+  `socket-dns` client against the servers from the DHCP lease (fallback
+  `10.0.2.3`) with a 16-entry cache, four in-flight queries and a
+  "Resolving …" browser state; only A records are requested. A small static
+  table (`example.com`, `localhost`, …) still short-circuits the query so the
+  browser works on a machine without any network configuration. Unknown hosts
+  produce "Unknown host" instead of a silent hang. See
+  [network_hardware.md](network_hardware.md) for the log contract.
 * **No redirect across hosts** beyond the 4-redirect budget enforced by
   `PageEngine` (`MAX_REDIRECTS`), which also rejects redirect loops.
 
