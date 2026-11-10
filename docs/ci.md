@@ -95,7 +95,12 @@ allocation), so `tools/rustos.py qemu` can distinguish three outcomes:
   * the NIC boot tests require a driver to come up (`[net] <driver> up`), an
     address from DHCP or the static fallback (`[net] dhcp: …` / `[net] ip: …`)
     and a gateway that answers ping (`[net] online`), so "device found but dead"
-    fails the same way "no device at all" does,
+    fails the same way "no device at all" does. This applies to **every** model
+    with a driver (`e1000`, `rtl8139`); the rtl8139 run used to check panics
+    only and therefore passed while completely offline,
+* both NIC runs always execute (`continue-on-error` plus a summary step), so a
+  failing rtl8139 test can no longer hide the e1000 result. The serial logs are
+  kept separately as `target/qemu_serial-<model>.log`.
 * `[PANIC]`/`Exception`/`triple fault` markers → a regression,
 * banner without markers → pass.
 

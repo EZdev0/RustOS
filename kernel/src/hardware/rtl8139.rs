@@ -54,6 +54,19 @@ const TX_BUFFERS: usize = 4;
 /// The chip cannot transmit a frame larger than this (plus headers).
 const TX_BUFFER_SIZE: usize = 1792;
 const TSD_OWN: u32 = 1 << 13;
+/// `TCR` bits 12:11 select the loopback mode: 0b11 = internal loopback, in
+/// which transmitted frames come back through the receive ring without ever
+/// touching the wire. That is exactly what a boot-time self test needs.
+const TCR_LBM_INTERNAL: u32 = 0b11 << 11;
+const TCR_LBM_MASK: u32 = 0b11 << 11;
+
+/// Boot-time diagnostics, same idea as in the e1000 driver: the first few
+/// transmit/receive events are logged so a dead direction is visible instead of
+/// being guessed at. The network task polls `receive()` continuously, so the
+/// counters keep the log bounded.
+static TX_EVENTS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+static TX_DROPPED: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+static RX_POLLS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 /// Volatile read of a memory-mapped register.
 ///
@@ -300,7 +313,84 @@ impl Rtl8139 {
             self.mac[5],
             if link { "up" } else { "negotiating" }
         );
+
+        // Read the configuration back: a register that silently stayed 0 (BAR
+        // not decoded, wrong access width) makes the chip deaf, and the
+        // resulting "no reply" looks identical to a broken cable.
+        crate::serial_println!(
+            "[net] rtl8139 regs: cr={:#04x} isr={:#06x} rcr={:#010x} tcr={:#010x} cbr={} capr={}",
+            self.read_u8(REG_CR),
+            self.read_u16(REG_ISR),
+            self.read_u32(REG_RCR),
+            self.read_u32(REG_TCR),
+            self.read_u16(REG_CBR),
+            self.read_u16(REG_CAPR)
+        );
+        crate::serial_println!(
+            "[net] rtl8139 dma: rx_ring={:#x} tx_buf0={:#x} rx_offset={}",
+            self.rx_physical,
+            self.tx_physical[0],
+            self.rx_offset
+        );
+
+        // Prove TX -> RX through the chip itself, without a peer and without
+        // the emulator's backend: if this fails the driver is broken, if it
+        // passes but no reply arrives the problem is on the wire.
+        let loopback = self.loopback_test();
+        crate::serial_println!(
+            "[net] rtl8139 loopback: {} (cbr={} rx_offset={} isr={:#06x} tx_status={:#010x})",
+            if loopback { "ok" } else { "failed" },
+            self.read_u16(REG_CBR),
+            self.rx_offset,
+            self.read_u16(REG_ISR),
+            self.read_u32(REG_TSD0)
+        );
         true
+    }
+
+    /// Internal loopback self test (`TCR` bits 12:11 = 0b11).
+    ///
+    /// Transmits one frame with a private ethertype and waits for it in the
+    /// receive ring. Restores the ring state and normal `TCR` afterwards, so the
+    /// driver leaves `init()` exactly as it would without the test.
+    fn loopback_test(&mut self) -> bool {
+        const TEST_ETHERTYPE: [u8; 2] = [0x88, 0xB5];
+
+        let saved_rx_offset = self.rx_offset;
+        let saved_tx_index = self.tx_index;
+        let saved_tcr = self.read_u32(REG_TCR);
+
+        self.write_u32(REG_TCR, (saved_tcr & !TCR_LBM_MASK) | TCR_LBM_INTERNAL);
+
+        let mut frame = [0u8; 64];
+        frame[0..6].copy_from_slice(&self.mac);
+        frame[6..12].copy_from_slice(&self.mac);
+        frame[12..14].copy_from_slice(&TEST_ETHERTYPE);
+        for (index, byte) in frame[14..].iter_mut().enumerate() {
+            *byte = index as u8;
+        }
+
+        let mut found = false;
+        if self.transmit(&frame) {
+            for _ in 0..100_000 {
+                if let Some(received) = self.receive() {
+                    if received.len() >= 14
+                        && received[12] == TEST_ETHERTYPE[0]
+                        && received[13] == TEST_ETHERTYPE[1]
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Leave loopback mode and forget everything the test consumed.
+        self.write_u32(REG_TCR, saved_tcr);
+        self.rx_offset = saved_rx_offset;
+        self.tx_index = saved_tx_index;
+        self.write_u16(REG_ISR, 0xFFFF);
+        found
     }
 
     // ── smoltcp plumbing ────────────────────────────────────────────────────
@@ -319,9 +409,27 @@ impl Rtl8139 {
 
     pub fn transmit(&mut self, data: &[u8]) -> bool {
         if data.len() > TX_BUFFER_SIZE || !self.can_transmit() {
+            let dropped = TX_DROPPED.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+            if dropped < 4 {
+                crate::serial_println!(
+                    "[net] rtl8139 tx dropped: len={} tsd={:#010x}",
+                    data.len(),
+                    self.read_u32(REG_TSD0 + (self.tx_index as u16) * 4)
+                );
+            }
             return false;
         }
         let index = self.tx_index;
+        let event = TX_EVENTS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        if event < 4 {
+            crate::serial_println!(
+                "[net] rtl8139 tx #{} len={} idx={} tsad={:#x}",
+                event,
+                data.len(),
+                index,
+                self.tx_physical[index]
+            );
+        }
         self.tx_buffers[index][..data.len()].copy_from_slice(data);
         // Address first, then the length with OWN: the chip may start the DMA
         // as soon as OWN is visible.
@@ -338,6 +446,16 @@ impl Rtl8139 {
     /// Copy the next received frame out of the ring, if the chip delivered one.
     pub fn receive(&mut self) -> Option<Vec<u8>> {
         let cbr = self.read_u16(REG_CBR) as usize % RX_RING_SIZE;
+        let poll = RX_POLLS.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        if poll < 4 {
+            crate::serial_println!(
+                "[net] rtl8139 rx probe #{} cbr={} rx_offset={} empty={}",
+                poll,
+                cbr,
+                self.rx_offset,
+                cbr == self.rx_offset
+            );
+        }
         if cbr == self.rx_offset {
             return None; // ring empty
         }

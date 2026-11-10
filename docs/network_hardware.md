@@ -79,6 +79,10 @@ itself and waits for it in the RX ring:
 The loopback is enabled in **PHY register `MII_BMCR` bit 14** via the `MDIC`
 register (0x20), not with `RCTL[6:7]`: QEMU's model only implements the PHY
 loopback and ignores the RCTL bits, which produces a false "RX is broken".
+
+`rtl8139` has the same test: it sets `TCR` bits 12:11 to `0b11` (internal
+loopback) and expects the frame back in its 8 KiB ring.
+
 The test result separates the two failure classes:
 
 * `loopback: failed` → the RX ring, the descriptor layout, the `buffer_addr`
@@ -93,8 +97,14 @@ The boot test and `tools/rustos.py qemu` assert on these lines:
 
 ```text
 [boot] physical memory mapped at 0x...
+[net] e1000 pci: command=0x0007 master=yes memory=yes
 [net] e1000 up (device 100e): bar=0xfeb80000 mmio=0x... mac=52:54:00:12:34:56
+[net] e1000 dma: rx_ring=0x... rx_buf0=0x... tx_ring=0x... tx_buf0=0x...
+[net] e1000 loopback: ok (tdh=1 rdh=1 tx_status=0x01 rx_status=0x01)
 [net] rtl8139 up: bar=0xc000 mac=52:54:00:12:34:56 link=up
+[net] rtl8139 regs: cr=0x0c isr=0x0000 rcr=0x0000008f tcr=0x00000000 cbr=0 capr=0
+[net] rtl8139 dma: rx_ring=0x... tx_buf0=0x... rx_offset=0
+[net] rtl8139 loopback: ok (cbr=84 rx_offset=84 isr=0x0001 tx_status=0x80000040)
 [net] dhcp: ip=10.0.2.15/24 gw=10.0.2.2 dns=10.0.2.3
 [net] ip: 10.0.2.15/24 via dhcp
 [net] online: 10.0.2.2 answered ping seq=0 (e1000)

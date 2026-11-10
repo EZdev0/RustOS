@@ -231,33 +231,67 @@ jobs:
 
       - name: 🖥️ Boot test (rtl8139 present)
         shell: bash
+        # The two NIC tests must not mask each other: a failing rtl8139 run used
+        # to abort the job before e1000 was ever booted. Each test stores its
+        # result and the summary step below fails the job if one of them failed.
+        continue-on-error: true
         run: |
           # Second NIC model: Limbo and older QEMU setups default to Realtek,
           # so the generic probe and the rtl8139 driver get their own boot test.
           python3 tools/rustos.py qemu --seconds 20 --net rtl8139 > boot-rtl.log 2>&1 && rc=0 || rc=$?
           cat boot-rtl.log
+          echo "$rc" > boot-rtl.status
           if [ "$rc" -ne 0 ]; then
             python3 tools/rustos.py annotate --file boot-rtl.log --limit 8 || true
             if [ -f target/qemu_serial.log ]; then
+              cp target/qemu_serial.log target/qemu_serial-rtl8139.log
               python3 tools/rustos.py annotate --file target/qemu_serial.log --limit 8 || true
             fi
           fi
-          exit "$rc"
 
       - name: 🖥️ Boot test (e1000 present)
         shell: bash
+        continue-on-error: true
         run: |
           # Regression test for the boot-time page fault: the e1000 driver must
           # skip an unmapped BAR window instead of faulting.
           python3 tools/rustos.py qemu --seconds 20 --net e1000 > boot.log 2>&1 && rc=0 || rc=$?
           cat boot.log
+          echo "$rc" > boot-e1000.status
+          # Keep the serial log of *this* run: the next QEMU invocation would
+          # overwrite target/qemu_serial.log.
+          if [ -f target/qemu_serial.log ]; then
+            cp target/qemu_serial.log target/qemu_serial-e1000.log
+          fi
           if [ "$rc" -ne 0 ]; then
             python3 tools/rustos.py annotate --file boot.log --limit 8 || true
             if [ -f target/qemu_serial.log ]; then
               python3 tools/rustos.py annotate --file target/qemu_serial.log --limit 8 || true
             fi
           fi
-          exit "$rc"
+
+      - name: 🧾 Network boot summary
+        if: always()
+        shell: bash
+        run: |
+          fail=0
+          for nic in rtl8139 e1000; do
+            case "$nic" in
+              rtl8139) status_file=boot-rtl.status ;;
+              *) status_file="boot-$nic.status" ;;
+            esac
+            if [ ! -f "$status_file" ]; then
+              echo "::error::$nic boot test did not run"
+              fail=1
+              continue
+            fi
+            rc=$(cat "$status_file")
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::$nic boot test failed (exit $rc) - see the step log and target/qemu_serial-${nic}.log"
+              fail=1
+            fi
+          done
+          exit "$fail"
 
       - name: 🚑 Publish logs (diagnostics)
         if: failure()
