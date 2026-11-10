@@ -8,8 +8,9 @@
 //! * a single 8 KiB+16 receive ring that the chip fills linearly and wraps at
 //!   `RX_RING_SIZE` (the "WRAP" bit), so a frame may straddle the end of the
 //!   ring and the copy has to follow the wrap,
-//! * four transmit buffers; the driver writes the length with the `OWN` bit and
-//!   waits for the chip to hand the descriptor back.
+//! * four transmit buffers; a descriptor is handed to the chip by writing the
+//!   length *without* bit 13 ("host owns"), which the chip sets again when it is
+//!   done.
 //!
 //! Everything here is polling based: the kernel has no MSI and the network task
 //! calls `receive()` in its loop. A DMA address therefore has to be a *physical*
@@ -155,6 +156,36 @@ impl Rtl8139 {
             crate::serial_println!("[net] rtl8139 has neither an I/O nor a memory BAR");
             return None;
         }
+
+        // Bus mastering is what lets the card read the transmit buffers and
+        // write the receive ring. Without it every DMA access is a no-op on
+        // real silicon (QEMU is forgiving, which is why this stayed unnoticed)
+        // and the card looks deaf while `TSD` happily reports success.
+        let cmd = crate::hardware::pci::pci_read_config_32(
+            device.bus,
+            device.device,
+            device.function,
+            0x04,
+        );
+        crate::hardware::pci::pci_write_config_32(
+            device.bus,
+            device.device,
+            device.function,
+            0x04,
+            cmd | 0x04 | 0x02,
+        );
+        let cmd_after = crate::hardware::pci::pci_read_config_32(
+            device.bus,
+            device.device,
+            device.function,
+            0x04,
+        );
+        crate::serial_println!(
+            "[net] rtl8139 pci: command={:#06x} master={} memory={}",
+            cmd_after & 0xFFFF,
+            if cmd_after & 0x04 != 0 { "yes" } else { "no" },
+            if cmd_after & 0x02 != 0 { "yes" } else { "no" }
+        );
 
         let mut nic = Self {
             io_base,
@@ -347,10 +378,11 @@ impl Rtl8139 {
             self.read_u16(REG_CAPR)
         );
         crate::serial_println!(
-            "[net] rtl8139 dma: rx_ring={:#x} tx_buf0={:#x} rx_offset={}",
+            "[net] rtl8139 dma: rx_ring={:#x} tx_buf0={:#x} rx_offset={} rbst={:#x}",
             self.rx_physical,
             self.tx_physical[0],
-            self.rx_offset
+            self.rx_offset,
+            self.read_u32(REG_RBSTART)
         );
 
         // Prove TX -> RX through the chip itself, without a peer and without
@@ -490,12 +522,19 @@ impl Rtl8139 {
         let status = self.read_ring_u16(self.rx_offset);
         let length = self.read_ring_u16(self.rx_offset + 2) as usize;
         if poll < 4 {
+            // Dump the first bytes as well: a header of all zeroes with a
+            // non-empty ring means the DMA went somewhere else entirely.
+            let mut raw = [0u8; 8];
+            for (index, byte) in raw.iter_mut().enumerate() {
+                *byte = self.read_ring_u8(self.rx_offset + index);
+            }
             crate::serial_println!(
-                "[net] rtl8139 rx header #{} off={} status={:#06x} length={}",
+                "[net] rtl8139 rx header #{} off={} status={:#06x} length={} raw={:02x?}",
                 poll,
                 self.rx_offset,
                 status,
-                length
+                length,
+                raw
             );
         }
         // ROK (bit 0) must be set and the length has to make sense; a broken
