@@ -376,7 +376,6 @@ impl Rtl8139 {
     fn loopback_test(&mut self) -> bool {
         const TEST_ETHERTYPE: [u8; 2] = [0x88, 0xB5];
 
-        let saved_rx_offset = self.rx_offset;
         let saved_tx_index = self.tx_index;
         let saved_tcr = self.read_u32(REG_TCR);
 
@@ -405,9 +404,15 @@ impl Rtl8139 {
             }
         }
 
-        // Leave loopback mode and forget everything the test consumed.
+        // Leave loopback mode. The ring right now holds the test frame (and
+        // whatever arrived while the test ran), so resynchronise instead of
+        // restoring the old offset: otherwise the network task would later
+        // "receive" the test frame as if it were a real packet.
         self.write_u32(REG_TCR, saved_tcr);
-        self.rx_offset = saved_rx_offset;
+        let cbr = self.read_u16(REG_CBR) as usize % RX_RING_SIZE;
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+        self.rx_offset = cbr;
+        self.write_u16(REG_CAPR, ((cbr + RX_RING_SIZE - 16) % RX_RING_SIZE) as u16);
         self.tx_index = saved_tx_index;
         self.write_u16(REG_ISR, 0xFFFF);
         found
@@ -484,6 +489,15 @@ impl Rtl8139 {
 
         let status = self.read_ring_u16(self.rx_offset);
         let length = self.read_ring_u16(self.rx_offset + 2) as usize;
+        if poll < 4 {
+            crate::serial_println!(
+                "[net] rtl8139 rx header #{} off={} status={:#06x} length={}",
+                poll,
+                self.rx_offset,
+                status,
+                length
+            );
+        }
         // ROK (bit 0) must be set and the length has to make sense; a broken
         // descriptor would otherwise let us allocate gigabytes.
         if status & 0x0001 == 0 || length == 0 || length > 1518 {
