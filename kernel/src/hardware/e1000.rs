@@ -332,6 +332,17 @@ impl E1000 {
             self.tx_ring[0].status,
             self.rx_ring[0].status
         );
+        if !loopback {
+            // Do not treat this as a fatal error. A PHY loopback is driven by
+            // the emulator (QEMU routes it through qemu_receive_packet(), which
+            // is dropped while the NIC is still "cold") and is not part of the
+            // 8254x programming model that a guest may rely on. The hard proof
+            // is a real reply: `[net] rx frame` followed by `[net] online`.
+            crate::serial_println!(
+                "[net] e1000 loopback is informational (emulators may drop it); \
+                 rx frame/online lines prove the link"
+            );
+        }
         true
     }
 
@@ -415,8 +426,11 @@ impl E1000 {
         }
         self.transmit(&frame);
 
+        // A looped frame is delivered synchronously by the chip/emulator, so a
+        // few thousand polls are plenty - and the boot must not stall when the
+        // loopback is not wired up at all.
         let mut found = false;
-        for _ in 0..100_000 {
+        for _ in 0..5_000 {
             if let Some(received) = self.receive() {
                 if received.len() >= 14
                     && received[12] == TEST_ETHERTYPE[0]
