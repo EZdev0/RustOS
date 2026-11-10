@@ -89,6 +89,18 @@ class LogScanTests(unittest.TestCase):
         self.assertFalse(lib.boot_marker_present("GRUB loading\n"))
         self.assertFalse(lib.boot_marker_present(""))
 
+    def test_qemu_network_args_always_attach_a_backend(self):
+        # A NIC without a backend has no peer: QEMU drops every frame, which
+        # masquerades as a dead receiver. The backend is not optional.
+        for model in ("e1000", "rtl8139", "pcnet", "ne2k_pci", "virtio-net-pci"):
+            argv = lib.qemu_network_args(model)
+            self.assertIn("-netdev", argv, model)
+            self.assertIn("user,id=net0", argv, model)
+            self.assertIn("-device", argv, model)
+            self.assertIn(f"{model},netdev=net0", argv, model)
+            self.assertNotIn("nic", argv, model)
+        self.assertEqual(lib.qemu_network_args("none"), ["-net", "none"])
+
     def test_network_state(self):
         self.assertEqual(lib.network_state("[boot] x\n"), "absent")
         self.assertEqual(

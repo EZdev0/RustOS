@@ -27,6 +27,7 @@ pub fn is_supported(device: &PciDevice) -> bool {
 
 const REG_CTRL: usize = 0x0000;
 const REG_STATUS: usize = 0x0008;
+const REG_MDIC: usize = 0x0020; // MDI Control (PHY register access)
 const REG_IMC: usize = 0x00D8; // Interrupt Mask Clear
 const REG_RCTL: usize = 0x0100;
 const REG_TCTL: usize = 0x0400;
@@ -118,7 +119,14 @@ impl E1000 {
         // the bootloader installed for physical memory (see BOOTLOADER_CONFIG).
         let mmio_base = (phys_offset + bar_physical) as usize;
 
-        // Aktiviere Bus Mastering und Memory Space
+        // Aktiviere Bus Mastering und Memory Space.
+        //
+        // Bus Mastering ist *nicht* optional: QEMU (und echte Hardware)
+        // verwerfen jedes eingehende Paket, solange PCI COMMAND.MASTER fehlt
+        // (`e1000x_rx_ready()`), während DMA-Reads für den TX-Ring weiter
+        // funktionieren. Das Fehlerbild ist dann "TX läuft, RX ist stumm" -
+        // exakt das, was ein halb defektes Kabel vortäuscht. Deshalb wird der
+        // Wert nach dem Schreiben zurückgelesen und geloggt.
         let cmd_reg =
             pci_read_config_32(pci_device.bus, pci_device.device, pci_device.function, 0x04);
         pci_write_config_32(
@@ -127,6 +135,28 @@ impl E1000 {
             pci_device.function,
             0x04,
             cmd_reg | 0x04 | 0x02,
+        );
+        let mut cmd_after =
+            pci_read_config_32(pci_device.bus, pci_device.device, pci_device.function, 0x04);
+        if cmd_after & 0x04 == 0 {
+            // Manche Chipsets ignorieren das obere Halbwort eines 32-Bit
+            // Schreibzugriffs auf 0x04. Zweiter Versuch: Status-Bits (oberes
+            // Halbwort) ausnullen, nur Command setzen.
+            pci_write_config_32(
+                pci_device.bus,
+                pci_device.device,
+                pci_device.function,
+                0x04,
+                (cmd_after & 0xFFFF) | 0x06,
+            );
+            cmd_after =
+                pci_read_config_32(pci_device.bus, pci_device.device, pci_device.function, 0x04);
+        }
+        crate::serial_println!(
+            "[net] e1000 pci: command={:#06x} master={} memory={}",
+            cmd_after & 0xFFFF,
+            if cmd_after & 0x04 != 0 { "yes" } else { "no" },
+            if cmd_after & 0x02 != 0 { "yes" } else { "no" }
         );
 
         // Wir lesen die MAC Adresse rudimentär via Eeprom oder MMIO Registers
@@ -305,24 +335,75 @@ impl E1000 {
         true
     }
 
-    /// MAC loopback self test: transmit a frame to ourselves and wait for it to
+    /// Read one PHY register through the MDIC register (offset 0x20).
+    ///
+    /// Layout: data[15:0], reg[20:16], phy[25:21], op[27:26], ready[28],
+    /// error[30]. PHY address 1 is what the 8254x/8257x family uses.
+    fn mdic_read(&self, reg: u8) -> Option<u16> {
+        const MDIC_PHY: u32 = 1;
+        const MDIC_OP_READ: u32 = 0b10 << 26;
+        let command = MDIC_OP_READ | (MDIC_PHY << 21) | ((reg as u32 & 0x1F) << 16);
+        self.write_register(REG_MDIC, command);
+        // A real PHY needs a few microseconds; QEMU answers immediately. The
+        // bound keeps a broken card from stalling the boot.
+        for _ in 0..1_000 {
+            let value = self.read_register(REG_MDIC);
+            if value & (1 << 28) != 0 {
+                // READY: bit 30 signals an error (no PHY / unimplemented reg).
+                return if value & (1 << 30) != 0 {
+                    None
+                } else {
+                    Some((value & 0xFFFF) as u16)
+                };
+            }
+        }
+        None
+    }
+
+    /// Write one PHY register through MDIC. Returns `false` on error/timeout.
+    fn mdic_write(&self, reg: u8, value: u16) -> bool {
+        const MDIC_PHY: u32 = 1;
+        const MDIC_OP_WRITE: u32 = 0b01 << 26;
+        let command =
+            MDIC_OP_WRITE | (MDIC_PHY << 21) | ((reg as u32 & 0x1F) << 16) | (value as u32);
+        self.write_register(REG_MDIC, command);
+        for _ in 0..1_000 {
+            let status = self.read_register(REG_MDIC);
+            if status & (1 << 28) != 0 {
+                return status & (1 << 30) == 0;
+            }
+        }
+        false
+    }
+
+    /// Loopback self test: transmit a frame to ourselves and wait for it to
     /// come back through the receive ring.
     ///
     /// Returns `true` when the frame arrived. Restores normal operation either
     /// way, and never blocks the boot for long (bounded poll count).
+    ///
+    /// The loopback is enabled in PHY register MII_BMCR (bit 14), *not* via
+    /// RCTL[6:7]: QEMU's e1000 model implements only the PHY loopback (it
+    /// calls `qemu_receive_packet()` when MII_BMCR_LOOPBACK is set) and would
+    /// otherwise ignore the test frame completely - a false "RX is broken".
     fn loopback_test(&mut self) -> bool {
-        // MAC loopback lives in RCTL bits 6:7 (0b01 = "loop back at the MAC"),
-        // *not* in CTRL - CTRL bit 6 is "set link up".
-        const RCTL_LBM_MAC: u32 = 1 << 6;
+        const MII_BMCR: u8 = 0x00;
+        const MII_BMCR_LOOPBACK: u16 = 0x4000;
         const TEST_ETHERTYPE: [u8; 2] = [0x88, 0xB5];
 
         // Keep the TX/RX indices out of the test's way: remember them and put
         // the rings back into the state they were in.
         let saved_rx_index = self.rx_index;
         let saved_tx_index = self.tx_index;
-        let saved_rctl = self.read_register(REG_RCTL);
 
-        self.write_register(REG_RCTL, saved_rctl | RCTL_LBM_MAC);
+        // Without a readable/writable PHY the test cannot run. Report `false`
+        // (the log then says why) instead of pretending the ring is fine.
+        let Some(bmcr) = self.mdic_read(MII_BMCR) else {
+            return false;
+        };
+        if !self.mdic_write(MII_BMCR, bmcr | MII_BMCR_LOOPBACK) {
+            return false;
+        }
 
         let mac = self.mac_address;
         let mut frame = [0u8; 64];
@@ -347,7 +428,10 @@ impl E1000 {
             }
         }
 
-        self.write_register(REG_RCTL, saved_rctl);
+        // Leave loopback mode again. RCTL is deliberately untouched: EN and
+        // the permissive filter must survive the test, otherwise the card
+        // would come up "successfully" and then drop every frame.
+        self.mdic_write(MII_BMCR, bmcr);
         self.rx_index = saved_rx_index;
         self.tx_index = saved_tx_index;
         found

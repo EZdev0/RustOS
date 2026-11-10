@@ -217,6 +217,23 @@ def network_state(text: str) -> str:
     return "absent"
 
 
+def qemu_network_args(net: str) -> list[str]:
+    """QEMU arguments for the NIC of a serial boot test.
+
+    ``-net nic,model=...`` on its own creates a NIC **without a peer**: QEMU
+    accepts the guest's frames and drops them on the floor, so no reply can
+    ever arrive. From inside the kernel that is indistinguishable from a broken
+    receiver (TX descriptor done, RX ring untouched) - exactly the bug that
+    kept the e1000 driver "offline" while every register looked correct.
+
+    ``-netdev user`` (slirp, 10.0.2.0/24) is therefore mandatory, and it is
+    also the backend Limbo on Android uses for its user-mode networking.
+    """
+    if net == "none":
+        return ["-net", "none"]
+    return ["-netdev", "user,id=net0", "-device", f"{net},netdev=net0"]
+
+
 def nic_summary(text: str) -> str:
     """One line about the NIC/IP of a boot log ('' when there is none)."""
     for pattern in (

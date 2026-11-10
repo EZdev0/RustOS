@@ -57,7 +57,8 @@ class CheckDumpTests(unittest.TestCase):
     def test_negative_coordinates_are_reported(self):
         problems = self.problems(CLEAN + "\ncmd text -5 20 8 11 1 x")
         self.assertTrue(any("negative x" in p for p in problems), problems)
-        self.assertTrue(any("negative y" in p for p in problems) is False)
+        # A negative x with a positive y must not be reported as a y problem.
+        self.assertFalse(any("negative y" in p for p in problems), problems)
 
     def test_below_page_height_is_reported(self):
         problems = self.problems(CLEAN + "\ncmd fill 0 118 640 8")

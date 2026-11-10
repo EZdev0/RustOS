@@ -51,6 +51,41 @@ there.
   "unmapped" and skipped, unless the driver knows the emulator default.
 * **Page-walked DMA.** `paging::physical_address()` translates every buffer the
   card touches; a buffer that cannot be translated aborts driver start-up.
+* **PCI bus mastering must actually be on.** `e1000x_rx_ready()` (and every real
+  8254x) gates *reception* on `PCI COMMAND.MASTER`, while DMA reads for the TX
+  ring keep working without it. A card with master off therefore transmits
+  happily and never receives a single frame. The driver sets the bit, reads the
+  register back and logs it:
+
+  ```text
+  [net] e1000 pci: command=0x0007 master=yes memory=yes
+  ```
+* **A NIC needs a backend.** `-net nic` without `-netdev user` gives QEMU a NIC
+  with **no peer**: the guest's frames are accepted and dropped, so no reply can
+  arrive and the receiver looks dead while all registers are perfect.
+  `tools/rustos_lib.qemu_network_args()` always emits
+  `-netdev user,id=net0 -device <model>,netdev=net0`.
+
+## Loopback self test
+
+Each e1000 start-up (before the network task runs) transmits one frame to
+itself and waits for it in the RX ring:
+
+```text
+[net] e1000 dma: rx_ring=0x... rx_buf0=0x... tx_ring=0x... tx_buf0=0x...
+[net] e1000 loopback: ok (tdh=1 rdh=1 tx_status=0x01 rx_status=0x01)
+```
+
+The loopback is enabled in **PHY register `MII_BMCR` bit 14** via the `MDIC`
+register (0x20), not with `RCTL[6:7]`: QEMU's model only implements the PHY
+loopback and ignores the RCTL bits, which produces a false "RX is broken".
+The test result separates the two failure classes:
+
+* `loopback: failed` → the RX ring, the descriptor layout, the `buffer_addr`
+  values or the PCI master bit are wrong (TX status and `tdh`/`rdh` are logged
+  alongside).
+* `loopback: ok` but no `[net] online` → the ring is fine and the problem is
+  outside the card: no backend, wrong static IP, or a dropped ARP/ICMP frame.
 
 ## Serial log contract
 

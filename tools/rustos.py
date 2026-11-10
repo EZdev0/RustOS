@@ -32,6 +32,11 @@ import rustos_lib as lib  # noqa: E402
 ROOT = lib.repo_root()
 IMAGE = ROOT / "target" / lib.IMAGE_NAME
 
+# NIC models RustOS actually has a driver for. Only these can be expected to
+# reach the network; for every other model the boot test only proves that the
+# kernel survives the hardware and reports it as unsupported.
+DRIVEN_NICS = frozenset({"e1000", "rtl8139"})
+
 BOLD = "\033[1m"
 GREEN = "\033[32m"
 RED = "\033[31m"
@@ -254,14 +259,12 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         "-m",
         "256M",
     ]
-    if args.net == "none":
-        # No NIC at all: proves the desktop boots without network hardware.
-        argv += ["-net", "none"]
-    else:
-        # Explicit model (never rely on QEMU's default): the drivers must
-        # refuse an unmapped BAR instead of faulting, and the boot test proves
-        # the chosen chip is actually driven (see docs/network_hardware.md).
-        argv += ["-net", f"nic,model={args.net}"]
+    # Explicit model (never rely on QEMU's default) *with* a user-mode backend:
+    # the drivers must refuse an unmapped BAR instead of faulting, and the boot
+    # test proves that packets actually flow (see docs/network_hardware.md and
+    # docs/limbo.md). The NIC/backend pairing lives in rustos_lib so that the
+    # unit tests can assert on it.
+    argv += lib.qemu_network_args(args.net)
     say(f"{BOLD}==> qemu boot test ({args.seconds}s){RESET}")
     say(f"  {' '.join(argv)}")
     code, output = lib.run_command(argv, ROOT, timeout=args.seconds)
@@ -296,10 +299,11 @@ def cmd_qemu(args: argparse.Namespace) -> int:
         emit_annotations(lib.annotate_lines(text, 6))
         return 1
     state = lib.network_state(text)
-    if args.net == "e1000":
+    if args.net in DRIVEN_NICS:
         # Regression guard: with a NIC attached the driver must come up *and*
         # prove that packets flow. A silently disabled driver used to look
-        # exactly like a healthy boot.
+        # exactly like a healthy boot - the rtl8139 test happily passed while
+        # every frame was dropped, because it only checked for panics.
         if state == "absent":
             say(
                 color(

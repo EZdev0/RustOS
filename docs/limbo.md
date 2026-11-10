@@ -34,7 +34,10 @@ settings - and the kernel used to be picky about the emulated hardware.
 
 ```text
 [boot] physical memory mapped at 0x...
+[net] e1000 pci: command=0x0007 master=yes memory=yes
 [net] e1000 up (device 100f): bar=0xfeb80000 mmio=... mac=52:54:00:12:34:56
+[net] e1000 dma: rx_ring=0x... rx_buf0=0x... tx_ring=0x... tx_buf0=0x...
+[net] e1000 loopback: ok (tdh=1 rdh=1 tx_status=0x01 rx_status=0x01)
 [net] static ip 10.0.2.15/24 gw=10.0.2.2 (dhcp will override)
 [net] default route via 10.0.2.2
 [net] dhcp: ip=10.0.2.15/24 gw=10.0.2.2 dns=10.0.2.3
@@ -62,6 +65,23 @@ Three separate problems, all fixed on this branch:
 3. **No DNS.** The browser could only open literal IPv4 addresses or three
    built-in names. A DNS resolver (smoltcp `socket-dns`) and a "Resolving …"
    state in the browser were added.
+4. **No backend on the CI side.** The boot test started QEMU with
+   `-net nic,model=e1000` and no `-netdev` backend, so the emulated NIC had no
+   peer: every frame the kernel sent was dropped by QEMU and no answer could
+   ever arrive. Inside the kernel this looked exactly like a dead receiver
+   (TX descriptor `DD` set, `tdh` advancing, `rdh` frozen at 0). The boot test
+   now always uses `-netdev user,id=net0 -device <model>,netdev=net0`, i.e. the
+   same slirp stack Limbo runs with **Network mode: User**.
+
+Diagnose order when `[net] online` stays missing:
+
+| Log line | Meaning |
+| --- | --- |
+| `[net] e1000 pci: ... master=no` | PCI bus mastering could not be enabled — reception is impossible |
+| `[net] e1000 loopback: failed (tdh=… rdh=0 …)` | RX ring/descriptors never written by the chip |
+| `[net] e1000 loopback: ok`, no `[net] online` | Card fine; no backend, wrong IP/gateway or ARP/ICMP dropped |
+| `[net] unsupported NIC …` | Limbo picked a card without a driver (use `e1000`/`rtl8139`) |
+| `[net] offline: no network device` | No PCI network controller visible at all |
 
 ## 32 bit vs 64 bit
 

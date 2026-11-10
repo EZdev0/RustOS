@@ -55,15 +55,23 @@ const TX_BUFFERS: usize = 4;
 const TX_BUFFER_SIZE: usize = 1792;
 const TSD_OWN: u32 = 1 << 13;
 
-// Volatile access to the register window. Whether `ptr::read_volatile` is a
-// safe function depends on the toolchain (newer nightlies made it safe, older
-// ones require `unsafe`), so keep the block - correct on both - and silence the
-// "unnecessary unsafe" lint that fires on the newer ones.
+/// Volatile read of a memory-mapped register.
+///
+/// # Safety
+///
+/// The caller must pass an address inside the NIC's mapped BAR window, aligned
+/// to `size_of::<T>()`. The address is derived from `phys_offset + BAR`, which
+/// `new()` validates with `paging::is_range_mapped` before the first access.
+///
+/// Whether `ptr::read_volatile` is a safe function depends on the toolchain
+/// (newer nightlies made it safe, older ones require `unsafe`), so the block
+/// stays - correct on both - and `unused_unsafe` is allowed for the newer ones.
 #[allow(unused_unsafe)]
 fn mmio_read<T: Copy>(address: usize) -> T {
     unsafe { core::ptr::read_volatile(address as *const T) }
 }
 
+/// Volatile write to a memory-mapped register (same contract as [`mmio_read`]).
 #[allow(unused_unsafe)]
 fn mmio_write<T: Copy>(address: usize, value: T) {
     unsafe { core::ptr::write_volatile(address as *mut T, value) }
