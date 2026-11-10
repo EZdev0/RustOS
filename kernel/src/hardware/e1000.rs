@@ -281,8 +281,76 @@ impl E1000 {
                 self.read_register(REG_TDT),
                 self.read_register(REG_RDLEN)
             );
+            crate::serial_println!(
+                "[net] e1000 dma: rx_ring={:#x} rx_buf0={:#x} tx_ring={:#x} tx_buf0={:#x}",
+                rx_addr,
+                self.rx_physical[0],
+                tx_addr,
+                self.tx_physical[0]
+            );
         }
+
+        // Prove that TX and RX rings, the descriptor layout and every DMA
+        // address work *without* a peer on the wire. Without this test a dead
+        // ring and a filtered link look identical from the outside.
+        let loopback = self.loopback_test();
+        crate::serial_println!(
+            "[net] e1000 loopback: {} (tdh={} rdh={} tx_status={:#04x} rx_status={:#04x})",
+            if loopback { "ok" } else { "failed" },
+            self.read_register(REG_TDH),
+            self.read_register(REG_RDH),
+            self.tx_ring[0].status,
+            self.rx_ring[0].status
+        );
         true
+    }
+
+    /// MAC loopback self test: transmit a frame to ourselves and wait for it to
+    /// come back through the receive ring.
+    ///
+    /// Returns `true` when the frame arrived. Restores normal operation either
+    /// way, and never blocks the boot for long (bounded poll count).
+    fn loopback_test(&mut self) -> bool {
+        // MAC loopback lives in RCTL bits 6:7 (0b01 = "loop back at the MAC"),
+        // *not* in CTRL - CTRL bit 6 is "set link up".
+        const RCTL_LBM_MAC: u32 = 1 << 6;
+        const TEST_ETHERTYPE: [u8; 2] = [0x88, 0xB5];
+
+        // Keep the TX/RX indices out of the test's way: remember them and put
+        // the rings back into the state they were in.
+        let saved_rx_index = self.rx_index;
+        let saved_tx_index = self.tx_index;
+        let saved_rctl = self.read_register(REG_RCTL);
+
+        self.write_register(REG_RCTL, saved_rctl | RCTL_LBM_MAC);
+
+        let mac = self.mac_address;
+        let mut frame = [0u8; 64];
+        frame[0..6].copy_from_slice(&mac);
+        frame[6..12].copy_from_slice(&mac);
+        frame[12..14].copy_from_slice(&TEST_ETHERTYPE);
+        for (index, byte) in frame[14..].iter_mut().enumerate() {
+            *byte = index as u8;
+        }
+        self.transmit(&frame);
+
+        let mut found = false;
+        for _ in 0..100_000 {
+            if let Some(received) = self.receive() {
+                if received.len() >= 14
+                    && received[12] == TEST_ETHERTYPE[0]
+                    && received[13] == TEST_ETHERTYPE[1]
+                {
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        self.write_register(REG_RCTL, saved_rctl);
+        self.rx_index = saved_rx_index;
+        self.tx_index = saved_tx_index;
+        found
     }
 
     pub fn can_transmit(&self) -> bool {
@@ -343,9 +411,10 @@ impl E1000 {
 
         let status = unsafe { core::ptr::read_volatile(&self.rx_ring[idx].status) };
         let probed = RX_PROBED.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
-        // The first polls (and then roughly every few seconds) show whether the
-        // chip ever sets the descriptor-done bit at all.
-        if probed < 8 || probed % 20_000 == 0 {
+        // The first polls show whether the chip ever sets the descriptor-done
+        // bit at all (the network task polls millions of times per second, so
+        // more logging would drown the serial log).
+        if probed < 8 {
             crate::serial_println!(
                 "[net] e1000 rx probe #{} idx={} status={:#04x} dd={}",
                 probed,
