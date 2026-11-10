@@ -26,6 +26,7 @@ pub fn is_supported(device: &PciDevice) -> bool {
 }
 
 const REG_CTRL: usize = 0x0000;
+const REG_STATUS: usize = 0x0008;
 const REG_IMC: usize = 0x00D8; // Interrupt Mask Clear
 const REG_RCTL: usize = 0x0100;
 const REG_TCTL: usize = 0x0400;
@@ -48,6 +49,12 @@ const BUFFER_SIZE: usize = 2048;
 
 /// The register window this driver touches (RAL/RAH at 0x5400 is the last one).
 const MMIO_WINDOW: u64 = 0x6000;
+
+// Boot-time diagnostics: the first few transmit/receive events are logged so a
+// dead direction is visible in the serial log instead of being guessed at.
+static TX_SEEN: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+static TX_DROPPED: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+static RX_PROBED: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy)]
@@ -229,8 +236,14 @@ impl E1000 {
             self.write_register(REG_RDH, 0);
             self.write_register(REG_RDT, (RX_RING_SIZE - 1) as u32);
 
-            // RCTL: EN (1<<1), BAM (1<<15)
-            self.write_register(REG_RCTL, (1 << 1) | (1 << 15));
+            // RCTL: EN (1<<1) | UPE (1<<3) | MPE (1<<4) | BAM (1<<15) |
+            //       SECRC (1<<26, strip the FCS) | BSIZE 2048 (0<<16).
+            // UPE/MPE/BAM make the filter fully permissive: a filter mismatch
+            // would silently drop every frame and look like a dead link.
+            self.write_register(
+                REG_RCTL,
+                (1 << 1) | (1 << 3) | (1 << 4) | (1 << 15) | (1 << 26),
+            );
 
             // TX
             for i in 0..TX_RING_SIZE {
@@ -250,8 +263,24 @@ impl E1000 {
             self.write_register(REG_TDH, 0);
             self.write_register(REG_TDT, 0);
 
-            // TCTL: EN (1<<1), PSP (1<<3)
-            self.write_register(REG_TCTL, (1 << 1) | (1 << 3));
+            // TCTL: EN (1<<1) | PSP (1<<3) | CT = 0x10 (bits 4..11) |
+            // COLD = 0x40 (bits 12..21). CT/COLD at their reset value are what
+            // Intel's driver programs; leaving them at 0 makes some models
+            // refuse to start a transmission.
+            self.write_register(REG_TCTL, (1 << 1) | (1 << 3) | (0x10 << 4) | (0x40 << 12));
+
+            // Read back the programming: if a register did not stick, the
+            // cause is the mapping, not the network.
+            crate::serial_println!(
+                "[net] e1000 regs: ctrl={:#010x} status={:#010x} rctl={:#010x} tctl={:#010x} rdt={} tdt={} rdlen={}",
+                self.read_register(REG_CTRL),
+                self.read_register(REG_STATUS),
+                self.read_register(REG_RCTL),
+                self.read_register(REG_TCTL),
+                self.read_register(REG_RDT),
+                self.read_register(REG_TDT),
+                self.read_register(REG_RDLEN)
+            );
         }
         true
     }
@@ -267,10 +296,31 @@ impl E1000 {
 
     pub fn transmit(&mut self, data: &[u8]) {
         if data.len() > BUFFER_SIZE || !self.can_transmit() {
+            let dropped = TX_DROPPED.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+            if dropped < 6 {
+                crate::serial_println!(
+                    "[net] e1000 tx dropped: len={} fits={} can_transmit={} idx={} status={:#x}",
+                    data.len(),
+                    data.len() <= BUFFER_SIZE,
+                    self.can_transmit(),
+                    self.tx_index,
+                    self.tx_ring[self.tx_index].status
+                );
+            }
             return;
         }
 
         let idx = self.tx_index;
+        let seen = TX_SEEN.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        if seen < 6 {
+            crate::serial_println!(
+                "[net] e1000 tx #{} len={} idx={} tdt={}",
+                seen,
+                data.len(),
+                idx,
+                self.read_register(REG_TDT)
+            );
+        }
 
         self.tx_buffers[idx][..data.len()].copy_from_slice(data);
 
@@ -291,7 +341,21 @@ impl E1000 {
 
         core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 
-        if unsafe { core::ptr::read_volatile(&self.rx_ring[idx].status) & 1 } == 1 {
+        let status = unsafe { core::ptr::read_volatile(&self.rx_ring[idx].status) };
+        let probed = RX_PROBED.fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        // The first polls (and then roughly every few seconds) show whether the
+        // chip ever sets the descriptor-done bit at all.
+        if probed < 8 || probed % 20_000 == 0 {
+            crate::serial_println!(
+                "[net] e1000 rx probe #{} idx={} status={:#04x} dd={}",
+                probed,
+                idx,
+                status,
+                status & 1
+            );
+        }
+
+        if status & 1 == 1 {
             // Descriptor Done (DD)
             let raw_len = unsafe { core::ptr::read_volatile(&self.rx_ring[idx].length) } as usize;
             let len = core::cmp::min(raw_len, BUFFER_SIZE);

@@ -582,13 +582,13 @@ impl NetworkManager {
 
     pub fn send_ping(&mut self, ip: [u8; 4], seq_no: u16) -> Result<(), &'static str> {
         let socket = self.sockets.get_mut::<icmp::Socket>(self.icmp_handle);
+        // Bind first: an unbound socket can neither send nor match replies, and
+        // `can_send()` reflects that. Re-binding an already bound socket fails,
+        // which is fine - the ident stays the same.
+        let _ = socket.bind(icmp::Endpoint::Ident(0x1234));
         if !socket.can_send() {
             return Err("Socket cannot send");
         }
-        // Bind before sending: an unbound socket cannot match replies.
-        socket
-            .bind(icmp::Endpoint::Ident(0x1234))
-            .map_err(|_| "Failed to bind socket")?;
 
         let payload = alloc::vec![0x42; 32];
         let repr = Icmpv4Repr::EchoRequest {
