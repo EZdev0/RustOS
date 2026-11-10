@@ -10,6 +10,7 @@ Start here, then follow the area you care about.
 | [rendering_performance.md](rendering_performance.md) | why the compositor no longer lags: repaint requests, 2 Hz housekeeping, scanline fills |
 | [http_network_indicator.md](http_network_indicator.md) | the HTTP client state machine, byte budgets, status indicator |
 | [network_hardware.md](network_hardware.md) | supported NICs (Intel 8254x, Realtek 8139), PCI probing, log contract, adding a driver |
+| [network_debugging.md](network_debugging.md) | post-mortem: why "no internet" happened (missing QEMU backend, PCI mastering, `TSD`/`CAPR` bugs) and the evidence chain |
 | [taskmanager_performance_monitor.md](taskmanager_performance_monitor.md) | Task Manager charts, uptime, refresh cadence |
 | [dock_buffer_panic_fix.md](dock_buffer_panic_fix.md) | post-mortem: dock buffer overflow (red screen of death) |
 
