@@ -83,6 +83,22 @@ loopback and ignores the RCTL bits, which produces a false "RX is broken".
 `rtl8139` has the same test: it sets `TCR` bits 12:11 to `0b11` (internal
 loopback) and expects the frame back in its 8 KiB ring.
 
+A failing e1000 loopback is logged together with a note and is **not** fatal:
+QEMU delivers the looped frame through `qemu_receive_packet()`, which is
+outside the 8254x programming model and can drop it while the NIC is still
+cold. On real silicon the line is meaningful; in CI the hard proof is
+`[net] rx frame` + `[net] online`.
+
+### rtl8139: bit 13 of `TSD` means "host owns"
+
+The datasheet calls the bit `OWN`, but it is set at reset and the chip sets it
+again after transmitting: a descriptor is handed to the chip by writing the
+**length without bit 13**. QEMU refuses to transmit while the bit is set
+(`TxHostOwns`) and Linux' `8139too` writes `tx_flag | len` for the same reason.
+Writing `len | 0x2000` made the card ignore every frame — TX looked "queued"
+(`TSD` read back with our bit, `ISR` without `TxOK`) and nothing ever left the
+machine.
+
 The test result separates the two failure classes:
 
 * `loopback: failed` → the RX ring, the descriptor layout, the `buffer_addr`

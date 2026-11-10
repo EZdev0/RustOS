@@ -53,7 +53,13 @@ const RX_BUFFER_SIZE: usize = RX_RING_SIZE + 1500;
 const TX_BUFFERS: usize = 4;
 /// The chip cannot transmit a frame larger than this (plus headers).
 const TX_BUFFER_SIZE: usize = 1792;
-const TSD_OWN: u32 = 1 << 13;
+/// `TSD` bit 13. Despite the name in the datasheet ("OWN") the bit means
+/// **host owns the descriptor**: it is set at reset, and the chip sets it again
+/// after it has transmitted. A descriptor is therefore only handed to the chip
+/// by writing the length *without* this bit - QEMU's model refuses to send
+/// while it is set, exactly like the real RTL8139 and like Linux' `8139too`
+/// (`RTL_W32_F(TxStatus0, tx_flag | len)`, no `TxHostOwns`).
+const TSD_HOST_OWNS: u32 = 1 << 13;
 /// `TCR` bits 12:11 select the loopback mode: 0b11 = internal loopback, in
 /// which transmitted frames come back through the receive ring without ever
 /// touching the wire. That is exactly what a boot-time self test needs.
@@ -282,13 +288,14 @@ impl Rtl8139 {
         self.write_u32(REG_RCR, RCR_VALUE);
         self.write_u32(REG_TCR, 0);
 
-        // Transmit descriptors: address, then "not owned".
+        // Transmit descriptors: address, then "owned by the host" (free).
+        // Writing 0 here would look like a zero-length frame to the chip.
         for index in 0..TX_BUFFERS {
             self.write_u32(
                 REG_TSAD0 + (index as u16) * 4,
                 self.tx_physical[index] as u32,
             );
-            self.write_u32(REG_TSD0 + (index as u16) * 4, 0);
+            self.write_u32(REG_TSD0 + (index as u16) * 4, TSD_HOST_OWNS);
         }
 
         // Ring is empty: the chip's read pointer sits 16 bytes behind the
@@ -372,7 +379,7 @@ impl Rtl8139 {
 
         let mut found = false;
         if self.transmit(&frame) {
-            for _ in 0..100_000 {
+            for _ in 0..5_000 {
                 if let Some(received) = self.receive() {
                     if received.len() >= 14
                         && received[12] == TEST_ETHERTYPE[0]
@@ -403,8 +410,10 @@ impl Rtl8139 {
         self.bar_address
     }
 
+    /// A descriptor is free once the chip has handed it back, i.e. as soon as
+    /// it owns it again (`TSD_HOST_OWNS` set).
     pub fn can_transmit(&self) -> bool {
-        self.read_u32(REG_TSD0 + (self.tx_index as u16) * 4) & TSD_OWN == 0
+        self.read_u32(REG_TSD0 + (self.tx_index as u16) * 4) & TSD_HOST_OWNS != 0
     }
 
     pub fn transmit(&mut self, data: &[u8]) -> bool {
@@ -431,14 +440,14 @@ impl Rtl8139 {
             );
         }
         self.tx_buffers[index][..data.len()].copy_from_slice(data);
-        // Address first, then the length with OWN: the chip may start the DMA
-        // as soon as OWN is visible.
+        // Address first, then the bare length: writing the status register is
+        // the trigger, and bit 13 must stay clear ("host no longer owns it").
         self.write_u32(
             REG_TSAD0 + (index as u16) * 4,
             self.tx_physical[index] as u32,
         );
         core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
-        self.write_u32(REG_TSD0 + (index as u16) * 4, data.len() as u32 | TSD_OWN);
+        self.write_u32(REG_TSD0 + (index as u16) * 4, data.len() as u32);
         self.tx_index = (index + 1) % TX_BUFFERS;
         true
     }
