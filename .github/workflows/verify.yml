@@ -294,7 +294,9 @@ jobs:
           exit "$fail"
 
       - name: 🚑 Publish logs (diagnostics)
-        if: failure()
+        # Also on success: the serial logs are the only proof that a NIC came up
+        # *online*, and they are otherwise buried in an artifact.
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash tools/ci/publish_logs.sh
