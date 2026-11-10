@@ -42,6 +42,9 @@ pub struct PageEngine {
     layout_width: u32,
     dark_mode: bool,
     redirects: u8,
+    /// Set while the engine already moved on to the next request: a late
+    /// "socket closed" report for the *previous* transfer must be ignored.
+    stream_retired: bool,
     pending_redirect: Option<Url>,
     error: Option<HttpError>,
     received_bytes: usize,
@@ -64,6 +67,7 @@ impl PageEngine {
             layout_width: 0,
             dark_mode: false,
             redirects,
+            stream_retired: redirects > 0,
             pending_redirect: None,
             error: None,
             received_bytes: 0,
@@ -128,6 +132,7 @@ impl PageEngine {
             return None;
         }
         self.request_sent = true;
+        self.stream_retired = false;
         Some(request_bytes(&self.url))
     }
 
@@ -154,8 +159,14 @@ impl PageEngine {
     }
 
     /// Signal that the transport closed.
+    ///
+    /// Harmless when the engine already started the next request (a redirect
+    /// replaces the engine, and the closing socket belongs to the old URL).
     pub fn finish_stream(&mut self) {
         if matches!(self.state, FetchState::Complete | FetchState::Failed) {
+            return;
+        }
+        if self.stream_retired {
             return;
         }
         if self.state == FetchState::Requesting {
@@ -181,7 +192,18 @@ impl PageEngine {
     fn finish_document(&mut self) {
         let response = self.parser.response();
 
-        if response.is_redirect() && self.redirects < MAX_REDIRECTS {
+        if response.is_redirect() {
+            if self.redirects >= MAX_REDIRECTS {
+                let html = error_page(
+                    "Too many redirects",
+                    "The server keeps redirecting and the limit of \
+                     MAX_REDIRECTS hops was reached, so the page was not loaded.\n\
+                     This usually means a redirect loop or a login wall.",
+                );
+                self.document = Some(Document::parse(&html));
+                self.state = FetchState::Complete;
+                return;
+            }
             if let Some(location) = response.location() {
                 if let Ok(next) = self.url.resolve(location) {
                     let mut engine = PageEngine::with_redirects(next, self.redirects + 1);
@@ -190,6 +212,13 @@ impl PageEngine {
                     return;
                 }
             }
+            let html = error_page(
+                "Broken redirect",
+                "The server sent a redirect without a usable `Location` header.",
+            );
+            self.document = Some(Document::parse(&html));
+            self.state = FetchState::Complete;
+            return;
         }
 
         if let Some(encoding) = response.unsupported_encoding() {

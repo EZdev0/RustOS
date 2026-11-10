@@ -4,7 +4,26 @@ use alloc::vec::Vec;
 use core::ptr::{read_volatile, write_volatile};
 
 const E1000_VENDOR_ID: u16 = 0x8086;
-const E1000_DEVICE_ID: u16 = 0x100E;
+
+/// Device IDs of the 8254x family. QEMU/Limbo expose 0x100E (82540EM) or
+/// 0x100F (82545EM), real 82574L cards report 0x10D3, and older boards use the
+/// remaining IDs — all of them share the register layout this driver programs.
+const E1000_DEVICE_IDS: [u16; 9] = [
+    0x100E, // 82540EM (QEMU `-device e1000`, older Limbo)
+    0x100F, // 82545EM (Limbo e1000, VMware e1000)
+    0x1004, // 82543GC
+    0x1015, // 82540EP
+    0x1016, // 82540EP (mobile)
+    0x1017, // 82540EP (mobile)
+    0x10D3, // 82574L (QEMU `e1000e`, many real boards)
+    0x10D5, // 82574IT
+    0x10D6, // 82566DM
+];
+
+/// True when `device` is an Intel 8254x NIC this driver can program.
+pub fn is_supported(device: &PciDevice) -> bool {
+    device.vendor_id == E1000_VENDOR_ID && E1000_DEVICE_IDS.contains(&device.device_id)
+}
 
 const REG_CTRL: usize = 0x0000;
 const REG_IMC: usize = 0x00D8; // Interrupt Mask Clear
@@ -54,12 +73,18 @@ pub struct TxDesc {
 }
 
 pub struct E1000 {
+    /// Physical address of BAR0 (what the device decodes).
+    bar_physical: u64,
+    /// Mapped virtual address of the same window (`phys_offset + bar`).
     mmio_base: usize,
     mac_address: [u8; 6],
     rx_ring: Vec<RxDesc>,
     tx_ring: Vec<TxDesc>,
     rx_buffers: Vec<[u8; BUFFER_SIZE]>,
     tx_buffers: Vec<[u8; BUFFER_SIZE]>,
+    /// Physical addresses of the buffers above (the NIC DMAs to these).
+    rx_physical: Vec<u64>,
+    tx_physical: Vec<u64>,
     rx_index: usize,
     tx_index: usize,
     phys_offset: u64,
@@ -67,20 +92,24 @@ pub struct E1000 {
 
 impl E1000 {
     pub fn new(pci_device: &PciDevice, phys_offset: u64) -> Self {
-        let mut mmio_base = (pci_device.bar0 & !0xF) as usize;
+        let mut bar_physical = (pci_device.bar0 & !0xF) as u64;
 
         // SAFETY FIX: In some QEMU configurations without SeaBIOS, BAR0 is uninitialized (0).
         // If we write to address 0, we corrupt the IDT/GDT, causing #GP or #DF.
-        if mmio_base == 0 {
-            mmio_base = 0xFEB8_0000;
+        if bar_physical == 0 {
+            bar_physical = 0xFEB8_0000;
             pci_write_config_32(
                 pci_device.bus,
                 pci_device.device,
                 pci_device.function,
                 0x10,
-                mmio_base as u32,
+                bar_physical as u32,
             );
         }
+
+        // The device decodes the *physical* address; the CPU needs the mapping
+        // the bootloader installed for physical memory (see BOOTLOADER_CONFIG).
+        let mmio_base = (phys_offset + bar_physical) as usize;
 
         // Aktiviere Bus Mastering und Memory Space
         let cmd_reg =
@@ -108,19 +137,29 @@ impl E1000 {
         }
 
         Self {
+            bar_physical,
             mmio_base,
             mac_address: mac,
             rx_ring: Vec::new(),
             tx_ring: Vec::new(),
             rx_buffers: Vec::new(),
             tx_buffers: Vec::new(),
+            rx_physical: Vec::new(),
+            tx_physical: Vec::new(),
             rx_index: 0,
             tx_index: 0,
             phys_offset,
         }
     }
 
-    pub fn init(&mut self) {
+    /// Physical address of `address`, or `None` when DMA would be unsafe.
+    fn physical(address: u64, phys_offset: u64) -> Option<u64> {
+        crate::paging::physical_address(address, phys_offset)
+    }
+
+    /// Program the device. Returns `false` when DMA buffers cannot be addressed
+    /// physically (the caller must then not use the card at all).
+    pub fn init(&mut self) -> bool {
         unsafe {
             // Disable all interrupts (Mask Clear) to prevent interrupt storms
             self.write_register(REG_IMC, 0xFFFF_FFFF);
@@ -157,13 +196,30 @@ impl E1000 {
             self.rx_buffers = vec![[0u8; BUFFER_SIZE]; RX_RING_SIZE];
             self.tx_buffers = vec![[0u8; BUFFER_SIZE]; TX_RING_SIZE];
 
+            // The NIC DMAs to physical addresses: resolve every buffer once.
+            self.rx_physical.clear();
+            self.tx_physical.clear();
+            for i in 0..RX_RING_SIZE {
+                match Self::physical(self.rx_buffers[i].as_ptr() as u64, self.phys_offset) {
+                    Some(address) => self.rx_physical.push(address),
+                    None => return false,
+                }
+            }
+            for i in 0..TX_RING_SIZE {
+                match Self::physical(self.tx_buffers[i].as_ptr() as u64, self.phys_offset) {
+                    Some(address) => self.tx_physical.push(address),
+                    None => return false,
+                }
+            }
             // RX
             for i in 0..RX_RING_SIZE {
-                self.rx_ring[i].addr =
-                    (self.rx_buffers[i].as_ptr() as u64).saturating_sub(self.phys_offset);
+                self.rx_ring[i].addr = self.rx_physical[i];
             }
 
-            let rx_addr = (self.rx_ring.as_ptr() as u64).saturating_sub(self.phys_offset);
+            let Some(rx_addr) = Self::physical(self.rx_ring.as_ptr() as u64, self.phys_offset)
+            else {
+                return false;
+            };
             self.write_register(REG_RDBAL, (rx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_RDBAH, (rx_addr >> 32) as u32);
             self.write_register(
@@ -178,11 +234,13 @@ impl E1000 {
 
             // TX
             for i in 0..TX_RING_SIZE {
-                self.tx_ring[i].addr =
-                    (self.tx_buffers[i].as_ptr() as u64).saturating_sub(self.phys_offset);
+                self.tx_ring[i].addr = self.tx_physical[i];
             }
 
-            let tx_addr = (self.tx_ring.as_ptr() as u64).saturating_sub(self.phys_offset);
+            let Some(tx_addr) = Self::physical(self.tx_ring.as_ptr() as u64, self.phys_offset)
+            else {
+                return false;
+            };
             self.write_register(REG_TDBAL, (tx_addr & 0xFFFF_FFFF) as u32);
             self.write_register(REG_TDBAH, (tx_addr >> 32) as u32);
             self.write_register(
@@ -195,6 +253,7 @@ impl E1000 {
             // TCTL: EN (1<<1), PSP (1<<3)
             self.write_register(REG_TCTL, (1 << 1) | (1 << 3));
         }
+        true
     }
 
     pub fn can_transmit(&self) -> bool {
@@ -215,9 +274,8 @@ impl E1000 {
 
         self.tx_buffers[idx][..data.len()].copy_from_slice(data);
 
-        // Convert virtual to physical address for DMA
-        self.tx_ring[idx].addr =
-            (self.tx_buffers[idx].as_ptr() as u64).saturating_sub(self.phys_offset);
+        // Physical address computed once in `init`; the buffer never moves.
+        self.tx_ring[idx].addr = self.tx_physical[idx];
         self.tx_ring[idx].length = data.len() as u16;
         self.tx_ring[idx].cmd = (1 << 3) | (1 << 1) | 1; // RS | IFCS | EOP
         self.tx_ring[idx].status = 0;
@@ -268,34 +326,62 @@ impl E1000 {
     pub fn mac_address(&self) -> [u8; 6] {
         self.mac_address
     }
+
+    /// Physical base address of the MMIO window (BAR0).
+    pub fn bar_address(&self) -> u64 {
+        self.bar_physical
+    }
 }
 
-pub fn init_e1000(devices: &[PciDevice], phys_offset: u64) -> Option<E1000> {
-    for dev in devices {
-        if dev.vendor_id != E1000_VENDOR_ID || dev.device_id != E1000_DEVICE_ID {
-            continue;
-        }
-
-        // The bootloader's page tables do not cover PCI BARs, and this kernel
-        // does not build its own address space yet. Touching the MMIO window
-        // unmapped would raise a page fault at boot, so refuse instead of
-        // crashing: the desktop keeps working without networking.
-        let mut bar = (dev.bar0 & !0xF) as u64;
-        if bar == 0 {
-            bar = 0xFEB8_0000; // QEMU's default e1000 BAR
-        }
-        if !crate::paging::is_range_mapped(bar, MMIO_WINDOW, phys_offset) {
-            crate::serial_println!(
-                "[net] e1000 at {:#x} is not mapped by the bootloader - networking disabled",
-                bar
-            );
-            return None;
-        }
-
-        crate::serial_println!("[net] e1000 MMIO at {:#x} is mapped", bar);
-        let mut nic = E1000::new(dev, phys_offset);
-        nic.init();
-        return Some(nic);
+/// Bring up the NIC behind `dev`, or explain why not.
+///
+/// Split out of [`init_e1000`] so the generic NIC probe can try drivers one by
+/// one and fall through to the next device when one of them refuses.
+pub fn probe_one(dev: &PciDevice, phys_offset: u64) -> Option<E1000> {
+    if !is_supported(dev) {
+        return None;
     }
-    None
+
+    // The CPU reaches MMIO through the bootloader's physical-memory mapping;
+    // touching an unmapped BAR would page fault, so refuse instead of crashing.
+    let mut bar = (dev.bar0 & !0xF) as u64;
+    if bar == 0 {
+        bar = 0xFEB8_0000; // QEMU's default e1000 BAR
+    }
+    let mapped = phys_offset.saturating_add(bar);
+    if phys_offset == 0 || !crate::paging::is_range_mapped(mapped, MMIO_WINDOW, phys_offset) {
+        crate::serial_println!(
+            "[net] e1000 at {:#x} is not mapped (phys offset {:#x}) - driver skipped",
+            bar,
+            phys_offset
+        );
+        return None;
+    }
+
+    let mut nic = E1000::new(dev, phys_offset);
+    if !nic.init() {
+        crate::serial_println!("[net] e1000 DMA buffers are not addressable - driver skipped");
+        return None;
+    }
+    let mac = nic.mac_address();
+    crate::serial_println!(
+        "[net] e1000 up (device {:04x}): bar={:#x} mmio={:#x} mac={:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+        dev.device_id,
+        nic.bar_address(),
+        mapped,
+        mac[0],
+        mac[1],
+        mac[2],
+        mac[3],
+        mac[4],
+        mac[5]
+    );
+    Some(nic)
+}
+
+/// First e1000 in `devices` (kept for callers that only care about Intel).
+pub fn init_e1000(devices: &[PciDevice], phys_offset: u64) -> Option<E1000> {
+    devices
+        .iter()
+        .find_map(|device| probe_one(device, phys_offset))
 }

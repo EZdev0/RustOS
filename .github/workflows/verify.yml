@@ -166,6 +166,9 @@ jobs:
       - name: 🌐 Browser engine test report
         run: cargo test -p rustos-web --lib -- --test-threads=1
 
+      - name: 🖼️ Render probe (engine ↔ Python)
+        run: python3 tools/webprobe.py --check --verbose
+
       - name: 🐍 Python tool tests
         run: python3 -m unittest discover -s tools/tests -v
 
@@ -223,6 +226,21 @@ jobs:
           cat boot-none.log
           if [ "$rc" -ne 0 ]; then
             python3 tools/rustos.py annotate --file boot-none.log --limit 8 || true
+          fi
+          exit "$rc"
+
+      - name: 🖥️ Boot test (rtl8139 present)
+        shell: bash
+        run: |
+          # Second NIC model: Limbo and older QEMU setups default to Realtek,
+          # so the generic probe and the rtl8139 driver get their own boot test.
+          python3 tools/rustos.py qemu --seconds 20 --net rtl8139 > boot-rtl.log 2>&1 && rc=0 || rc=$?
+          cat boot-rtl.log
+          if [ "$rc" -ne 0 ]; then
+            python3 tools/rustos.py annotate --file boot-rtl.log --limit 8 || true
+            if [ -f target/qemu_serial.log ]; then
+              python3 tools/rustos.py annotate --file target/qemu_serial.log --limit 8 || true
+            fi
           fi
           exit "$rc"
 

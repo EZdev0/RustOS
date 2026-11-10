@@ -38,6 +38,12 @@ FAILURE_MARKERS: tuple[str, ...] = (
 
 # The kernel prints this from `kernel_main` before touching the framebuffer.
 BOOT_MARKER = "[boot]"
+# Printed once a NIC driver has MMIO + DMA working. Any driver counts:
+# `[net] e1000 up ...`, `[net] rtl8139 up ...` (see kernel/src/hardware/net.rs).
+NET_DEVICE_MARKER = "[net] e1000 up"
+NET_DEVICE_RE = re.compile(r"\[net\] ([a-z0-9]+) up\b")
+# Printed by `net_selftest_task` when the gateway answered a ping.
+NET_ONLINE_MARKER = "[net] online"
 
 # Lines that contain a failure marker but are known-benign.
 FAILURE_WHITELIST: tuple[str, ...] = (
@@ -200,6 +206,29 @@ def clippy_annotations(text: str, limit: int = 8) -> list[str]:
 def boot_marker_present(text: str) -> bool:
     """True when the kernel actually reached `kernel_main`."""
     return BOOT_MARKER in text
+
+
+def network_state(text: str) -> str:
+    """Classify a serial log: 'online', 'device-only' or 'absent'."""
+    if NET_ONLINE_MARKER in text:
+        return "online"
+    if NET_DEVICE_RE.search(text) or NET_DEVICE_MARKER in text:
+        return "device-only"
+    return "absent"
+
+
+def nic_summary(text: str) -> str:
+    """One line about the NIC/IP of a boot log ('' when there is none)."""
+    for pattern in (
+        r"\[net\] (?:dhcp|ip): .*",
+        r"\[net\] [a-z0-9]+ up: .*",
+        r"\[net\] unsupported NIC .*",
+        r"\[net\] no PCI network controller found",
+    ):
+        match = re.search(pattern, text)
+        if match:
+            return match.group(0).strip()
+    return ""
 
 
 def image_magic(image: bytes) -> bool:

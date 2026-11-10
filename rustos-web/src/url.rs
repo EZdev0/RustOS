@@ -159,11 +159,19 @@ impl Url {
     }
 
     /// Value for the HTTP `Host:` header (port omitted when it is 80).
+    ///
+    /// IPv6 literals must keep their brackets: `Host: [::1]:8080`, not
+    /// `Host: ::1:8080` (the latter is ambiguous and rejected by servers).
     pub fn host_header(&self) -> String {
-        if self.port == DEFAULT_HTTP_PORT {
-            self.host.clone()
+        let host = if self.host.contains(':') {
+            format!("[{}]", self.host)
         } else {
-            format!("{}:{}", self.host, self.port)
+            self.host.clone()
+        };
+        if self.port == DEFAULT_HTTP_PORT {
+            host
+        } else {
+            format!("{}:{}", host, self.port)
         }
     }
 
@@ -401,6 +409,8 @@ fn percent_encode_path(path: &str) -> String {
 
 /// Collapse `.`/`..` segments and duplicate slashes.
 fn normalize_path(path: &str) -> String {
+    // A directory reference ("g/", ".", "..") keeps its trailing slash.
+    let trailing = path.ends_with('/') || path.ends_with("/.") || path.ends_with("/..");
     let mut segments: alloc::vec::Vec<&str> = alloc::vec::Vec::new();
     for segment in path.split('/') {
         match segment {
@@ -417,6 +427,9 @@ fn normalize_path(path: &str) -> String {
             out.push('/');
         }
         out.push_str(segment);
+    }
+    if trailing && !out.ends_with('/') {
+        out.push('/');
     }
     out
 }

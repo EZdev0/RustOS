@@ -27,6 +27,17 @@ const CHUNKS_PER_UPDATE: usize = 16;
 /// Static host table used until a DNS client exists.
 ///
 /// These entries can drift; the URL bar accepts a numeric IP at any time.
+/// Result of a name lookup for the URL bar.
+enum HostLookup {
+    /// A usable IPv4 address.
+    Found([u8; 4]),
+    /// A DNS query is in flight; retry on the next update.
+    Pending,
+    /// The resolver rejected the name (or there is no resolver).
+    Failed,
+}
+
+/// Static names that work without any resolver (useful for smoke tests).
 pub const HOSTS: &[(&str, [u8; 4])] = &[
     ("example.com", [93, 184, 216, 34]),
     ("www.example.com", [93, 184, 216, 34]),
@@ -39,6 +50,8 @@ pub struct BrowserApp {
     pending_url: Option<Url>,
     /// URL whose request bytes were already handed to the network stack.
     sent_url: Option<Url>,
+    /// Host whose DNS query is currently in flight, for the status line.
+    resolving: Option<String>,
     scroll_y: i32,
     status: String,
     history: Vec<String>,
@@ -58,6 +71,7 @@ impl BrowserApp {
             engine: None,
             pending_url: None,
             sent_url: None,
+            resolving: None,
             scroll_y: 0,
             status: String::from("Ready - type an address and press Enter"),
             history: Vec::new(),
@@ -74,6 +88,7 @@ impl BrowserApp {
                 }
                 self.url_bar = url.display();
                 self.pending_url = Some(url);
+                self.resolving = None;
             }
             Err(error) => {
                 self.status = String::from(error.message());
@@ -101,16 +116,26 @@ impl BrowserApp {
         }
     }
 
-    /// Resolve a host name through the static table (no DNS yet).
-    fn resolve_host(url: &Url) -> Option<[u8; 4]> {
+    /// Resolve a host name.
+    ///
+    /// Order: literal IPv4, the built-in table (works without any network
+    /// configuration), then the kernel's DNS resolver. DNS is asynchronous, so
+    /// the caller distinguishes "pending" from "failed" and keeps the tab in a
+    /// "Resolving..." state instead of painting an error page for a query that
+    /// is still in flight.
+    fn resolve_host(url: &Url) -> HostLookup {
         if let Some(ip) = url.ipv4() {
-            return Some(ip);
+            return HostLookup::Found(ip);
         }
         let host = url.host();
-        HOSTS
-            .iter()
-            .find(|(name, _)| *name == host)
-            .map(|(_, ip)| *ip)
+        if let Some((_, ip)) = HOSTS.iter().find(|(name, _)| *name == host) {
+            return HostLookup::Found(*ip);
+        }
+        match crate::network::lookup_host(host) {
+            crate::network::Lookup::Resolved(ip) => HostLookup::Found(ip),
+            crate::network::Lookup::Pending => HostLookup::Pending,
+            crate::network::Lookup::Failed => HostLookup::Failed,
+        }
     }
 
     fn status_line(&self) -> String {
@@ -252,6 +277,7 @@ impl App for BrowserApp {
         }
 
         let mut unknown_host: Option<Url> = None;
+        let mut resolving = false;
 
         if let Some(engine) = self.engine.as_mut() {
             // 1. Hand the request to the network stack exactly once per URL.
@@ -259,17 +285,28 @@ impl App for BrowserApp {
                 && self.sent_url.as_ref() != Some(engine.url())
             {
                 let url = engine.url().clone();
-                if let Some(request) = engine.take_request() {
-                    match Self::resolve_host(&url) {
-                        Some(ip) => {
+                // Do not consume the request before the name is resolved: the
+                // engine needs to stay in `Requesting` until we can send.
+                match Self::resolve_host(&url) {
+                    HostLookup::Found(ip) => {
+                        if let Some(request) = engine.take_request() {
                             crate::network::start_http_request_raw(
                                 ip,
                                 request.into_bytes(),
                                 MAX_PAGE_BYTES,
                             );
                             self.sent_url = Some(url);
+                            self.resolving = None;
                         }
-                        None => unknown_host = Some(url),
+                    }
+                    HostLookup::Pending => {
+                        resolving = true;
+                        self.resolving = Some(String::from(url.host()));
+                    }
+                    HostLookup::Failed => {
+                        let _ = engine.take_request();
+                        unknown_host = Some(url);
+                        self.resolving = None;
                     }
                 }
             }
@@ -286,8 +323,17 @@ impl App for BrowserApp {
                 }
             }
 
-            // 3. Detect a finished/aborted transfer.
-            if engine.state() == FetchState::Receiving
+            // 3. Detect a finished/aborted transfer. `sent_url` guards against
+            //    closing the *next* request after a redirect and against
+            //    finalising a page whose request was never sent; allowing
+            //    `Requesting` too covers a server that closes without sending
+            //    a single byte (previously the tab hung on "Connecting...").
+            let sent_for_current = self.sent_url.as_ref() == Some(engine.url());
+            if sent_for_current
+                && matches!(
+                    engine.state(),
+                    FetchState::Requesting | FetchState::Receiving
+                )
                 && (crate::network::http_failed()
                     || crate::network::http_state() == Some(crate::network::HttpState::Done))
             {
@@ -298,15 +344,19 @@ impl App for BrowserApp {
         if let Some(url) = unknown_host {
             let page = rustos_web::error_page(
                 "Unknown host",
-                "This build has no DNS resolver yet.\n\
-                 Enter a raw IPv4 address such as http://93.184.216.34/ \
-                 or use a host from the built-in table.",
+                "The DNS resolver could not find this name.\n\
+                 Check the address, or enter a raw IPv4 address such as\n\
+                 http://93.184.216.34/ If every name fails, the network has\n\
+                 no DNS server (see the boot log line starting with [net] dns).",
             );
             self.status = String::from("No DNS: use an IP address");
             self.engine = Some(PageEngine::from_html(url, &page));
         }
 
-        if let Some(engine) = self.engine.as_ref() {
+        if resolving {
+            let host = self.resolving.clone().unwrap_or_default();
+            self.status = alloc::format!("Resolving {}...", host);
+        } else if let Some(engine) = self.engine.as_ref() {
             self.status = engine.status_text();
         }
     }

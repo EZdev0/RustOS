@@ -138,6 +138,18 @@ impl Layout {
     }
 }
 
+/// Split `word` into the longest prefix that fits into `available` pixels and
+/// the remainder. Always makes progress (at least one character) when the line
+/// is wide enough for a single glyph.
+fn split_to_fit(word: &str, style: InlineStyle, available: u32) -> (&str, &str) {
+    let advance = style.advance().max(1);
+    let max_chars = (available / advance).max(1) as usize;
+    match word.char_indices().nth(max_chars) {
+        Some((index, _)) if index > 0 => word.split_at(index),
+        _ => (word, ""),
+    }
+}
+
 /// Style properties needed while assembling a line of text.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct InlineStyle {
@@ -369,6 +381,7 @@ impl Layouter<'_> {
                 };
                 self.add_text(&text, inline);
             }
+            "table" => self.layout_table(node, style),
             "iframe" | "embed" | "object" | "video" | "audio" | "canvas" | "svg" => {
                 self.flush_inline();
                 let inline = InlineStyle::new(style, Color::rgb(150, 150, 160));
@@ -385,6 +398,156 @@ impl Layouter<'_> {
                 }
             }
         }
+    }
+
+    /// Lay out a `<table>` as a real grid.
+    ///
+    /// Cells used to be plain block boxes, so `<tr><td>a</td><td>b</td></tr>`
+    /// stacked the cells vertically and painted a full-width row rectangle
+    /// behind each of them. Now every row is measured cell by cell (so the
+    /// tallest cell defines the row height) and the row is painted with a grid
+    /// of one-pixel lines. Columns get an equal share of the table width; that
+    /// is crude compared to a browser, but it is stable, O(rows × cells) and
+    /// needs no measuring pass over the whole document.
+    fn layout_table(&mut self, node: &Node, style: &Style) {
+        self.flush_inline();
+        self.y = self.y.saturating_add(style.margin_before as u32);
+
+        let table_x = self.inline_x;
+        let table_width = self.inline_width;
+
+        let mut rows: Vec<Vec<&Node>> = Vec::new();
+        collect_table_rows(node, &mut rows);
+        if rows.is_empty() {
+            return;
+        }
+        let cols = rows
+            .iter()
+            .map(|row| row.len())
+            .max()
+            .unwrap_or(1)
+            .clamp(1, MAX_TABLE_COLS);
+        let col_width = (table_width / cols as u32).max(GLYPH_W * 2 + CELL_PADDING * 2);
+        let border_color = Color::rgb(180, 184, 192);
+        let table_top = self.y;
+        let insert_at = self.cmds.len();
+
+        for row in rows.iter().take(MAX_TABLE_ROWS) {
+            if !self.budget_left() {
+                self.truncated = true;
+                break;
+            }
+            let row_top = self.y;
+            let row_insert = self.cmds.len();
+            let mut row_height = 0u32;
+            let mut column = 0usize;
+
+            for cell in row.iter() {
+                if column >= MAX_TABLE_COLS || !self.budget_left() {
+                    break;
+                }
+                let NodeKind::Element(element) = &cell.kind else {
+                    continue;
+                };
+                let mut cell_style = style_for_element(&element.tag, style);
+                self.sheet.apply(element, &mut cell_style);
+                if let Some(declarations) = element.attr("style") {
+                    cell_style.apply_declarations(declarations);
+                }
+                if cell_style.display == Display::None {
+                    column += 1;
+                    continue;
+                }
+
+                let cell_x = table_x + (column as u32 * col_width) as i32;
+                let inner = col_width.saturating_sub(CELL_PADDING * 2).max(GLYPH_W * 2);
+                let saved = (self.inline_x, self.inline_width, self.inline_align);
+                self.y = row_top.saturating_add(CELL_PADDING);
+                self.inline_x = cell_x + CELL_PADDING as i32;
+                self.inline_width = inner;
+                self.inline_align = Align::Left;
+                for child in &cell.children {
+                    self.layout_node(child, &cell_style);
+                    if !self.budget_left() {
+                        break;
+                    }
+                }
+                self.flush_inline();
+                self.inline_x = saved.0;
+                self.inline_width = saved.1;
+                self.inline_align = saved.2;
+
+                let used = self.y.saturating_sub(row_top);
+                row_height = row_height.max(used);
+                column += 1;
+            }
+
+            let line_height = u32::from(style.font_scale.clamp(1, 4)) * GLYPH_H + LINE_GAP;
+            let band = row_height
+                .max(line_height.saturating_add(CELL_PADDING))
+                .max(1);
+            // Every row spans the full table so short rows keep their frame.
+            let grid_width = col_width * cols as u32;
+
+            // Row frame: top and bottom line plus the vertical separators.
+            let mut frame: Vec<DrawCmd> = Vec::with_capacity(column + 3);
+            frame.push(DrawCmd::FillRect {
+                x: table_x,
+                y: row_top as i32,
+                w: grid_width,
+                h: 1,
+                color: border_color,
+            });
+            frame.push(DrawCmd::FillRect {
+                x: table_x,
+                y: (row_top + band - 1) as i32,
+                w: grid_width,
+                h: 1,
+                color: border_color,
+            });
+            for index in 0..column {
+                frame.push(DrawCmd::FillRect {
+                    x: table_x + (index as u32 * col_width) as i32,
+                    y: row_top as i32,
+                    w: 1,
+                    h: band,
+                    color: border_color,
+                });
+            }
+            while let Some(cmd) = frame.pop() {
+                self.insert_before(row_insert, cmd);
+            }
+
+            self.y = row_top.saturating_add(band);
+        }
+
+        let total = self.y.saturating_sub(table_top);
+        if total > 0 {
+            // Outer verticals so the left/right edge is closed.
+            let right = table_x + (cols as u32 * col_width) as i32 - 1;
+            self.insert_before(
+                insert_at,
+                DrawCmd::FillRect {
+                    x: table_x,
+                    y: table_top as i32,
+                    w: 1,
+                    h: total,
+                    color: border_color,
+                },
+            );
+            self.insert_before(
+                insert_at,
+                DrawCmd::FillRect {
+                    x: right,
+                    y: table_top as i32,
+                    w: 1,
+                    h: total,
+                    color: border_color,
+                },
+            );
+        }
+
+        self.y = self.y.saturating_add(style.margin_after as u32);
     }
 
     fn layout_block(&mut self, node: &Node, tag: &str, style: &Style) {
@@ -620,34 +783,57 @@ impl Layouter<'_> {
                     if word.is_empty() {
                         continue;
                     }
-                    let word_width = glyph_width(&word, style);
-                    let space = if segments.is_empty() {
-                        0
-                    } else {
-                        style.advance()
-                    };
-                    if !segments.is_empty() && line_width + space + word_width > available {
-                        self.emit_line(&mut segments, line_width, x0, available, align);
-                        line_width = 0;
-                    }
-                    if let Some(last) = segments.last_mut() {
-                        if last.1 == style {
-                            last.0.push(' ');
-                            last.0.push_str(&word);
-                            line_width = line_width.saturating_add(space + word_width);
+                    // A word wider than the whole line (long URL, hash, CJK run
+                    // without spaces) is hard-broken instead of being painted
+                    // outside the viewport.
+                    let mut rest = word.as_str();
+                    while !rest.is_empty() {
+                        let word_width = glyph_width(rest, style);
+                        let space = if segments.is_empty() {
+                            0
+                        } else {
+                            style.advance()
+                        };
+                        if !segments.is_empty() && line_width + space + word_width > available {
+                            self.emit_line(&mut segments, line_width, x0, available, align);
+                            line_width = 0;
                             continue;
                         }
+                        if word_width > available {
+                            let (head, tail) = split_to_fit(rest, style, available);
+                            if head.is_empty() {
+                                // Not even one glyph fits: keep it, the caller
+                                // clamped the width to at least two glyphs.
+                                break;
+                            }
+                            let head = head.to_string();
+                            line_width = line_width.saturating_add(glyph_width(&head, style));
+                            segments.push((head, style));
+                            self.emit_line(&mut segments, line_width, x0, available, align);
+                            line_width = 0;
+                            rest = tail;
+                            continue;
+                        }
+                        if let Some(last) = segments.last_mut() {
+                            if last.1 == style {
+                                last.0.push(' ');
+                                last.0.push_str(rest);
+                                line_width = line_width.saturating_add(space + word_width);
+                                break;
+                            }
+                        }
+                        let text = if segments.is_empty() {
+                            rest.to_string()
+                        } else {
+                            let mut padded = String::with_capacity(rest.len() + 1);
+                            padded.push(' ');
+                            padded.push_str(rest);
+                            padded
+                        };
+                        line_width = line_width.saturating_add(space + word_width);
+                        segments.push((text, style));
+                        break;
                     }
-                    let text = if segments.is_empty() {
-                        word
-                    } else {
-                        let mut padded = String::with_capacity(word.len() + 1);
-                        padded.push(' ');
-                        padded.push_str(&word);
-                        padded
-                    };
-                    line_width = line_width.saturating_add(space + word_width);
-                    segments.push((text, style));
                 }
             }
         }
@@ -700,6 +886,43 @@ impl Layouter<'_> {
         }
         segments.clear();
         self.y = self.y.saturating_add(line_height + LINE_GAP);
+    }
+}
+
+/// Rows rendered per table before the budget stops the walk.
+const MAX_TABLE_ROWS: usize = 256;
+/// Columns rendered per row (wider tables get clipped, not squeezed to 0 px).
+const MAX_TABLE_COLS: usize = 16;
+/// Horizontal padding inside a table cell.
+const CELL_PADDING: u32 = 4;
+
+/// Collect the cell nodes of every row inside `table`.
+///
+/// Handles `<tr>`, rows wrapped in `<thead>`/`<tbody>`/`<tfoot>` and the
+/// forgiving case of bare `<td>` children directly below `<table>`.
+fn collect_table_rows<'a>(table: &'a Node, out: &mut Vec<Vec<&'a Node>>) {
+    for child in &table.children {
+        let NodeKind::Element(element) = &child.kind else {
+            continue;
+        };
+        match element.tag.as_str() {
+            "tr" => {
+                let mut cells: Vec<&Node> = Vec::new();
+                for cell in &child.children {
+                    if let NodeKind::Element(cell_element) = &cell.kind {
+                        if matches!(cell_element.tag.as_str(), "td" | "th") {
+                            cells.push(cell);
+                        }
+                    }
+                }
+                if !cells.is_empty() {
+                    out.push(cells);
+                }
+            }
+            "thead" | "tbody" | "tfoot" => collect_table_rows(child, out),
+            "td" | "th" => out.push(alloc::vec![child]),
+            _ => {}
+        }
     }
 }
 

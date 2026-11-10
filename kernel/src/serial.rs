@@ -23,9 +23,12 @@ pub fn _print(args: fmt::Arguments) {
 
 #[macro_export]
 macro_rules! serial_print {
-    ($($arg:tt)*) => {
-        $crate::serial::_print(format_args!($($arg)*));
-    };
+    ($($arg:tt)*) => {{
+        // No trailing semicolon: the macro is also used in expression
+        // position (`if x { serial_print!(..) }`), where a stray `;` would
+        // trip the `semicolon_in_expressions_from_macros` lint (-D warnings).
+        $crate::serial::_print(format_args!($($arg)*))
+    }};
 }
 
 #[macro_export]
@@ -38,9 +41,9 @@ macro_rules! serial_println {
 
 #[macro_export]
 macro_rules! log {
-    ($lvl:expr, $($arg:tt)*) => {
-        $crate::serial_println!("[{}] {}", $lvl, format_args!($($arg)*));
-    };
+    ($lvl:expr, $($arg:tt)*) => {{
+        $crate::serial_println!("[{}] {}", $lvl, format_args!($($arg)*))
+    }};
 }
 
 // ─── Raw, allocation-free serial access ─────────────────────────────────────

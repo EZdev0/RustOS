@@ -32,16 +32,16 @@ phones.
 | Memory | 16 MiB static heap (`linked_list_allocator`) with allocation tracking |
 | Scheduling | Custom async executor (`Task`/`Waker`, lock-free ready queue) |
 | Graphics | Software compositor, back buffer, damage rectangles, shadows, "glass" dock, glyph cache-free 8×8 font |
-| Networking | `smoltcp` + Intel E1000, ICMP echo, HTTP/1.1 client with per-transfer byte budget — **disabled automatically when the bootloader did not map the PCI BAR** (see [docs/http_network_indicator.md](docs/http_network_indicator.md)) |
+| Networking | `smoltcp` + generic PCI NIC probe (`e1000`/8254x **and** `rtl8139`), DHCP lease with static fallback, DNS resolver, ICMP echo, HTTP/1.1 client with per-transfer byte budget — unsupported cards are logged and skipped instead of crashing (see [docs/network_hardware.md](docs/network_hardware.md)) |
 | Files | In-memory filesystem with a path-safe API (`FsError` instead of panics) |
 | Browser | `rustos-web`: URL parsing, HTTP streaming decoder, HTML parser, CSS subset, block/inline layout engine |
 | Tooling | `python3 tools/rustos.py …` — no `make`/`bash`/`binutils` required on the host |
 | CI | `verify.yml` (hard gate) + `build.yml` (images, releases, AI reporter) |
 
-Deliberately **not** implemented: user mode/ring 3, own page tables/MMIO mapping,
-TLS, DNS, JavaScript, images from `<img>`, floats in the renderer. See
-[docs/browser_engine_2026.md](docs/browser_engine_2026.md) for why, and for the
-roadmap that would remove each limitation.
+Deliberately **not** implemented: user mode/ring 3, TLS, JavaScript, images from
+`<img>`, floats in the renderer, IPv6, more than two NIC drivers. See
+[docs/browser_engine_2026.md](docs/browser_engine_2026.md) for why, and
+[docs/TODO.md](docs/TODO.md) for the ordered list of what comes next.
 
 ---
 
@@ -162,13 +162,17 @@ python3 tools/rustos.py verify --full # additionally lints the kernel target
 ```
 
 * `rustos-web`: 83 unit tests (URL, HTTP framing, HTML repair, CSS cascade,
-  layout, hostile input, command budget).
+  layout, hostile input, command budget) plus 35 contract tests that only use
+  the public API the kernel sees (`rustos-web/tests/contract.rs`).
+* `tools/webprobe.py`: compiles the engine with plain `rustc` and checks the
+  rendered display lists from Python (inside the page, no empty commands, text
+  flows top-down, no overlapping runs, nothing truncated) over nine fixtures.
 * `builder`: CPUID feature detection tests.
-* `tools/tests`: 44 tests for the build tool (manifest parsing, image validation,
-  serial-log scanning, documentation gate).
-* Kernel: boot-tested in QEMU on every push — twice: without network hardware and
-  with an explicit e1000 NIC. The serial log must contain the `[boot]` banner and
-  no panic markers.
+* `tools/tests`: 66 tests for the build tool (manifest parsing, image validation,
+  serial-log scanning, documentation gate, render probe).
+* Kernel: boot-tested in QEMU on every push — three times: without network
+  hardware, with an `e1000` and with an `rtl8139`. The serial log must contain
+  the `[boot]` banner, no panic markers and, for the NIC runs, `[net] online`.
 
 Pipeline documentation, required checks and the read-only AI failure reporter:
 [docs/ci.md](docs/ci.md).
