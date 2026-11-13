@@ -1,0 +1,59 @@
+INFO : Framebuffer info: FrameBufferInfo { byte_len: 2764800, width: 1280, height: 720, pixel_format: Bgr, bytes_per_pixel: 3, stride: 1280 }
+INFO : 4th Stage
+INFO : BiosInfo { stage_4: Region { start: 130000, len: 24630 }, kernel: Region { start: 1000000, len: 8d958 }, ramdisk: Region { start: 108e000, len: 0 }, config_file: Region { start: 108e000, len: 0 }, last_used_addr: 108dfff, framebuffer: BiosFramebufferInfo { region: Region { start: fd000000, len: 2a3000 }, width: 500, height: 2d0, bytes_per_pixel: 3, stride: 500, pixel_format: Bgr }, memory_map_addr: 12228, memory_map_len: 7 }
+INFO : BIOS boot
+INFO : Elf file loaded at Pointer {
+    addr: 0x0000000001000000,
+    metadata: 579928,
+}
+INFO : virtual_address_offset: 0x10000000000
+INFO : Handling Segment: Ph64(ProgramHeader64 { type_: Ok(Load), flags: Flags(4), offset: 0, virtual_addr: 0, physical_addr: 0, file_size: b7b4, mem_size: b7b4, align: 1000 })
+INFO : Handling Segment: Ph64(ProgramHeader64 { type_: Ok(Load), flags: Flags(5), offset: b7c0, virtual_addr: c7c0, physical_addr: c7c0, file_size: 6f7f5, mem_size: 6f7f5, align: 1000 })
+INFO : Handling Segment: Ph64(ProgramHeader64 { type_: Ok(Load), flags: Flags(6), offset: 7afb8, virtual_addr: 7cfb8, physical_addr: 7cfb8, file_size: 2d70, mem_size: 3048, align: 1000 })
+INFO : Mapping bss section
+INFO : Handling Segment: Ph64(ProgramHeader64 { type_: Ok(Load), flags: Flags(6), offset: 7dd80, virtual_addr: 80d80, physical_addr: 80d80, file_size: 498, mem_size: 1006d00, align: 1000 })
+INFO : Mapping bss section
+INFO : Entry point at: 0x10000055820
+INFO : Creating GDT at PhysAddr(0x20bf000)
+INFO : Map framebuffer
+INFO : Map physical memory
+INFO : Allocate bootinfo
+INFO : Create Memory Map
+INFO : Create bootinfo
+INFO : Jumping to kernel entry point at VirtAddr(0x10000055820)
+[boot] RustOS 0.2.0 entering kernel_main
+[boot] heap ready (16384 KiB)
+[boot] framebuffer 1280x720 (3 bpp)
+[boot] physical memory mapped at 0x28000000000
+[boot] PCI devices: 6
+[net] e1000 pci: command=0x0107 master=yes memory=yes
+[net] e1000 regs: ctrl=0x00140240 status=0x80080783 rctl=0x0400801a tctl=0x0004010a rdt=31 tdt=0 rdlen=512
+[net] e1000 dma: rx_ring=0x134b030 rx_buf0=0x134b430 tx_ring=0x134b230 tx_buf0=0x135b430
+[net] e1000 tx #0 len=64 idx=0 tdt=0
+[net] e1000 rx probe #0 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #1 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #2 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #3 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #4 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #5 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #6 idx=0 status=0x00 dd=0
+[net] e1000 rx probe #7 idx=0 status=0x00 dd=0
+[net] e1000 loopback: failed (tdh=1 rdh=0 tx_status=0x01 rx_status=0x00)
+[net] e1000 loopback is informational (emulators may drop it); rx frame/online lines prove the link
+[net] e1000 up (device 100e): bar=0xfeb80000 mmio=0x280feb80000 mac=52:54:00:12:34:56
+[net] default route via 10.0.2.2
+[net] static ip 10.0.2.15/24 gw=10.0.2.2 (dhcp will override)
+[boot] entering scheduler loop
+[net] e1000 tx #1 len=304 idx=0 tdt=1
+[net] ip: 10.0.2.15/24 via static
+[net] e1000 tx #2 len=42 idx=1 tdt=1
+[net] rx frame #0 len=64 ethertype=0x0806
+[net] e1000 tx #3 len=74 idx=2 tdt=2
+[net] rx frame #1 len=74 ethertype=0x0800
+[net] online: 10.0.2.2 answered ping seq=0 (e1000)
+[net] e1000 tx #4 len=304 idx=3 tdt=3
+[net] rx frame #2 len=590 ethertype=0x0800
+[net] e1000 tx #5 len=316 idx=4 tdt=4
+[net] rx frame #3 len=590 ethertype=0x0800
+[net] dhcp: ip=10.0.2.15/24 gw=10.0.2.2 dns=10.0.2.3
+[net] default route via 10.0.2.2

@@ -1,0 +1,7 @@
+[1m==> qemu boot test (20s)[0m
+  qemu-system-x86_64 -drive format=raw,file=/home/runner/work/RustOS/RustOS/target/my_rust_os_desktop.img -display none -serial file:/home/runner/work/RustOS/RustOS/target/qemu_serial.log -no-reboot -m 256M -netdev user,id=net0 -device e1000,netdev=net0
+qemu output:
+timeout after 20s: qemu-system-x86_64 -drive format=raw,file=/home/runner/work/RustOS/RustOS/target/my_rust_os_desktop.img -display none -serial file:/home/runner/work/RustOS/RustOS/target/qemu_serial.log -no-reboot -m 256M -netdev user,id=net0 -device e1000,netdev=net0
+serial log: /home/runner/work/RustOS/RustOS/target/qemu_serial.log (3.5 KiB)
+  [net] ip: 10.0.2.15/24 via static
+boot test passed: no panic markers, network online
