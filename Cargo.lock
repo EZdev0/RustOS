@@ -19,9 +19,9 @@ dependencies = [
 
 [[package]]
 name = "bit_field"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e4b40c7323adcfc0a41c4b88143ed58346ff65a288fc144329c5c45e05d70c6"
+checksum = "cb2907cc03d08cdb1c6724ad0670ce67c4a71e1c45a6d7635224011714cfc4b1"
 
 [[package]]
 name = "bitflags"
@@ -287,6 +287,7 @@ dependencies = [
  "pc-keyboard",
  "pic8259",
  "raw-cpuid",
+ "rustos-web",
  "smoltcp",
  "spin 0.12.3",
  "uart_16550",
@@ -447,6 +448,10 @@ dependencies = [
  "linux-raw-sys",
  "windows-sys",
 ]
+
+[[package]]
+name = "rustos-web"
+version = "0.3.0"
 
 [[package]]
 name = "rustversion"
@@ -700,7 +705,7 @@ dependencies = [
  "bit_field",
  "bitflags 2.13.2",
  "rustversion",
- "volatile 0.4.6",
+ "volatile",
 ]
 
 [[package]]
@@ -713,7 +718,7 @@ dependencies = [
  "bitflags 2.13.2",
  "const_fn",
  "rustversion",
- "volatile 0.4.6",
+ "volatile",
 ]
 
 [[package]]
